@@ -147,8 +147,17 @@ use_requests_cache = True
 # Amount of minutes that http request would be in cache
 requests_cache_expire_minutes = 10
 
+# Metadata provider to use for lookups. Supported providers: theporndb, stashdb
+metadata_provider = theporndb
+
 # Leave this unset unless you are testing a new tpdb endpoint.
 override_tpdb_address =
+
+# StashDB GraphQL endpoint URL (used when metadata_provider = stashdb)
+stashdb_endpoint = https://stashdb.org/graphql
+
+# Optional API token for StashDB authentication (used when metadata_provider = stashdb)
+stashdb_token =
 
 # Without modify the enconding where possible covert container (aka file types) to this
 # desired container type ("mp4", "mkv", "avi", ect), plugged in to the command:

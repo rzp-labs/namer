@@ -19,9 +19,10 @@ from namer.comparison_results import ComparisonResults, SceneType
 from namer.configuration import NamerConfig
 from namer.command import gather_target_files_from_dir, is_interesting_movie, is_relative_to, Command
 from namer.fileinfo import FileInfo, parse_file_name
-from namer.metadataapi import __build_url, __evaluate_match, __request_response_json_object, __metadataapi_response_to_data
+from namer.metadataapi import __evaluate_match, __metadataapi_response_to_data
 from namer.namer import calculate_phash
 from namer.videophash import PerceptualHash
+from namer.metadata_providers.factory import get_metadata_provider
 
 
 class SearchType(str, Enum):
@@ -137,64 +138,103 @@ def metadataapi_responses_to_webui_response(responses: Dict, config: NamerConfig
 
 def get_search_results(query: str, search_type: SearchType, file: str, config: NamerConfig, page: int = 1) -> Dict:
     """
-    Search results for user selection.
+    Search results for user selection using the configured metadata provider.
     """
-
-    responses = {}
+    provider = get_metadata_provider(config)
+    all_results = []
+    
+    # Search different content types based on search_type
     if search_type == SearchType.ANY or search_type == SearchType.SCENES:
-        url = __build_url(config, name=query, page=page, scene_type=SceneType.SCENE)
-        responses[url] = __request_response_json_object(url, config)
-
+        scene_results = provider.search(query, SceneType.SCENE, config, page)
+        all_results.extend(scene_results)
+    
     if search_type == SearchType.ANY or search_type == SearchType.MOVIES:
-        url = __build_url(config, name=query, page=page, scene_type=SceneType.MOVIE)
-        responses[url] = __request_response_json_object(url, config)
-
+        movie_results = provider.search(query, SceneType.MOVIE, config, page)
+        all_results.extend(movie_results)
+    
     if search_type == SearchType.ANY or search_type == SearchType.JAV:
-        url = __build_url(config, name=query, page=page, scene_type=SceneType.JAV)
-        responses[url] = __request_response_json_object(url, config)
-
-    files = metadataapi_responses_to_webui_response(responses, config, query)
-
-    res = {
+        jav_results = provider.search(query, SceneType.JAV, config, page)
+        all_results.extend(jav_results)
+    
+    # Convert LookedUpFileInfo objects to web UI format
+    files = []
+    for scene_data in all_results:
+        # Parse the file name for comparison
+        name_parts = parse_file_name(query, config)
+        
+        # Create a basic comparison result for the web UI
+        scene = {
+            'name_parts': name_parts,
+            'looked_up': {
+                'uuid': scene_data.uuid,
+                'type': scene_data.type.value if scene_data.type else 'SCENE',
+                'name': scene_data.name,
+                'date': scene_data.date,
+                'poster_url': scene_data.poster_url,
+                'site': scene_data.site,
+                'network': scene_data.network,
+                'performers': scene_data.performers,
+            },
+            # Add basic matching scores (simplified for now)
+            'name_match': 0.0,
+            'date_match': False,
+            'site_match': False,
+            'phash_distance': None,
+            'phash_duration': None,
+        }
+        files.append(scene)
+    
+    return {
         'file': file,
         'files': files,
     }
-
-    return res
 
 
 def get_phash_results(file: str, search_type: SearchType, config: NamerConfig) -> Dict:
     """
-    Search results by phash for user selection.
+    Search results by phash for user selection using the configured metadata provider.
     """
-
     phash_file = config.failed_dir / file
     if not phash_file.is_file():
-        return {}
+        return {'file': file, 'files': []}
 
     phash = calculate_phash(phash_file, config)
+    if not phash:
+        return {'file': file, 'files': []}
 
-    responses = {}
-    if search_type == SearchType.ANY or search_type == SearchType.SCENES:
-        url = __build_url(config, phash=phash, scene_type=SceneType.SCENE)
-        responses[url] = __request_response_json_object(url, config)
-
-    if search_type == SearchType.ANY or search_type == SearchType.MOVIES:
-        url = __build_url(config, phash=phash, scene_type=SceneType.MOVIE)
-        responses[url] = __request_response_json_object(url, config)
-
-    if search_type == SearchType.ANY or search_type == SearchType.JAV:
-        url = __build_url(config, phash=phash, scene_type=SceneType.JAV)
-        responses[url] = __request_response_json_object(url, config)
-
-    files = metadataapi_responses_to_webui_response(responses, config, file, phash)
-
-    res = {
+    provider = get_metadata_provider(config)
+    
+    # Use the provider's match function with phash for better results
+    name_parts = parse_file_name(file, config)
+    comparison_results = provider.match(name_parts, config, phash)
+    
+    # Convert ComparisonResults to web UI format
+    files = []
+    for result in comparison_results.results:
+        scene = {
+            'name_parts': result.name_parts,
+            'looked_up': {
+                'uuid': result.looked_up.uuid,
+                'type': result.looked_up.type.value if result.looked_up.type else 'SCENE',
+                'name': result.looked_up.name,
+                'date': result.looked_up.date,
+                'poster_url': result.looked_up.poster_url,
+                'site': result.looked_up.site,
+                'network': result.looked_up.network,
+                'performers': result.looked_up.performers,
+            },
+            'name_match': result.name_match,
+            'date_match': result.date_match,
+            'site_match': result.site_match,
+            'phash_distance': result.phash_distance,
+            'phash_duration': result.phash_duration,
+        }
+        files.append(scene)
+    
+    return {
         'file': file,
         'files': files,
     }
-
-    return res
 
 
 def delete_file(file_name_str: str, config: NamerConfig) -> bool:

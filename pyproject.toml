@@ -71,7 +71,7 @@ ignore = ["E501", "E722"]
 install_npm = { shell = "pnpm install" }
 build_node = { shell = "pnpm run build" }
 install_videohashes_src = { shell = "command -v git >/dev/null && git submodule update || echo 'Skipping git sub module update'" }
-build_videohashes = { shell = "make build -C ./videohashes" }
+build_videohashes = { shell = "mkdir -p ./videohashes/dist && if [[ \"$OSTYPE\" == \"darwin\"* ]]; then make macos-arm64 -C ./videohashes; else make linux-amd64 -C ./videohashes; fi" }
 move_videohashes = { "script" = "shutil:copytree('./videohashes/dist', './namer/tools', dirs_exist_ok=True)" }
 build_namer = { shell = "poetry build" }
 build_deps = ["install_npm", "build_node", "install_videohashes_src", "build_videohashes", "move_videohashes"]

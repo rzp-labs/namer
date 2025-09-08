@@ -29,6 +29,7 @@ from namer.fileinfo import FileInfo
 from namer.http import Http, RequestType
 from namer.name_formatter import PartialFormatter
 from namer.videophash import imagehash, PerceptualHash
+from namer.metadata_providers.factory import get_metadata_provider
 
 
 def __find_best_match(query: Optional[str], match_terms: List[str], config: NamerConfig) -> Tuple[str, float]:
@@ -507,19 +508,24 @@ def get_site_name(site_id: str, namer_config: NamerConfig) -> Optional[str]:
 
 
 def get_complete_metadataapi_net_fileinfo(name_parts: Optional[FileInfo], uuid: str, namer_config: NamerConfig) -> Optional[LookedUpFileInfo]:
-    url = __build_url(namer_config, uuid=uuid, add_to_collection=namer_config.mark_collected)
-    if url:
-        file_infos = __get_metadataapi_net_info(url, name_parts, namer_config)
-        if file_infos:
-            return file_infos[0]
+    """Get complete metadata info for a specific item using the configured provider."""
+    # Special case for ThePornDB to avoid circular imports during transition
+    if namer_config.metadata_provider.lower() == 'theporndb':
+        url = __build_url(namer_config, uuid=uuid, add_to_collection=namer_config.mark_collected)
+        if url:
+            file_infos = __get_metadataapi_net_info(url, name_parts, namer_config)
+            if file_infos:
+                return file_infos[0]
+        return None
+    
+    provider = get_metadata_provider(namer_config)
+    return provider.get_complete_info(name_parts, uuid, namer_config)
 
-    return None
 
-
-def match(file_name_parts: Optional[FileInfo], namer_config: NamerConfig, phash: Optional[PerceptualHash] = None) -> ComparisonResults:
+def _match_legacy_theporndb(file_name_parts: Optional[FileInfo], namer_config: NamerConfig, phash: Optional[PerceptualHash] = None) -> ComparisonResults:
     """
-    Give parsed file name parts, and a porndb token, returns a sorted list of possible matches.
-    Matches will appear first.
+    Legacy ThePornDB matching logic (original implementation).
+    This is used by the ThePornDBProvider to avoid circular imports.
     """
     results: List[ComparisonResult] = []
     if not file_name_parts:
@@ -535,12 +541,33 @@ def match(file_name_parts: Optional[FileInfo], namer_config: NamerConfig, phash:
         if comparison_result.is_match():
             uuid = comparison_results[0].looked_up.uuid
             if uuid:
-                file_infos: Optional[LookedUpFileInfo] = get_complete_metadataapi_net_fileinfo(file_name_parts, uuid, namer_config)
-                if file_infos:
-                    file_infos.original_query = comparison_results[0].looked_up.original_query
-                    comparison_results[0].looked_up = file_infos
+                # Use legacy function directly to avoid circular call
+                url = __build_url(namer_config, uuid=uuid, add_to_collection=namer_config.mark_collected)
+                if url:
+                    file_infos = __get_metadataapi_net_info(url, file_name_parts, namer_config)
+                    if file_infos:
+                        file_infos[0].original_query = comparison_results[0].looked_up.original_query
+                        comparison_results[0].looked_up = file_infos[0]
 
     return ComparisonResults(comparison_results, file_name_parts)
+
+
+def match(file_name_parts: Optional[FileInfo], namer_config: NamerConfig, phash: Optional[PerceptualHash] = None) -> ComparisonResults:
+    """
+    Give parsed file name parts, and a provider token, returns a sorted list of possible matches.
+    Matches will appear first.
+    
+    This function now routes to the appropriate metadata provider based on configuration.
+    """
+    # Special case for ThePornDB to avoid circular imports during transition
+    if namer_config.metadata_provider.lower() == 'theporndb':
+        return _match_legacy_theporndb(file_name_parts, namer_config, phash)
+    
+    # Get the appropriate provider based on configuration
+    provider = get_metadata_provider(namer_config)
+    
+    # Use provider-specific matching logic
+    return provider.match(file_name_parts, namer_config, phash)
 
 
 def toggle_collected(metadata: LookedUpFileInfo, config: NamerConfig):
@@ -563,12 +590,16 @@ def share_hash(metadata: LookedUpFileInfo, scene_hash: SceneHash, config: NamerC
 
 @lru_cache(maxsize=1)
 def get_user_info(config: NamerConfig):
-    url = __build_url(config, user=True)
-    response = __request_response_json_object(url, config)
-
-    data = orjson.loads(response) if response else None
-
-    return data['data'] if data else None
+    """Get user information using the configured provider."""
+    # Special case for ThePornDB to avoid circular imports during transition
+    if config.metadata_provider.lower() == 'theporndb':
+        url = __build_url(config, user=True)
+        response = __request_response_json_object(url, config)
+        data = orjson.loads(response) if response else None
+        return data['data'] if data else None
+    
+    provider = get_metadata_provider(config)
+    return provider.get_user_info(config)
 
 
 def main(args_list: List[str]):

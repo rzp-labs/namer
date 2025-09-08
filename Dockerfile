@@ -37,13 +37,12 @@ RUN apt-get update \
     && apt-get clean
 
 ENV DISPLAY=:99
-ARG CHROME_VERSION="google-chrome-stable"
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-  && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
+# Install Google Chrome by downloading the deb package directly
+RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O /tmp/chrome.deb \
   && apt-get update -qqy \
-  && apt-get -qqy install \
-    ${CHROME_VERSION:-google-chrome-stable} \
-  && rm /etc/apt/sources.list.d/google-chrome.list \
+  && dpkg -i /tmp/chrome.deb || true \
+  && apt-get install -f -y \
+  && rm /tmp/chrome.deb \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 RUN pipx install poetry

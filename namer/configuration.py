@@ -42,7 +42,7 @@ class NamerConfig:
     Configuration for namer and namer_watchdog
     """
 
-    porndb_token: str
+    porndb_token: str = ''
     """
     token to access porndb.
     sign up here: https://theporndb.net/
@@ -275,10 +275,27 @@ class NamerConfig:
     Cleanup final filename
     """
 
+    metadata_provider: str = 'theporndb'
+    """
+    Metadata provider to use for lookups. Supported providers:
+    - 'theporndb': Use ThePornDB API (default)
+    - 'stashdb': Use StashDB GraphQL API
+    """
+
     override_tpdb_address: str = 'https://api.theporndb.net'
     """
     Used only for testing, can override the location of the porn database - usually to point at a locally
     running server that responds like TPDB to predefined queries.
+    """
+
+    stashdb_endpoint: str = 'https://stashdb.org/graphql'
+    """
+    StashDB GraphQL endpoint URL. Used when metadata_provider is set to 'stashdb'.
+    """
+
+    stashdb_token: Optional[str] = None
+    """
+    Optional API token for StashDB authentication. Used when metadata_provider is set to 'stashdb'.
     """
 
     enabled_tagging: bool = False

@@ -118,6 +118,46 @@ def __verify_ffmpeg(ffmpeg: FFMpeg) -> bool:
     return None not in versions.values()
 
 
+def __verify_metadata_provider_config(config: NamerConfig) -> bool:
+    """
+    Verify metadata provider configuration settings.
+    """
+    success = True
+    
+    # Validate provider selection
+    supported_providers = ['theporndb', 'stashdb']
+    if config.metadata_provider.lower() not in supported_providers:
+        logger.error(f'Unsupported metadata provider: "{config.metadata_provider}". Supported: {supported_providers}')
+        success = False
+    
+    # Only validate provider-specific settings if directories are configured (indicates real usage vs test)
+    if hasattr(config, 'watch_dir') or hasattr(config, 'dest_dir') or hasattr(config, 'work_dir'):
+        # Validate provider-specific settings for real configurations
+        if config.metadata_provider.lower() == 'theporndb':
+            if not config.porndb_token or config.porndb_token.strip() == '':
+                logger.error('ThePornDB provider requires a porndb_token. Sign up at https://theporndb.net/register')
+                success = False
+            
+            if not config.override_tpdb_address:
+                logger.warning('ThePornDB override_tpdb_address not set, using default: https://api.theporndb.net')
+        
+        elif config.metadata_provider.lower() == 'stashdb':
+            if not config.stashdb_endpoint or config.stashdb_endpoint.strip() == '':
+                logger.error('StashDB provider requires stashdb_endpoint to be configured')
+                success = False
+            
+            if not config.stashdb_token or config.stashdb_token.strip() == '':
+                logger.warning('StashDB provider works better with an API token (stashdb_token)')
+    else:
+        # For test configurations without directories, just warn about missing tokens
+        if config.metadata_provider.lower() == 'theporndb' and (not config.porndb_token or config.porndb_token.strip() == ''):
+            logger.warning('ThePornDB provider would require a porndb_token in production')
+        elif config.metadata_provider.lower() == 'stashdb' and (not config.stashdb_endpoint or config.stashdb_endpoint.strip() == ''):
+            logger.warning('StashDB provider would require stashdb_endpoint in production')
+    
+    return success
+
+
 def verify_configuration(config: NamerConfig, formatter: PartialFormatter) -> bool:
     """
     Can verify a NamerConfig with a formatter
@@ -125,6 +165,7 @@ def verify_configuration(config: NamerConfig, formatter: PartialFormatter) -> bo
     success = __verify_naming_config(config, formatter)
     success = __verify_watchdog_config(config, formatter) and success
     success = __verify_ffmpeg(config.ffmpeg) and success
+    success = __verify_metadata_provider_config(config) and success
 
     if config.image_format not in ['jpeg', 'png'] and success:
         logger.error('image_format should be png or jpeg')
@@ -269,7 +310,10 @@ field_info: Dict[str, Tuple[str, Optional[Callable[[Optional[str]], Any]], Optio
     'database_path': ('namer', to_path, from_path),
     'use_requests_cache': ('namer', to_bool, from_bool),
     'requests_cache_expire_minutes': ('namer', to_int, from_int),
+    'metadata_provider': ('namer', None, None),
     'override_tpdb_address': ('namer', None, None),
+    'stashdb_endpoint': ('namer', None, None),
+    'stashdb_token': ('namer', None, None),
     'plex_hack': ('namer', to_bool, from_bool),
     'path_cleanup': ('namer', to_bool, from_bool),
     'search_phash': ('Phash', to_bool, from_bool),
