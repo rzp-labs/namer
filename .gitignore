@@ -18,3 +18,13 @@ namer/web/templates
 namer/tools
 .flakeheaven_cache
 .ruff_cache
+scripts/
+test_dirs/
+database/
+.pytest_cache/
+test_config.cfg
+
+# Additional temporary/local files
+*.backup
+.github/workflows/*.backup
+.github/workflows/ci.yml.backup

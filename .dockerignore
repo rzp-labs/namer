@@ -10,3 +10,16 @@ creds.sh
 dist
 htmlcov
 include
+
+# Large test directories and files
+test_dirs/
+database/
+test_config.cfg
+node_modules/
+.ruff_cache/
+.flakeheaven_cache/
+
+# Temporary files
+/tmp/
+*.tmp
+*.log
