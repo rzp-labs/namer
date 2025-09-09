@@ -60,19 +60,36 @@ class StashDBProvider(BaseMetadataProvider):
         
         # Handle phash-based searches
         if phash:
-            phash_results = self._search_by_phash(phash, config)
-            for scene_info in phash_results:
-                comparison_result = ComparisonResult(
-                    name=scene_info.name or '',
-                    name_match=0.0,  # No name match for phash-only results
-                    date_match=False,
-                    site_match=False,
-                    name_parts=file_name_parts,
-                    looked_up=scene_info,
-                    phash_distance=0,  # Perfect phash match
-                    phash_duration=True,
-                )
-                results.append(comparison_result)
+            try:
+                phash_results = self._search_by_phash(phash, config)
+                if phash_results:
+                    # Get unique scene IDs from phash results
+                    unique_scene_ids = set(scene_info.guid for scene_info in phash_results if scene_info.guid)
+                    
+                    if len(unique_scene_ids) == 1:
+                        # Single unique scene - treat as super match and return only one result
+                        logger.info(f"Phash match found single unique scene with {len(phash_results)} submissions - returning confident match")
+                        results.clear()  # Clear any name-based search results
+                        # Only add the first result to avoid conflict logic in get_match()
+                        scene_info = phash_results[0]
+                        comparison_result = ComparisonResult(
+                            name=scene_info.name or '',
+                            name_match=100.0,  # Force high name match for unique phash
+                            date_match=True,    # Force date match for unique phash
+                            site_match=True,    # Force site match for unique phash
+                            name_parts=file_name_parts,
+                            looked_up=scene_info,
+                            phash_distance=0,   # Perfect phash match
+                            phash_duration=True,
+                        )
+                        results.append(comparison_result)
+                    elif len(unique_scene_ids) > 1:
+                        # Multiple unique scenes - log failure and reject
+                        logger.error(f"Multiple scene IDs exist for this phash: {len(unique_scene_ids)} unique scenes found ({unique_scene_ids})")
+                        # Don't add any phash results to avoid ambiguity
+                    # If no unique scene IDs (shouldn't happen), fall through to name search
+            except Exception as e:
+                logger.debug(f"Phash search failed: {e}")
         
         # Sort results by quality
         results = sorted(results, key=self._calculate_match_weight, reverse=True)
@@ -213,6 +230,8 @@ class StashDBProvider(BaseMetadataProvider):
     def get_user_info(self, config: NamerConfig) -> Optional[dict]:
         """
         Get user information from StashDB API.
+        Note: This query may fail if the token doesn't have sufficient permissions.
+        We return a placeholder to allow watchdog to start even if this fails.
         """
         query = {
             'query': '''
@@ -228,8 +247,18 @@ class StashDBProvider(BaseMetadataProvider):
         }
         
         response = self._execute_graphql_query(query, config)
-        if response and 'data' in response and response['data']['me']:
+        if response and 'data' in response and response['data'] and response['data']['me']:
             return response['data']['me']
+        
+        # If me query fails but we have a token, return placeholder user info
+        # to allow watchdog to continue running. Search functionality will still work.
+        if config.stashdb_token:
+            logger.warning("StashDB 'me' query failed, but token is configured. Continuing with placeholder user info.")
+            return {
+                'id': 'unknown',
+                'name': 'StashDB User (me query unavailable)',
+                'roles': []
+            }
         
         return None
     
@@ -244,17 +273,8 @@ class StashDBProvider(BaseMetadataProvider):
         }
         
         if config.stashdb_token:
-            # Try different authentication methods
-            # Method 1: Bearer token (current)
-            headers['Authorization'] = f'Bearer {config.stashdb_token}'
-            
-            # Method 2: API key header (alternative)
-            # headers['ApiKey'] = config.stashdb_token
-            
-            # Method 3: Basic auth (alternative)
-            # import base64
-            # auth_string = base64.b64encode(f'api:{config.stashdb_token}'.encode()).decode()
-            # headers['Authorization'] = f'Basic {auth_string}'
+            # StashDB uses APIKey header for authentication (not Bearer token)
+            headers['APIKey'] = config.stashdb_token
         
         data = orjson.dumps(query)
         http = Http.request(RequestType.POST, config.stashdb_endpoint, cache_session=config.cache_session, headers=headers, data=data)
@@ -334,8 +354,8 @@ class StashDBProvider(BaseMetadataProvider):
                 hash_type = fingerprint.get('algorithm', '').upper()
                 if hash_type == 'PHASH':
                     scene_hash = SceneHash(
-                        hash=fingerprint.get('hash', ''),
-                        type=HashType.PHASH,
+                        scene_hash=fingerprint.get('hash', ''),
+                        hash_type=HashType.PHASH,
                         duration=fingerprint.get('duration')
                     )
                     file_info.hashes.append(scene_hash)
@@ -397,12 +417,20 @@ class StashDBProvider(BaseMetadataProvider):
         response = self._execute_graphql_query(query, config)
         results = []
         
-        if response and 'data' in response and 'findSceneByFingerprint' in response['data']:
-            scene = response['data']['findSceneByFingerprint']
-            if scene:  # Single scene result
-                file_info = self._map_stashdb_scene_to_fileinfo(scene, config)
-                if file_info:
-                    results.append(file_info)
+        if response and 'data' in response and response['data'] and 'findSceneByFingerprint' in response['data']:
+            scenes = response['data']['findSceneByFingerprint']
+            if scenes:
+                # StashDB returns an array of scenes for fingerprint matches
+                if isinstance(scenes, list):
+                    for scene in scenes:
+                        file_info = self._map_stashdb_scene_to_fileinfo(scene, config)
+                        if file_info:
+                            results.append(file_info)
+                else:
+                    # Handle case where it might return a single scene object
+                    file_info = self._map_stashdb_scene_to_fileinfo(scenes, config)
+                    if file_info:
+                        results.append(file_info)
         
         return results
     
