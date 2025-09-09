@@ -39,7 +39,7 @@ RUN --mount=type=cache,target=/root/.cache/pypi poetry config virtualenvs.create
 
 # Copy source code
 COPY namer/ namer/
-COPY README.md ./
+COPY readme.rst ./
 # Copy built assets (create directories if they don't exist)
 COPY --from=frontend-builder /build/namer/web/public/ namer/web/public/
 RUN mkdir -p namer/tools
