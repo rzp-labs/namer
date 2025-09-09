@@ -17,6 +17,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      actions: write
 
     steps:
     - name: Checkout repository
@@ -59,8 +60,8 @@ jobs:
           BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
           GIT_HASH=${{ github.sha }}
           PROJECT_VERSION=${{ steps.meta.outputs.version }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=buildkit
+        cache-to: type=gha,mode=max,scope=buildkit
 
   test:
     runs-on: ubuntu-latest
