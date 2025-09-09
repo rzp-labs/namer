@@ -12,7 +12,8 @@ WORKDIR /build
 # Copy package files first for better layer caching
 COPY package.json pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
-# Copy frontend source and build
+# Copy frontend source files and webpack config
+COPY src/ src/
 COPY namer/web/ namer/web/
 COPY webpack.prod.js ./
 RUN pnpm run build
