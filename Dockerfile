@@ -3,7 +3,8 @@ FROM golang:1.22-alpine AS videohashes-builder
 RUN apk add --no-cache make git
 WORKDIR /build
 COPY videohashes/ ./
-RUN make build || echo "Make build failed, but continuing..."
+# Ensure build directory exists even if make fails
+RUN mkdir -p build && (make build || echo "Make build failed, but continuing...")
 
 # Stage 2: Build frontend assets (Node.js)
 FROM node:22-alpine AS frontend-builder
@@ -42,7 +43,8 @@ COPY README.md ./
 # Copy built assets (create directories if they don't exist)
 COPY --from=frontend-builder /build/namer/web/public/ namer/web/public/
 RUN mkdir -p namer/tools
-COPY --from=videohashes-builder /build/build/ namer/tools/ || echo "No videohashes build output found"
+# Copy videohashes build output
+COPY --from=videohashes-builder /build/build/ namer/tools/
 
 # Build the Python package (skip tests in Docker build)
 RUN poetry build
