@@ -78,4 +78,4 @@ jobs:
         
     - name: Test Docker image
       run: |
-        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main namer --help
+        docker run --rm --entrypoint="" ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main namer --help
