@@ -1,76 +1,68 @@
-# Stage 1: Build videohashes (Go binaries)
-FROM golang:1.22-alpine AS videohashes-builder
-RUN apk add --no-cache make git
-WORKDIR /build
-COPY videohashes/ ./
-# Ensure build directory exists even if make fails
-RUN mkdir -p build && (make build || echo "Make build failed, but continuing...")
+FROM ubuntu:latest AS base
 
-# Stage 2: Build frontend assets (Node.js)
-FROM node:22-alpine AS frontend-builder
-WORKDIR /build
-# Copy package files first for better layer caching
-COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && pnpm install --frozen-lockfile
-# Copy frontend source files and webpack config
-COPY src/ src/
-COPY namer/web/ namer/web/
-COPY webpack.prod.js ./
-RUN pnpm run build
+ENV PATH="/root/.local/bin:$PATH"
+ENV TZ=Europe/London
+ARG DEBIAN_FRONTEND=noninteractive
 
-# Stage 3: Build Python package
-FROM python:3.11-slim AS python-builder
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libffi-dev \
-    libssl-dev \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       python3-pip \
+       python3 \
+       pipx \
+       ffmpeg \
+       tzdata \
+       curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -Rf /usr/share/doc && rm -Rf /usr/share/man \
+    && apt-get clean
 
-# Install poetry
-RUN --mount=type=cache,target=/root/.cache/pip pip install poetry
+FROM base AS build
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       build-essential \
+       libffi-dev \
+       libssl-dev \
+       systemd \
+       systemd-sysv \
+       python3-dev \
+       python3-venv \
+       wget \
+       gnupg2 \
+       xvfb \
+       golang \
+       git \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -Rf /usr/share/doc && rm -Rf /usr/share/man \
+    && apt-get clean
 
-WORKDIR /build
+ENV DISPLAY=:99
+ARG CHROME_VERSION="google-chrome-stable"
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+  && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
+  && apt-get update -qqy \
+  && apt-get -qqy install \
+    ${CHROME_VERSION:-google-chrome-stable} \
+  && rm /etc/apt/sources.list.d/google-chrome.list \
+  && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
-# Copy dependency files first for better caching
-COPY pyproject.toml poetry.lock ./
-RUN --mount=type=cache,target=/root/.cache/pypi poetry config virtualenvs.create false \
-    && poetry install --only=main --no-root --no-interaction --no-ansi
+RUN pipx install poetry
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+RUN . /root/.bashrc && nvm install 22
+RUN . /root/.bashrc && npm i -g pnpm@latest-10
 
-# Copy source code
-COPY namer/ namer/
-COPY readme.rst ./
-# Copy built assets (create directories if they don't exist)
-COPY --from=frontend-builder /build/namer/web/public/ namer/web/public/
-RUN mkdir -p namer/tools
-# Copy videohashes build output
-COPY --from=videohashes-builder /build/build/ namer/tools/
+RUN mkdir /work/
+COPY . /work
+WORKDIR /work
+RUN rm -rf /work/namer/__pycache__/ || true \
+    && rm -rf /work/test/__pycache__/ || true \
+    && poetry install
+RUN . /root/.bashrc && ( Xvfb :99 & cd /work/ && poetry run poe build_all )
 
-# Build the Python package (skip tests in Docker build)
-RUN poetry build
-
-# Stage 4: Final runtime image
-FROM python:3.11-slim
-
-# Runtime dependencies including Chrome for Selenium tests
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    curl \
-    wget \
-    ca-certificates \
-    gnupg \
-    xvfb \
-    && wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends google-chrome-stable \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install pipx and the built package
-RUN --mount=type=cache,target=/root/.cache/pip pip install pipx
-COPY --from=python-builder /build/dist/*.tar.gz /tmp/
-RUN pipx install /tmp/*.tar.gz && rm /tmp/*.tar.gz
+FROM base
+COPY --from=build /work/dist/namer-*.tar.gz /
+RUN pipx install /namer-*.tar.gz \
+    && rm /namer-*.tar.gz
 
 ARG BUILD_DATE
 ARG GIT_HASH
@@ -78,7 +70,6 @@ ARG PROJECT_VERSION
 
 ENV PYTHONUNBUFFERED=1
 ENV NAMER_CONFIG=/config/namer.cfg
-ENV DISPLAY=:99
 ENV BUILD_DATE=$BUILD_DATE
 ENV GIT_HASH=$GIT_HASH
 ENV PROJECT_VERSION=$PROJECT_VERSION
