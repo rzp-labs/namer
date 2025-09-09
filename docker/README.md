@@ -36,17 +36,14 @@ chown -R 99:100 /mnt/user/data/media/namer-backlog/
 chown -R 99:100 /mnt/user/appdata/namer*/
 ```
 
-### 2. Configure Environment Variables
+### 2. Configure API Keys (Optional)
 
-1. Copy the environment template:
+1. Copy the environment template if you need to override defaults:
    ```bash
    cp .env.template .env
    ```
 
-2. Edit `.env` and set your StashDB API key:
-   ```bash
-   STASHDB_API_KEY=your_actual_stashdb_api_key_here
-   ```
+2. API keys are set directly in the configuration files (step 3 below)
 
 ### 3. Install Configuration Files
 
@@ -56,7 +53,12 @@ chown -R 99:100 /mnt/user/appdata/namer*/
    cp namer-backlog.cfg /mnt/user/appdata/namer-backlog/config/namer.cfg
    ```
 
-2. Customize the naming templates and other settings as needed.
+2. Edit both config files and replace `your_stashdb_api_key_here` with your actual StashDB API key:
+   ```ini
+   stashdb_token = your_actual_api_key_here
+   ```
+
+3. Customize the naming templates and other settings as needed.
 
 ### 4. Deploy with Docker Compose
 
@@ -119,7 +121,7 @@ tail -f /mnt/user/appdata/namer-backlog/logs/namer-backlog.log
 ### Common Issues:
 
 1. **Permission Denied**: Verify PUID/PGID settings and directory ownership
-2. **API Errors**: Check your StashDB API key in the `.env` file
+2. **API Errors**: Check your StashDB API key in the `namer.cfg` files
 3. **Files Not Moving**: Verify directory paths match between compose and config files
 4. **Web UI Not Accessible**: Check firewall settings and port mappings
 

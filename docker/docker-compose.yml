@@ -24,8 +24,6 @@ services:
       - PGID=${PGID:-100}
       - UMASK=${UMASK:-000}
       - LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-iHD}
-      - STASHDB_API_KEY=${STASHDB_API_KEY}
-      - STASHDB_ENDPOINT=${STASHDB_ENDPOINT:-https://stashdb.org/graphql}
     healthcheck:
       test:
         - CMD-SHELL
@@ -61,8 +59,6 @@ services:
       - PGID=${PGID:-100}
       - UMASK=${UMASK:-000}
       - LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-iHD}
-      - STASHDB_API_KEY=${STASHDB_API_KEY}
-      - STASHDB_ENDPOINT=${STASHDB_ENDPOINT:-https://stashdb.org/graphql}
     healthcheck:
       test:
         - CMD-SHELL

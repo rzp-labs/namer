@@ -19,7 +19,28 @@ node_modules/
 .ruff_cache/
 .flakeheaven_cache/
 
+# Docker deployment files (not needed in build)
+docker/
+docs/
+
+# Development and build artifacts
+.git/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
 # Temporary files
 /tmp/
 *.tmp
 *.log
+*.swp
+*.swo
+*~
