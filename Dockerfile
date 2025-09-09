@@ -44,16 +44,23 @@ COPY --from=frontend-builder /build/namer/web/public/ namer/web/public/
 RUN mkdir -p namer/tools
 COPY --from=videohashes-builder /build/build/ namer/tools/ || echo "No videohashes build output found"
 
-# Build the Python package
+# Build the Python package (skip tests in Docker build)
 RUN poetry build
 
 # Stage 4: Final runtime image
 FROM python:3.11-slim
 
-# Runtime dependencies only
+# Runtime dependencies including Chrome for Selenium tests
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
+    wget \
+    gnupg2 \
+    xvfb \
+    && wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pipx and the built package
@@ -67,6 +74,7 @@ ARG PROJECT_VERSION
 
 ENV PYTHONUNBUFFERED=1
 ENV NAMER_CONFIG=/config/namer.cfg
+ENV DISPLAY=:99
 ENV BUILD_DATE=$BUILD_DATE
 ENV GIT_HASH=$GIT_HASH
 ENV PROJECT_VERSION=$PROJECT_VERSION
