@@ -298,21 +298,56 @@ class FFMpeg:
             mp4_file.unlink()
         return success
 
-    def extract_screenshot(self, file: Path, screenshot_time: float, screenshot_width: int = -1, use_gpu: bool = False) -> Image.Image:
+    def extract_screenshot(self, file: Path, screenshot_time: float, screenshot_width: int = -1, use_gpu: bool = False,
+                           hwaccel_backend: Optional[str] = None, hwaccel_device: Optional[str] = None,
+                           hwaccel_decoder: Optional[str] = None) -> Image.Image:
         input_args = {}
         if use_gpu:
-            input_args['hwaccel'] = 'auto'
+            input_args['hwaccel'] = hwaccel_backend if hwaccel_backend else 'auto'
+            if hwaccel_decoder:
+                # force decoder (e.g. h264_qsv / hevc_qsv)
+                input_args['vcodec'] = hwaccel_decoder
 
-        # fmt: off
-        out, _ = (
+        # Prepare input
+        stream = (
             ffmpeg
             .input(file, ss=screenshot_time, **input_args)
-            .filter('scale', screenshot_width, -2)
-            .output('pipe:', vframes=1, format='apng')
-            .run(quiet=True, capture_stdout=True, cmd=self.__ffmpeg_cmd)
         )
-        out = BytesIO(out)
-        image = Image.open(out)
+
+        # Prepare global args
+        global_args = []
+        if use_gpu and hwaccel_backend and hwaccel_backend.lower() == 'qsv' and hwaccel_device:
+            # Provide QSV device path when using QSV
+            global_args.extend(['-qsv_device', hwaccel_device])
+
+        out = None
+        # Try QSV scaling first when appropriate, fallback to software scale
+        if use_gpu and hwaccel_backend and hwaccel_backend.lower() == 'qsv' and screenshot_width and screenshot_width > 0:
+            try:
+                # fmt: off
+                out, _ = (
+                    stream
+                    .filter('scale_qsv', screenshot_width, -2)
+                    .output('pipe:', vframes=1, format='apng')
+                    .global_args(*global_args)
+                    .run(quiet=True, capture_stdout=True, cmd=self.__ffmpeg_cmd)
+                )
+                # fmt: on
+            except Exception:
+                pass
+
+        if out is None:
+            # fmt: off
+            out, _ = (
+                stream
+                .filter('scale', screenshot_width, -2)
+                .output('pipe:', vframes=1, format='apng')
+                .global_args(*global_args)
+                .run(quiet=True, capture_stdout=True, cmd=self.__ffmpeg_cmd)
+            )
+            # fmt: on
+
+        image = Image.open(BytesIO(out))
 
         return image
 

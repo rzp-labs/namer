@@ -370,6 +370,22 @@ class NamerConfig:
     Use gpu for alternative PHASH generation
     """
 
+    ffmpeg_hwaccel_backend: Optional[str] = None
+    """
+    Preferred FFmpeg hardware acceleration backend to use when generating PHASH via the alternative tool.
+    Examples: 'qsv', 'vaapi', 'cuda', 'auto'.
+    """
+
+    ffmpeg_hwaccel_device: Optional[str] = None
+    """
+    Optional device path for the selected backend. For Intel QSV this is commonly '/dev/dri/renderD128'.
+    """
+
+    ffmpeg_hwaccel_decoder: Optional[str] = None
+    """
+    Optional FFmpeg video decoder name to force, e.g. 'h264_qsv' or 'hevc_qsv'.
+    """
+
     mark_collected: bool = False
     """
     Mark any matched video as "collected" in TPDB, allowing TPDB to keep track of videos you have collected.
@@ -618,6 +634,9 @@ class NamerConfig:
                 'use_alt_phash_tool': self.use_alt_phash_tool,
                 'max_ffmpeg_workers': self.max_ffmpeg_workers,
                 'use_gpu': self.use_gpu,
+                'ffmpeg_hwaccel_backend': self.ffmpeg_hwaccel_backend if self.ffmpeg_hwaccel_backend else '',
+                'ffmpeg_hwaccel_device': self.ffmpeg_hwaccel_device if self.ffmpeg_hwaccel_device else '',
+                'ffmpeg_hwaccel_decoder': self.ffmpeg_hwaccel_decoder if self.ffmpeg_hwaccel_decoder else '',
                 # "require_match_phash_top": self.require_match_phash_top,
                 # "send_phash_of_matches_to_tpdb": self.send_phash_of_matches_to_tpdb,
             },

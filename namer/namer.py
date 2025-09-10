@@ -338,7 +338,14 @@ def calculate_phash(file: Path, config: NamerConfig) -> Optional[PerceptualHash]
             return return_perceptual_hash(search_result.duration, search_result.phash, search_result.oshash)
 
     vph = config.vph_alt if config.use_alt_phash_tool else config.vph
-    phash = vph.get_hashes(file, max_workers=config.max_ffmpeg_workers, use_gpu=config.use_gpu if config.use_gpu else False)
+    phash = vph.get_hashes(
+        file,
+        max_workers=config.max_ffmpeg_workers,
+        use_gpu=config.use_gpu if config.use_gpu else False,
+        hwaccel_backend=getattr(config, 'ffmpeg_hwaccel_backend', None),
+        hwaccel_device=getattr(config, 'ffmpeg_hwaccel_device', None),
+        hwaccel_decoder=getattr(config, 'ffmpeg_hwaccel_decoder', None),
+    )
 
     if phash and config.use_database:
         write_file_to_database(file, phash)
