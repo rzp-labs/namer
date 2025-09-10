@@ -182,6 +182,17 @@ max_ffmpeg_workers =
 # Use gpu for alternative phash generation
 use_gpu = False
 
+# FFmpeg hardware acceleration settings for alternative phash generation
+# When use_alt_phash_tool = True and use_gpu = True, you can select the backend/device/decoder.
+# Examples for Intel QSV:
+#   ffmpeg_hwaccel_backend = qsv
+#   ffmpeg_hwaccel_device = /dev/dri/renderD128
+#   ffmpeg_hwaccel_decoder = h264_qsv   ; or hevc_qsv depending on source codec
+# Leave empty to let ffmpeg auto-detect.
+ffmpeg_hwaccel_backend =
+ffmpeg_hwaccel_device =
+ffmpeg_hwaccel_decoder =
+
 [metadata]
 # Currently metadata pulled from the porndb can be added to mp4 files or .nfo files.
 # MP4 metadata will be read in fully by Plex, and Apple TV app, partially by Jellyfin (no artist support).

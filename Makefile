@@ -14,7 +14,7 @@ DOCKER_BUILD_ARGS = \
 	--build-arg GIT_HASH=$(GIT_HASH) \
 	--build-arg PROJECT_VERSION=$(VERSION)
 
-.PHONY: build build-remote build-multi push test clean help
+.PHONY: build build-remote build-multi push test clean help build-test
 
 help: ## Show this help message
 	@echo "Available targets:"
@@ -61,6 +61,12 @@ ci-build: ## GitHub Actions compatible build
 	@echo "🤖 CI Build - $(IMAGE_NAME):$(VERSION)"
 	docker build $(DOCKER_BUILD_ARGS) -t $(IMAGE_NAME):$(VERSION) .
 	docker tag $(IMAGE_NAME):$(VERSION) $(IMAGE_NAME):latest
+
+# Build local test image with a fixed name used by test_dirs/docker-compose.yaml
+LOCAL_TEST_IMAGE ?= namer:local-test
+build-test: ## Build local test image used by test_dirs
+	@echo "🧪 Building local test image: $(LOCAL_TEST_IMAGE)"
+	docker build $(DOCKER_BUILD_ARGS) -t $(LOCAL_TEST_IMAGE) .
 
 # Remote build with specific environment
 build-production: ## Build for production deployment

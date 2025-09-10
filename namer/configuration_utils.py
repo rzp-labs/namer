@@ -137,14 +137,14 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
             if not config.porndb_token or config.porndb_token.strip() == '':
                 logger.error('ThePornDB provider requires a porndb_token. Sign up at https://theporndb.net/register')
                 success = False
-            
+            # Endpoint is built-in; override is optional and primarily used by tests
             if not config.override_tpdb_address:
-                logger.warning('ThePornDB override_tpdb_address not set, using default: https://api.theporndb.net')
-        
+                logger.info('Using default ThePornDB endpoint; override_tpdb_address not set')
+
         elif config.metadata_provider.lower() == 'stashdb':
+            # Endpoint is built-in; override is optional and primarily used by advanced deployments
             if not config.stashdb_endpoint or config.stashdb_endpoint.strip() == '':
-                logger.error('StashDB provider requires stashdb_endpoint to be configured')
-                success = False
+                logger.info('Using default StashDB endpoint; stashdb_endpoint not set')
             
             if not config.stashdb_token or config.stashdb_token.strip() == '':
                 logger.warning('StashDB provider works better with an API token (stashdb_token)')
@@ -321,6 +321,9 @@ field_info: Dict[str, Tuple[str, Optional[Callable[[Optional[str]], Any]], Optio
     'use_alt_phash_tool': ('Phash', to_bool, from_bool),
     'max_ffmpeg_workers': ('Phash', to_int, from_int),
     'use_gpu': ('Phash', to_bool, from_bool),
+    'ffmpeg_hwaccel_backend': ('Phash', None, None),
+    'ffmpeg_hwaccel_device': ('Phash', None, None),
+    'ffmpeg_hwaccel_decoder': ('Phash', None, None),
     'mark_collected': ('metadata', to_bool, from_bool),
     'write_nfo': ('metadata', to_bool, from_bool),
     'enabled_tagging': ('metadata', to_bool, from_bool),
@@ -460,4 +463,16 @@ def default_config(user_set: Optional[Path] = None) -> NamerConfig:
             user_config.read(file, encoding='UTF-8')
             break
 
-    return from_config(user_config, namer_config)
+    cfg = from_config(user_config, namer_config)
+
+    # Environment overrides for sensitive tokens (do not require committing secrets)
+    # Use TPDB_TOKEN for ThePornDB
+    tpdb_env = os.environ.get('TPDB_TOKEN')
+    if tpdb_env:
+        setattr(cfg, 'porndb_token', tpdb_env)
+    # Use STASHDB_TOKEN for StashDB
+    stashdb_env = os.environ.get('STASHDB_TOKEN')
+    if stashdb_env:
+        setattr(cfg, 'stashdb_token', stashdb_env)
+
+    return cfg

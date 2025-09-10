@@ -282,10 +282,10 @@ class NamerConfig:
     - 'stashdb': Use StashDB GraphQL API
     """
 
-    override_tpdb_address: str = 'https://theporndb.net/graphql'
+    override_tpdb_address: str = 'https://api.theporndb.net'
     """
-    GraphQL endpoint for ThePornDB API. Can be overridden for testing by pointing at a locally
-    running server that responds like TPDB to predefined queries.
+    Base address for ThePornDB API (GraphQL). The provider will append '/graphql'.
+    Can be overridden for testing by pointing at a locally running server.
     """
 
     stashdb_endpoint: str = 'https://stashdb.org/graphql'
@@ -368,6 +368,22 @@ class NamerConfig:
     use_gpu: Optional[bool] = False
     """
     Use gpu for alternative PHASH generation
+    """
+
+    ffmpeg_hwaccel_backend: Optional[str] = None
+    """
+    Preferred FFmpeg hardware acceleration backend to use when generating PHASH via the alternative tool.
+    Examples: 'qsv', 'vaapi', 'cuda', 'auto'.
+    """
+
+    ffmpeg_hwaccel_device: Optional[str] = None
+    """
+    Optional device path for the selected backend. For Intel QSV this is commonly '/dev/dri/renderD128'.
+    """
+
+    ffmpeg_hwaccel_decoder: Optional[str] = None
+    """
+    Optional FFmpeg video decoder name to force, e.g. 'h264_qsv' or 'hevc_qsv'.
     """
 
     mark_collected: bool = False
@@ -618,6 +634,9 @@ class NamerConfig:
                 'use_alt_phash_tool': self.use_alt_phash_tool,
                 'max_ffmpeg_workers': self.max_ffmpeg_workers,
                 'use_gpu': self.use_gpu,
+                'ffmpeg_hwaccel_backend': self.ffmpeg_hwaccel_backend if self.ffmpeg_hwaccel_backend else '',
+                'ffmpeg_hwaccel_device': self.ffmpeg_hwaccel_device if self.ffmpeg_hwaccel_device else '',
+                'ffmpeg_hwaccel_decoder': self.ffmpeg_hwaccel_decoder if self.ffmpeg_hwaccel_decoder else '',
                 # "require_match_phash_top": self.require_match_phash_top,
                 # "send_phash_of_matches_to_tpdb": self.send_phash_of_matches_to_tpdb,
             },

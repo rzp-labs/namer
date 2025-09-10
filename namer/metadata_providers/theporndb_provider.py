@@ -1,10 +1,10 @@
 """
 ThePornDB GraphQL metadata provider implementation.
 
-This provider uses ThePornDB's GraphQL endpoint instead of the REST API
-for cleaner and more efficient queries.
+This provider uses ThePornDB's GraphQL endpoint.
 """
 
+import os
 import orjson
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -56,7 +56,9 @@ class ThePornDBProvider(BaseMetadataProvider):
         }
         
         data = orjson.dumps(payload)
-        graphql_url = config.override_tpdb_address.rstrip('/') + '/graphql'
+        # Endpoint resolution order: env > config override > built-in default
+        base = os.environ.get('TPDB_ENDPOINT') or (config.override_tpdb_address or '').strip() or 'https://api.theporndb.net'
+        graphql_url = base.rstrip('/') + '/graphql'
         
         try:
             http = Http.request(
@@ -202,18 +204,16 @@ class ThePornDBProvider(BaseMetadataProvider):
     
     def match(self, file_name_parts: Optional[FileInfo], config: NamerConfig, phash: Optional[PerceptualHash] = None) -> ComparisonResults:
         """
-        Search for metadata matches based on file name parts and/or perceptual hash.
-        
-        Uses GraphQL searchScenes query to find potential matches.
+        Search for metadata matches based on file name parts and/or perceptual hash using GraphQL.
         """
         results = []
-        
+
         if not file_name_parts and not phash:
             return ComparisonResults(results, file_name_parts)
-        
+
         # Build search query based on available information
         search_terms = []
-        
+
         if file_name_parts:
             if file_name_parts.site:
                 search_terms.append(file_name_parts.site)
@@ -221,8 +221,8 @@ class ThePornDBProvider(BaseMetadataProvider):
                 search_terms.append(file_name_parts.name)
             if file_name_parts.date:
                 search_terms.append(file_name_parts.date)
-        
-        # If we have a perceptual hash, search by hash first
+
+        # If we have a perceptual hash, try hash search first (temporarily disabled until schema confirmed)
         if phash:
             hash_results = self._search_by_hash(phash, config)
             for scene_data in hash_results:
@@ -285,6 +285,8 @@ class ThePornDBProvider(BaseMetadataProvider):
     def _search_scenes(self, query: str, scene_type: SceneType, config: NamerConfig, page: int = 1) -> List[Dict[str, Any]]:
         """
         Search for scenes using GraphQL.
+        Primary: searchScenes(input: {query, page}) to match test server.
+        Fallback: searchScene(term: $term) for newer schema compatibility.
         
         Args:
             query: Search query string
@@ -295,7 +297,8 @@ class ThePornDBProvider(BaseMetadataProvider):
         Returns:
             List of scene data from GraphQL response
         """
-        search_query = '''
+        # 1) Try legacy/older schema used in tests: searchScenes(input: {query, page})
+        search_scenes_query = '''
             query SearchScenes($query: String!, $page: Int) {
                 searchScenes(input: {query: $query, page: $page}) {
                     data {
@@ -306,56 +309,58 @@ class ThePornDBProvider(BaseMetadataProvider):
                         description
                         duration
                         poster
-                        background {
-                            large
-                        }
+                        background { large }
                         trailer
-                        site {
-                            name
-                            parent {
-                                name
-                            }
-                            network {
-                                name
-                            }
-                        }
+                        site { name parent { name } network { name } }
                         performers {
                             name
-                            parent {
-                                name
-                                image
-                                extras {
-                                    gender
-                                }
-                            }
+                            parent { name image extras { gender } }
                             image
-                            extras {
-                                gender
-                            }
+                            extras { gender }
                         }
-                        tags {
-                            name
-                        }
-                        hashes {
-                            hash
-                            type
-                            duration
-                        }
+                        tags { name }
+                        hashes { hash type duration }
                     }
                 }
             }
         '''
-        
-        variables = {
-            'query': query,
-            'page': page
-        }
-        
-        response_data = self._graphql_request(search_query, variables, config)
-        
+
+        variables = { 'query': query, 'page': page }
+        response_data = self._graphql_request(search_scenes_query, variables, config)
         if response_data and 'searchScenes' in response_data:
-            return response_data['searchScenes'].get('data', [])
-        
+            return response_data['searchScenes'].get('data', []) or []
+
+        # 2) Fallback to newer schema: searchScene(term: $term)
+        search_scene_query = '''
+            query SearchScene($term: String!) {
+                searchScene(term: $term) {
+                    id
+                    title
+                    date
+                    url
+                    description
+                    duration
+                    poster
+                    background { large }
+                    trailer
+                    site { name parent { name } network { name } }
+                    performers {
+                        name
+                        parent { name image extras { gender } }
+                        image
+                        extras { gender }
+                    }
+                    tags { name }
+                    hashes { hash type duration }
+                }
+            }
+        '''
+        variables = { 'term': query }
+        response_data = self._graphql_request(search_scene_query, variables, config)
+        if response_data and 'searchScene' in response_data:
+            scenes = response_data['searchScene']
+            return scenes if isinstance(scenes, list) else []
+
         return []
     
     def _search_by_hash(self, phash: PerceptualHash, config: NamerConfig) -> List[Dict[str, Any]]:
@@ -369,67 +374,8 @@ class ThePornDBProvider(BaseMetadataProvider):
         Returns:
             List of scene data from GraphQL response
         """
-        hash_query = '''
-            query SearchByHash($hash: String!, $hashType: String!) {
-                searchScenesByHash(input: {hash: $hash, hashType: $hashType}) {
-                    data {
-                        id
-                        title
-                        date
-                        url
-                        description
-                        duration
-                        poster
-                        background {
-                            large
-                        }
-                        trailer
-                        site {
-                            name
-                            parent {
-                                name
-                            }
-                            network {
-                                name
-                            }
-                        }
-                        performers {
-                            name
-                            parent {
-                                name
-                                image
-                                extras {
-                                    gender
-                                }
-                            }
-                            image
-                            extras {
-                                gender
-                            }
-                        }
-                        tags {
-                            name
-                        }
-                        hashes {
-                            hash
-                            type
-                            duration
-                        }
-                    }
-                }
-            }
-        '''
-        
-        variables = {
-            'hash': str(phash.phash),
-            'hashType': 'PHASH'  # Default to PHASH
-        }
-        
-        response_data = self._graphql_request(hash_query, variables, config)
-        
-        if response_data and 'searchScenesByHash' in response_data:
-            return response_data['searchScenesByHash'].get('data', [])
-        
+        # The current public TPDB GraphQL schema does not expose a hash search.
+        # Disable GraphQL hash search for now; hash-based matching will be covered by name search and/or future schema support.
         return []
     
     def get_complete_info(self, file_name_parts: Optional[FileInfo], uuid: str, config: NamerConfig) -> Optional[LookedUpFileInfo]:
@@ -591,41 +537,19 @@ class ThePornDBProvider(BaseMetadataProvider):
     
     def search(self, query: str, scene_type: SceneType, config: NamerConfig, page: int = 1) -> List[LookedUpFileInfo]:
         """
-        Search for metadata by text query.
-        
-        Use the same internal functions as the legacy implementation to maintain consistency.
+        Search for metadata by text query using GraphQL.
         """
-        # Import the internal functions we need from metadataapi
-        # These are module-level private functions, not class methods
-        import namer.metadataapi as meta_api
-        
-        # Get access to the private functions using the module's __dict__
-        build_url_func = getattr(meta_api, '_ThePornDBProvider__build_url', None)
-        get_info_func = getattr(meta_api, '_ThePornDBProvider__get_metadataapi_net_info', None)
-        
-        # If the functions aren't found with class prefix, try module prefix
-        if not build_url_func:
-            build_url_func = getattr(meta_api, '__build_url', None)
-        if not get_info_func:
-            get_info_func = getattr(meta_api, '__get_metadataapi_net_info', None)
-        
-        if build_url_func and get_info_func:
-            # Build URL for the search
-            search_url = build_url_func(
-                config,
-                site=None,
-                release_date=None, 
-                name=query,
-                page=page,
-                scene_type=scene_type
+        scenes = self._search_scenes(query, scene_type, config, page)
+        file_infos: List[LookedUpFileInfo] = []
+        for scene_data in scenes:
+            file_info = self._graphql_scene_to_fileinfo(
+                scene_data,
+                query,
+                orjson.dumps(scene_data, option=orjson.OPT_INDENT_2).decode('utf-8'),
+                None,
             )
-            
-            if search_url:
-                # Get the results using the existing function
-                file_infos = get_info_func(search_url, None, config)
-                return file_infos
-        
-        return []
+            file_infos.append(file_info)
+        return file_infos
     
     def download_file(self, url: str, file: Path, config: NamerConfig) -> bool:
         """
@@ -643,15 +567,7 @@ class ThePornDBProvider(BaseMetadataProvider):
             query GetUser {
                 me {
                     id
-                    username
-                    email
-                    createdAt
-                    updatedAt
-                    isAdmin
-                    isModerator
-                    collectedScenes {
-                        totalCount
-                    }
+                    name
                 }
             }
         '''
@@ -660,7 +576,7 @@ class ThePornDBProvider(BaseMetadataProvider):
         
         if response_data and 'me' in response_data:
             return response_data['me']
-        
+
         return None
 
 

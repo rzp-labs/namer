@@ -6,6 +6,7 @@ metadata for adult content, mapping results to namer's data structures.
 """
 
 from pathlib import Path
+import os
 from typing import Any, Dict, List, Optional
 
 import orjson
@@ -277,7 +278,9 @@ class StashDBProvider(BaseMetadataProvider):
             headers['APIKey'] = config.stashdb_token
         
         data = orjson.dumps(query)
-        http = Http.request(RequestType.POST, config.stashdb_endpoint, cache_session=config.cache_session, headers=headers, data=data)
+        # Endpoint resolution order: env > config override > built-in default
+        endpoint = os.environ.get('STASHDB_ENDPOINT') or (config.stashdb_endpoint or '').strip() or 'https://stashdb.org/graphql'
+        http = Http.request(RequestType.POST, endpoint, cache_session=config.cache_session, headers=headers, data=data)
         
         if http.ok:
             try:

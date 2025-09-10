@@ -75,7 +75,15 @@ jobs:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata (test)
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         
     - name: Test Docker image
       run: |
-        docker run --rm --entrypoint="" ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main namer --help
+        TAG="$(echo "${{ steps.meta.outputs.tags }}" | head -n1)"
+        echo "Testing image: $TAG"
+        docker run --rm --entrypoint="" "$TAG" namer --help
