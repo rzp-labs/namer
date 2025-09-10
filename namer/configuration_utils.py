@@ -463,4 +463,15 @@ def default_config(user_set: Optional[Path] = None) -> NamerConfig:
             user_config.read(file, encoding='UTF-8')
             break
 
-    return from_config(user_config, namer_config)
+    cfg = from_config(user_config, namer_config)
+
+    # Environment overrides for sensitive tokens (do not require committing secrets)
+    porndb_env = os.environ.get('PORNDB_TOKEN') or os.environ.get('TPDB_TOKEN')
+    if porndb_env:
+        setattr(cfg, 'porndb_token', porndb_env)
+
+    stashdb_env = os.environ.get('STASHDB_TOKEN')
+    if stashdb_env:
+        setattr(cfg, 'stashdb_token', stashdb_env)
+
+    return cfg

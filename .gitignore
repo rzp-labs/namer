@@ -24,6 +24,9 @@ database/
 .pytest_cache/
 test_config.cfg
 
+# Local production config (secrets)
+namer-prod.cfg
+
 # Additional temporary/local files
 *.backup
 .github/workflows/*.backup
