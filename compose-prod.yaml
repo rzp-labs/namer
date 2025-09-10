@@ -18,12 +18,14 @@ services:
       - /mnt/user/appdata/namer/logs:/app/logs
       - /mnt/user/data/media/namer:/app/media
     environment:
-      - NAMER_CONFIG=/app/config/namer.cfg
-      - TZ=America/Phoenix
-      - PUID=99
-      - PGID=100
-      - UMASK=000
-      - LIBVA_DRIVER_NAME=iHD
+      - NAMER_CONFIG=${NAMER_CONFIG}
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=${UMASK}
+      - LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME}
+      - TPDB_TOKEN=${TPDB_TOKEN}
+      - STASHDB_TOKEN=${STASHDB_TOKEN}
     healthcheck:
       test:
         - CMD-SHELL
@@ -54,12 +56,14 @@ services:
       - /mnt/user/appdata/namer-backlog/logs:/app/logs
       - /mnt/user/data/media/namer-backlog:/app/media
     environment:
-      - NAMER_CONFIG=/app/config/namer.cfg
-      - TZ=America/Phoenix
-      - PUID=99
-      - PGID=100
-      - UMASK=000
-      - LIBVA_DRIVER_NAME=iHD
+      - NAMER_CONFIG=${NAMER_CONFIG}
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=${UMASK}
+      - LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME}
+      - TPDB_TOKEN=${TPDB_TOKEN}
+      - STASHDB_TOKEN=${STASHDB_TOKEN}
     healthcheck:
       test:
         - CMD-SHELL
