@@ -470,7 +470,7 @@ def default_config(user_set: Optional[Path] = None) -> NamerConfig:
     tpdb_env = os.environ.get('TPDB_TOKEN')
     if tpdb_env:
         setattr(cfg, 'porndb_token', tpdb_env)
-
+    # Use STASHDB_TOKEN for StashDB
     stashdb_env = os.environ.get('STASHDB_TOKEN')
     if stashdb_env:
         setattr(cfg, 'stashdb_token', stashdb_env)
