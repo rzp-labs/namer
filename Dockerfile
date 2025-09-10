@@ -13,7 +13,7 @@ RUN apt-get update \
        ffmpeg \
        tzdata \
        curl \
-       intel-media-va-driver-non-free \
+       intel-media-va-driver \
        vainfo \
     && rm -rf /var/lib/apt/lists/* \
     && rm -Rf /usr/share/doc && rm -Rf /usr/share/man \
