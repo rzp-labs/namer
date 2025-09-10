@@ -2,8 +2,8 @@
 Parse string in to FileNamePart define in namer_types.
 """
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 from pathlib import PurePath
 from typing import List, Optional, Pattern
 
@@ -154,7 +154,9 @@ def parse_file_name(filename: str, namer_config: NamerConfig) -> FileInfo:
             trans = match.group('trans')
             file_name_parts.trans = bool(trans and trans.strip().upper() == 'TS')
 
-        file_name_parts.extension = match.group('ext')
+        if match.group('ext'):
+            file_name_parts.extension = match.group('ext')
+
         file_name_parts.source_file_name = filename
         file_name_parts.source_file_stem = path.stem
     else:
