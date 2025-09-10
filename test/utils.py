@@ -22,6 +22,7 @@ from mutagen.mp4 import MP4
 from namer.configuration import NamerConfig
 from namer.configuration_utils import to_ini, from_config
 from test.web.parrot_webserver import ParrotWebServer
+from test.web.fake_stashdb import make_fake_stashdb
 
 
 def is_debugging():
@@ -377,6 +378,46 @@ def environment(config: NamerConfig = None):  # type: ignore
             file.write(content)
         config.config_file = cfgfile
         yield temp_dir, fake_tpdb, config
+
+
+@contextlib.contextmanager
+def environment_stashdb(config: NamerConfig = None):  # type: ignore
+    """
+    Test environment for StashDB provider using a fake GraphQL server.
+    """
+    if config is None:
+        config = sample_config()
+
+    with tempfile.TemporaryDirectory(prefix='test') as tmp_dir, make_fake_stashdb() as fake_stash:
+        temp_dir = Path(tmp_dir).resolve()
+
+        # Switch to stashdb provider
+        config.metadata_provider = 'stashdb'
+        config.enabled_tagging = True
+        config.enabled_poster = True
+
+        # Point endpoint to fake server's /graphql and set a dummy token
+        base = fake_stash.get_url()
+        config.stashdb_endpoint = f"{base}/graphql"
+        config.stashdb_token = 'notarealtoken'
+
+        # Standard directories
+        config.watch_dir = temp_dir / 'watch'
+        config.watch_dir.mkdir(parents=True, exist_ok=True)
+        config.dest_dir = temp_dir / 'dest'
+        config.dest_dir.mkdir(parents=True, exist_ok=True)
+        config.work_dir = temp_dir / 'work'
+        config.work_dir.mkdir(parents=True, exist_ok=True)
+        config.failed_dir = temp_dir / 'failed'
+        config.failed_dir.mkdir(parents=True, exist_ok=True)
+
+        cfgfile = temp_dir / 'test_namer_stash.cfg'
+        config.min_file_size = 0
+        with open(cfgfile, 'w') as file:
+            content = to_ini(config)
+            file.write(content)
+        config.config_file = cfgfile
+        yield temp_dir, fake_stash, config
 
 
 def validate_permissions(test_self, file: Path, perm: int):
