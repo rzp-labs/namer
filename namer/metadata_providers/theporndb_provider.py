@@ -1,10 +1,10 @@
 """
 ThePornDB GraphQL metadata provider implementation.
 
-This provider uses ThePornDB's GraphQL endpoint instead of the REST API
-for cleaner and more efficient queries.
+This provider uses ThePornDB's GraphQL endpoint.
 """
 
+import os
 import orjson
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -56,7 +56,9 @@ class ThePornDBProvider(BaseMetadataProvider):
         }
         
         data = orjson.dumps(payload)
-        graphql_url = config.override_tpdb_address.rstrip('/') + '/graphql'
+        # Endpoint resolution order: env > config override > built-in default
+        base = os.environ.get('TPDB_ENDPOINT') or (config.override_tpdb_address or '').strip() or 'https://api.theporndb.net'
+        graphql_url = base.rstrip('/') + '/graphql'
         
         try:
             http = Http.request(
@@ -643,15 +645,7 @@ class ThePornDBProvider(BaseMetadataProvider):
             query GetUser {
                 me {
                     id
-                    username
-                    email
-                    createdAt
-                    updatedAt
-                    isAdmin
-                    isModerator
-                    collectedScenes {
-                        totalCount
-                    }
+                    name
                 }
             }
         '''
@@ -660,7 +654,7 @@ class ThePornDBProvider(BaseMetadataProvider):
         
         if response_data and 'me' in response_data:
             return response_data['me']
-        
+
         return None
 
 

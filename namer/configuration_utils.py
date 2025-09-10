@@ -137,14 +137,14 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
             if not config.porndb_token or config.porndb_token.strip() == '':
                 logger.error('ThePornDB provider requires a porndb_token. Sign up at https://theporndb.net/register')
                 success = False
-            
+            # Endpoint is built-in; override is optional and primarily used by tests
             if not config.override_tpdb_address:
-                logger.warning('ThePornDB override_tpdb_address not set, using default: https://api.theporndb.net')
-        
+                logger.info('Using default ThePornDB endpoint; override_tpdb_address not set')
+
         elif config.metadata_provider.lower() == 'stashdb':
+            # Endpoint is built-in; override is optional and primarily used by advanced deployments
             if not config.stashdb_endpoint or config.stashdb_endpoint.strip() == '':
-                logger.error('StashDB provider requires stashdb_endpoint to be configured')
-                success = False
+                logger.info('Using default StashDB endpoint; stashdb_endpoint not set')
             
             if not config.stashdb_token or config.stashdb_token.strip() == '':
                 logger.warning('StashDB provider works better with an API token (stashdb_token)')
