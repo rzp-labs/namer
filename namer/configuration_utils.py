@@ -466,9 +466,10 @@ def default_config(user_set: Optional[Path] = None) -> NamerConfig:
     cfg = from_config(user_config, namer_config)
 
     # Environment overrides for sensitive tokens (do not require committing secrets)
-    porndb_env = os.environ.get('PORNDB_TOKEN') or os.environ.get('TPDB_TOKEN')
-    if porndb_env:
-        setattr(cfg, 'porndb_token', porndb_env)
+    # Use TPDB_TOKEN for ThePornDB
+    tpdb_env = os.environ.get('TPDB_TOKEN')
+    if tpdb_env:
+        setattr(cfg, 'porndb_token', tpdb_env)
 
     stashdb_env = os.environ.get('STASHDB_TOKEN')
     if stashdb_env:
