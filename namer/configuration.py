@@ -282,9 +282,9 @@ class NamerConfig:
     - 'stashdb': Use StashDB GraphQL API
     """
 
-    override_tpdb_address: str = 'https://api.theporndb.net'
+    override_tpdb_address: str = 'https://theporndb.net/graphql'
     """
-    Used only for testing, can override the location of the porn database - usually to point at a locally
+    GraphQL endpoint for ThePornDB API. Can be overridden for testing by pointing at a locally
     running server that responds like TPDB to predefined queries.
     """
 

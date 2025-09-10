@@ -150,7 +150,8 @@ requests_cache_expire_minutes = 10
 # Metadata provider to use for lookups. Supported providers: theporndb, stashdb
 metadata_provider = theporndb
 
-# Leave this unset unless you are testing a new tpdb endpoint.
+# ThePornDB GraphQL endpoint. Leave empty to use default GraphQL endpoint.
+# Only override for testing with a local server.
 override_tpdb_address =
 
 # StashDB GraphQL endpoint URL (used when metadata_provider = stashdb)

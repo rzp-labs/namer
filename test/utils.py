@@ -96,6 +96,7 @@ class FakeTPDB(ParrotWebServer):
         }
 
         self.default_additions()
+        self.setup_graphql_endpoint()
 
     def __enter__(self):
         super().__enter__()
@@ -202,6 +203,151 @@ class FakeTPDB(ParrotWebServer):
 
         self.add_json_response('{"data":{"favicon":null,"id":1309,"logo":null,"name":"Gamma Enterprises","network_id":null,"parent_id":null,"poster":null,"short_name":"gammaenterprises","url":"N/A"}}', '/sites/1309?')
         self.add_json_response('{"data":{"id":1,"name":"Admin"}}', '/auth/user?')
+    
+    def setup_graphql_endpoint(self):
+        """Set up GraphQL endpoint that handles POST requests."""
+        from flask import request as flask_request
+        
+        def handle_graphql_request():
+            """Handle GraphQL POST request and return appropriate response."""
+            try:
+                import orjson
+                
+                # Parse the GraphQL request
+                request_data = orjson.loads(flask_request.get_data())
+                query = request_data.get('query', '')
+                variables = request_data.get('variables', {})
+                
+                # Route based on query type
+                if 'searchScenes' in query:
+                    return self._handle_search_scenes(variables)
+                elif 'findScene' in query:
+                    return self._handle_find_scene(variables)
+                elif 'me' in query:
+                    return self._handle_user_info()
+                elif 'markSceneCollected' in query:
+                    return self._handle_mark_collected(variables)
+                elif 'shareSceneHash' in query:
+                    return self._handle_share_hash(variables)
+                else:
+                    return orjson.dumps({"data": None}).decode('utf-8')
+                    
+            except Exception as e:
+                return orjson.dumps({
+                    "errors": [{"message": f"GraphQL error: {str(e)}"}]
+                }).decode('utf-8')
+        
+        # Set up the GraphQL endpoint - handle both with and without query params
+        super().set_response('/graphql', handle_graphql_request)
+        super().set_response('/graphql?', handle_graphql_request)
+    
+    def _handle_search_scenes(self, variables):
+        """Handle searchScenes GraphQL query."""
+        import orjson
+        
+        query_string = variables.get('query', '').lower()
+        
+        # Determine which scene data to return based on query
+        if 'evilangel' in query_string and 'carmela clutch' in query_string:
+            # ea.full.json has the scene data directly in 'data' field
+            scene_data = self._scenes['ea.full.json']['data']
+        elif ('dorcelclub' in query_string or 'dorcеlclub' in query_string) and ('aya benetti' in query_string or 'aya bеnеtti' in query_string):
+            # dc.json has REST API structure with 'data' array (supports unicode characters)
+            scene_data = self._scenes['dc.json']['data'][0]
+        elif 'brazzersexxtra' in query_string and 'marykate moss' in query_string:
+            # ssb2.json has REST API structure with 'data' array
+            scene_data = self._scenes['ssb2.json']['data'][0]  
+        else:
+            # Return empty results for unknown queries
+            return orjson.dumps({
+                "data": {
+                    "searchScenes": {
+                        "data": []
+                    }
+                }
+            }).decode('utf-8')
+        
+        # Wrap single scene in GraphQL searchScenes response format
+        return orjson.dumps({
+            "data": {
+                "searchScenes": {
+                    "data": [scene_data]
+                }
+            }
+        }).decode('utf-8')
+    
+    def _handle_find_scene(self, variables):
+        """Handle findScene GraphQL query."""
+        import orjson
+        
+        scene_id = variables.get('id', '')
+        
+        # Map scene IDs to the appropriate test data
+        scene_data = None
+        if scene_id == '1678283':
+            # ea.full.json has the scene data directly in 'data' field
+            scene_data = self._scenes['ea.full.json']['data']
+        elif scene_id == '1674059':
+            # dc.json has REST API structure with 'data' array
+            scene_data = self._scenes['dc.json']['data'][0]
+        elif scene_id == '1836175':
+            # ssb2.json has REST API structure with 'data' array
+            scene_data = self._scenes['ssb2.json']['data'][0]
+        
+        if scene_data:
+            # Add isCollected field for complete scene info
+            scene_data = scene_data.copy()  # Create copy to avoid modifying original
+            scene_data['isCollected'] = False
+            
+        return orjson.dumps({
+            "data": {
+                "findScene": scene_data
+            }
+        }).decode('utf-8')
+    
+    def _handle_user_info(self):
+        """Handle user info GraphQL query."""
+        import orjson
+        
+        return orjson.dumps({
+            "data": {
+                "me": {
+                    "id": "1",
+                    "name": "testuser",  # Use 'name' to match legacy format expectation
+                    "email": "test@example.com",
+                    "isAdmin": True,
+                    "collectedScenes": {
+                        "totalCount": 0
+                    }
+                }
+            }
+        }).decode('utf-8')
+    
+    def _handle_mark_collected(self, variables):
+        """Handle markSceneCollected GraphQL mutation."""
+        import orjson
+        
+        return orjson.dumps({
+            "data": {
+                "markSceneCollected": {
+                    "success": True,
+                    "message": "Scene marked as collected"
+                }
+            }
+        }).decode('utf-8')
+    
+    def _handle_share_hash(self, variables):
+        """Handle shareSceneHash GraphQL mutation."""
+        import orjson
+        
+        return orjson.dumps({
+            "data": {
+                "shareSceneHash": {
+                    "success": True,
+                    "message": "Hash shared successfully"
+                }
+            }
+        }).decode('utf-8')
 
 
 @contextlib.contextmanager

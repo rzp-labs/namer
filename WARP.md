@@ -86,7 +86,7 @@ poetry run coverage html
 1. **File Input** → Command object creation (`namer/command.py`)
 2. **Name Parsing** → Extract site, date, scene info (`namer/fileinfo.py`)
 3. **Hash Calculation** → Generate perceptual hashes (`namer/videophash/`)
-4. **API Matching** → Query ThePornDB (`namer/metadataapi.py`)
+4. **API Matching** → Query ThePornDB via GraphQL (`namer/metadata_providers/theporndb_provider.py`)
 5. **Result Comparison** → Rank matches by similarity (`namer/comparison_results.py`)
 6. **File Operations** → Rename, tag, move files (`namer/command.py`)
 
@@ -104,7 +104,7 @@ poetry run coverage html
 ### External Dependencies
 - **Videohashes**: Git submodule with Go tools for perceptual hashing
 - **FFmpeg**: External binary for video analysis via `namer/ffmpeg.py`
-- **ThePornDB API**: Remote service for metadata lookup
+- **ThePornDB GraphQL API**: Remote GraphQL service for metadata lookup (migrated from REST API)
 
 ## File Organization Patterns
 
@@ -117,7 +117,11 @@ namer/
 ├── command.py               # File operations & Command dataclass
 ├── configuration.py         # Config dataclass & validation
 ├── fileinfo.py              # Filename parsing logic
-├── metadataapi.py           # ThePornDB API client
+├── metadataapi.py           # Legacy API routing (deprecated REST functions)
+├── metadata_providers/      # Metadata provider implementations
+│   ├── theporndb_provider.py # ThePornDB GraphQL provider
+│   ├── factory.py           # Provider factory
+│   └── provider.py          # Base provider interface
 ├── comparison_results.py    # Match ranking & results
 ├── videophash/              # Perceptual hashing tools
 ├── web/                     # Flask web interface

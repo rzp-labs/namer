@@ -15,9 +15,9 @@ def get_routes(responses: Dict[str, Any]) -> Blueprint:
     """
     blueprint = Blueprint('/', __name__)
 
-    @blueprint.route('/', defaults={'path': ''})
-    @blueprint.route('/<path:path>')
-    def get_files(path) -> Response:
+    @blueprint.route('/', defaults={'path': ''}, methods=['GET', 'POST'])
+    @blueprint.route('/<path:path>', methods=['GET', 'POST'])
+    def handle_request(path) -> Response:
         # args = request.args
         output = responses.get(request.full_path)
         value = None
