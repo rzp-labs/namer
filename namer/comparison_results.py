@@ -274,6 +274,7 @@ class LookedUpFileInfo:
             name = path.stem
             name = re.sub(r'[- ]+$', '', name)
             name = re.sub(r'-\s+-', '-', name)
+            name = name.rstrip('.')
             name = name + path.suffix
             if path.parts:
                 name = str(path.parent / name)
