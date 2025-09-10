@@ -257,7 +257,8 @@ class MovieWatcher:
         starts a background thread to check for files.
         """
         config = self.__namer_config
-        logger.info('Start porndb scene watcher.... watching: {}', config.watch_dir)
+        provider_name = config.metadata_provider.upper()
+        logger.info('Start {} metadata watcher.... watching: {}', provider_name, config.watch_dir)
 
         if os.environ.get('PROJECT_VERSION'):
             project_version = os.environ.get('PROJECT_VERSION')

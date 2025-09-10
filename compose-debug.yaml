@@ -1,0 +1,23 @@
+services:
+  namer-debug:
+    image: ghcr.io/rzp-labs/namer:main
+    container_name: namer-debug
+    restart: "no"
+    entrypoint: ["sleep", "infinity"]
+    volumes:
+      - /mnt/user/appdata/namer/config:/app/config
+      - /mnt/user/appdata/namer/database:/app/database
+      - /mnt/user/appdata/namer/logs:/app/logs
+      - /mnt/cache/data/media/downloads/complete:/app/media/downloads
+      - /mnt/cache/data/media/namer/1-watch:/app/media/watch
+      - /mnt/cache/data/media/namer/2-work:/app/media/work
+      - /mnt/cache/data/media/namer/3-import:/app/media/import
+      - /mnt/cache/data/media/namer/4-failed:/app/media/failed
+      - /boot/config/plugins/dockerMan/config.json:/root/.docker/config.json:ro
+    environment:
+      - NAMER_CONFIG=/app/config/namer.cfg
+      - TZ=America/Phoenix
+      - PUID=99
+      - PGID=100
+      - UMASK=000
+      - LIBVA_DRIVER_NAME=iHD

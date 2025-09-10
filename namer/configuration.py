@@ -555,13 +555,35 @@ class NamerConfig:
         return orjson.dumps(config, option=orjson.OPT_INDENT_2).decode('UTF-8')
 
     def to_dict(self) -> dict:
-        porndb_token = 'None is Set, Go to https://metadatapi.net/ to get one!'
-        if self.porndb_token:
-            porndb_token = '*' * len(self.porndb_token)
+        # Dynamic metadata provider information
+        provider_info = {}
+        
+        if self.metadata_provider.lower() == 'theporndb':
+            token = 'None is Set, Go to https://theporndb.net/register to get one!'
+            if self.porndb_token:
+                token = '*' * len(self.porndb_token)
+            provider_info.update({
+                'porndb_token': token,
+                'override_tpdb_address': self.override_tpdb_address,
+            })
+        elif self.metadata_provider.lower() == 'stashdb':
+            token = 'None is Set, Get token from StashDB settings!'
+            if self.stashdb_token:
+                token = '*' * len(self.stashdb_token)
+            provider_info.update({
+                'stashdb_token': token,
+                'stashdb_endpoint': self.stashdb_endpoint,
+            })
+        else:
+            # Support for future providers
+            provider_info.update({
+                'provider_config': f'Unknown provider: {self.metadata_provider}',
+            })
 
         config = {
             'Namer Config': {
-                'porndb_token': porndb_token,
+                'metadata_provider': self.metadata_provider,
+                **provider_info,
                 'inplace_name': self.inplace_name,
                 'inplace_name_scene': self.inplace_name_scene,
                 'inplace_name_movie': self.inplace_name_movie,
@@ -586,7 +608,6 @@ class NamerConfig:
                 'database_path': str(self.database_path),
                 'use_requests_cache': self.use_requests_cache,
                 'requests_cache_expire_minutes': self.requests_cache_expire_minutes,
-                'override_tpdb_address': self.override_tpdb_address,
                 'plex_hack': self.plex_hack,
                 'convert_container_to': self.convert_container_to,
                 'path_cleanup': self.path_cleanup,
