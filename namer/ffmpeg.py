@@ -301,55 +301,79 @@ class FFMpeg:
     def extract_screenshot(self, file: Path, screenshot_time: float, screenshot_width: int = -1, use_gpu: bool = False,
                            hwaccel_backend: Optional[str] = None, hwaccel_device: Optional[str] = None,
                            hwaccel_decoder: Optional[str] = None) -> Image.Image:
-        input_args = {}
-        if use_gpu:
-            input_args['hwaccel'] = hwaccel_backend if hwaccel_backend else 'auto'
-            if hwaccel_decoder:
-                # force decoder (e.g. h264_qsv / hevc_qsv)
-                input_args['vcodec'] = hwaccel_decoder
+        """
+        Extract a single frame as an image, optionally using GPU decode/scale.
 
-        # Prepare input
-        stream = (
-            ffmpeg
-            .input(file, ss=screenshot_time, **input_args)
-        )
-
-        # Prepare global args
-        global_args = []
-        if use_gpu and hwaccel_backend and hwaccel_backend.lower() == 'qsv' and hwaccel_device:
-            # Provide QSV device path when using QSV
-            global_args.extend(['-qsv_device', hwaccel_device])
-
-        out = None
-        # Try QSV scaling first when appropriate, fallback to software scale
-        if use_gpu and hwaccel_backend and hwaccel_backend.lower() == 'qsv' and screenshot_width and screenshot_width > 0:
-            try:
-                # fmt: off
-                out, _ = (
-                    stream
-                    .filter('scale_qsv', screenshot_width, -2)
-                    .output('pipe:', vframes=1, format='apng')
-                    .global_args(*global_args)
-                    .run(quiet=True, capture_stdout=True, cmd=self.__ffmpeg_cmd)
-                )
-                # fmt: on
-            except Exception:
-                pass
-
-        if out is None:
-            # fmt: off
-            out, _ = (
-                stream
-                .filter('scale', screenshot_width, -2)
+        Robust fallback order:
+        - If backend == 'qsv': try QSV scale; on failure, fall back to software pipeline
+        - If backend == 'vaapi': try VAAPI (hwupload -> scale_vaapi -> hwdownload -> format); on failure, fall back
+        - If use_gpu with unknown backend: attempt software directly
+        """
+        def _run_pipeline(stream_builder, global_args_list):
+            return (
+                stream_builder
                 .output('pipe:', vframes=1, format='apng')
-                .global_args(*global_args)
+                .global_args(*global_args_list)
                 .run(quiet=True, capture_stdout=True, cmd=self.__ffmpeg_cmd)
             )
-            # fmt: on
 
-        image = Image.open(BytesIO(out))
+        # Normalize inputs
+        backend = (hwaccel_backend or '').lower() if hwaccel_backend else None
+        width = screenshot_width if screenshot_width and screenshot_width > 0 else -1
 
-        return image
+        # 1) Attempt requested GPU path
+        if use_gpu and backend in ('qsv', 'vaapi'):
+            try:
+                if backend == 'qsv':
+                    input_args = {'hwaccel': 'qsv'}
+                    if hwaccel_decoder:
+                        input_args['vcodec'] = hwaccel_decoder
+
+                    global_args = []
+                    if hwaccel_device:
+                        global_args.extend(['-qsv_device', hwaccel_device])
+
+                    # Build input
+                    stream = ffmpeg.input(file, ss=screenshot_time, **input_args)
+
+                    # Prefer QSV scale when a width is provided
+                    if width and width > 0:
+                        out, _ = _run_pipeline(stream.filter('scale_qsv', width, -2), global_args)
+                    else:
+                        out, _ = _run_pipeline(stream, global_args)
+
+                    return Image.open(BytesIO(out))
+
+                if backend == 'vaapi':
+                    # VAAPI requires device and upload/download in filter graph
+                    global_args = []
+                    if hwaccel_device:
+                        global_args.extend(['-vaapi_device', hwaccel_device])
+
+                    input_args = {'hwaccel': 'vaapi'}
+                    if hwaccel_decoder:
+                        input_args['vcodec'] = hwaccel_decoder
+
+                    stream = ffmpeg.input(file, ss=screenshot_time, **input_args)
+
+                    # hwupload -> scale_vaapi -> hwdownload -> format
+                    filt = stream.filter('hwupload')
+                    if width and width > 0:
+                        filt = filt.filter('scale_vaapi', width, -2)
+                    filt = filt.filter('hwdownload').filter('format', 'rgba')
+
+                    out, _ = _run_pipeline(filt, global_args)
+                    return Image.open(BytesIO(out))
+
+            except Exception as ex:
+                logger.warning('GPU pipeline (%s) failed for %s, falling back to software: %s', backend, file, ex)
+
+        # 2) Software fallback (no hwaccel args)
+        stream_sw = ffmpeg.input(file, ss=screenshot_time)
+        if width and width > 0:
+            stream_sw = stream_sw.filter('scale', width, -2)
+        out, _ = _run_pipeline(stream_sw, [])
+        return Image.open(BytesIO(out))
 
     def ffmpeg_version(self) -> Dict:
         return self.__ffmpeg_version(self.__local_dir)

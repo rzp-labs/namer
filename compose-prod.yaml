@@ -1,6 +1,6 @@
 services:
   namer:
-    image: ghcr.io/rzp-labs/namer:main
+    image: ghcr.io/rzp-labs/namer:1.19.18
     container_name: namer
     restart: unless-stopped
     networks:
@@ -18,18 +18,18 @@ services:
       - /mnt/user/appdata/namer/logs:/app/logs
       - /mnt/user/data/media/namer:/app/media
     environment:
-      - NAMER_CONFIG=${NAMER_CONFIG}
+      - NAMER_CONFIG=/app/config/namer-prod.cfg
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
       - UMASK=${UMASK}
-      - LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME}
+      - LIBVA_DRIVER_NAME=iHD
       - TPDB_TOKEN=${TPDB_TOKEN}
       - STASHDB_TOKEN=${STASHDB_TOKEN}
     healthcheck:
       test:
         - CMD-SHELL
-        - curl -f http://10.0.0.69:6980/api/healthcheck || exit 1
+        - curl -f http://localhost:6980/api/healthcheck || exit 1
       interval: 30s
       timeout: 10s
       retries: 3
@@ -38,7 +38,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
   # Backlog instance - for processing existing files
   namer-backlog:
-    image: ghcr.io/rzp-labs/namer:main
+    image: ghcr.io/rzp-labs/namer:1.19.18
     container_name: namer-backlog
     restart: unless-stopped
     networks:
@@ -56,18 +56,18 @@ services:
       - /mnt/user/appdata/namer-backlog/logs:/app/logs
       - /mnt/user/data/media/namer-backlog:/app/media
     environment:
-      - NAMER_CONFIG=${NAMER_CONFIG}
+      - NAMER_CONFIG=/app/config/namer-backlog.cfg
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
       - UMASK=${UMASK}
-      - LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME}
+      - LIBVA_DRIVER_NAME=iHD
       - TPDB_TOKEN=${TPDB_TOKEN}
       - STASHDB_TOKEN=${STASHDB_TOKEN}
     healthcheck:
       test:
         - CMD-SHELL
-        - curl -f http://10.0.0.69:6980/api/healthcheck || exit 1
+        - curl -f http://localhost:6980/api/healthcheck || exit 1
       interval: 30s
       timeout: 10s
       retries: 3
