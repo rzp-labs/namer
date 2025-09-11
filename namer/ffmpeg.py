@@ -316,8 +316,8 @@ class FFMpeg:
         def _run_pipeline(stream_builder, global_args_list):
             return (
                 stream_builder
-                # Use PNG for maximum compatibility
-                .output('pipe:', vframes=1, format='image2', vcodec='png')
+                # Use APNG for backward-compatible image bytes (preserves historical phash baseline)
+                .output('pipe:', vframes=1, format='apng')
                 .global_args(*global_args_list)
                 .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
             )
@@ -363,7 +363,13 @@ class FFMpeg:
                         filt = filt.filter('scale_vaapi', width, -2)
                     filt = filt.filter('hwdownload').filter('format', 'rgba')
 
-                    out, _err = _run_pipeline(filt, global_args)
+                    # For VAAPI, prefer PNG for broad decoder compatibility
+                    out, _err = (
+                        filt
+                        .output('pipe:', vframes=1, format='image2', vcodec='png')
+                        .global_args(*global_args)
+                        .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
+                    )
                     return Image.open(BytesIO(out))
 
             except Exception as ex:

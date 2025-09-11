@@ -2,7 +2,7 @@ import concurrent.futures
 from decimal import Decimal, ROUND_HALF_UP
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import oshash
 from loguru import logger
@@ -95,7 +95,8 @@ class VideoPerceptualHash:
         if duration / chunk_count < 0.03:
             return []
 
-        queue = []
+        futures: List[Tuple[int, concurrent.futures.Future]] = []
+        results_ordered: List[Optional[Image.Image]] = [None] * chunk_count
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             for idx in range(chunk_count):
                 time = offset + (idx * step_size)
@@ -109,19 +110,18 @@ class VideoPerceptualHash:
                     hwaccel_device,
                     hwaccel_decoder,
                 )
-                queue.append(future)
+                futures.append((idx, future))
 
-            # Gather results as they complete to avoid holding exceptions
-            images: List[Image.Image] = []
-            for future in concurrent.futures.as_completed(queue):
+            # Consume futures as they complete, but store by original index to preserve order
+            for idx, future in futures:
                 try:
                     img = future.result()
-                    if img is not None:
-                        images.append(img)
+                    results_ordered[idx] = img
                 except Exception as ex:
-                    logger.error('Thumbnail extraction failed for {}: {}', file, ex)
+                    logger.error('Thumbnail extraction failed for {} at index {}: {}', file, idx, ex)
 
-        return images
+        # Filter out None while keeping original order
+        return [img for img in results_ordered if img is not None]
 
     def __concat_images(self, images: List[Image.Image]) -> Image.Image:
         width, height = images[0].size
