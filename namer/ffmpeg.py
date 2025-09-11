@@ -17,6 +17,7 @@ from io import BytesIO
 from pathlib import Path
 from random import choices
 from typing import Dict, List, Optional
+from threading import Lock
 
 import ffmpeg
 import orjson
@@ -124,6 +125,9 @@ class FFMpeg:
     __local_dir: Optional[Path] = None
     __ffmpeg_cmd: str = 'ffmpeg'
     __ffprobe_cmd: str = 'ffprobe'
+    # Log throttling for repeated GPU fallback warnings: warn once per (backend, file), else debug
+    __gpu_warned_keys: set = set()
+    __gpu_warned_lock: Lock = Lock()
 
     def __init__(self):
         versions = self.__ffmpeg_version()
@@ -366,7 +370,18 @@ class FFMpeg:
                     return Image.open(BytesIO(out))
 
             except Exception as ex:
-                logger.warning('GPU pipeline (%s) failed for %s, falling back to software: %s', backend, file, ex)
+                key_backend = backend or 'none'
+                key = (key_backend, str(file))
+                first_time = False
+                with FFMpeg.__gpu_warned_lock:
+                    if key not in FFMpeg.__gpu_warned_keys:
+                        FFMpeg.__gpu_warned_keys.add(key)
+                        first_time = True
+
+                if first_time:
+                    logger.warning('GPU pipeline ({}) failed for {}, falling back to software: {}', key_backend, file, ex)
+                else:
+                    logger.debug('GPU pipeline ({}) failed for {} (repeat), falling back to software: {}', key_backend, file, ex)
 
         # 2) Software fallback (no hwaccel args)
         stream_sw = ffmpeg.input(file, ss=screenshot_time)
