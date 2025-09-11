@@ -442,7 +442,11 @@ class FFMpeg:
             if width and width > 0:
                 stream_sw = stream_sw.filter('scale', width, -2)
             out, _err = _run_pipeline(stream_sw, [])
-            return Image.open(BytesIO(out))
+            try:
+                return Image.open(BytesIO(out))
+            except Exception as pil_ex:
+                # Image bytes invalid; fall through to PNG and other fallbacks
+                raise pil_ex
         except Exception as ex:
             try:
                 import ffmpeg as _ff
@@ -464,7 +468,11 @@ class FFMpeg:
                     .output('pipe:', vframes=1, format='image2', vcodec='png')
                     .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                 )
-                return Image.open(BytesIO(out2))
+                try:
+                    return Image.open(BytesIO(out2))
+                except Exception as pil_ex2:
+                    # Continue to post-seek fallbacks
+                    raise pil_ex2
             except Exception as ex2:
                 try:
                     import ffmpeg as _ff
@@ -476,6 +484,45 @@ class FFMpeg:
                         logger.error('Software PNG fallback failed for {} at t={}s: {}', file, screenshot_time, ex2)
                 except Exception:
                     logger.error('Software PNG fallback failed for {} at t={}s: {}', file, screenshot_time, ex2)
+            # Tertiary attempt: accurate seek using output-side -ss (post-seek), APNG then PNG
+            try:
+                stream_sw3 = ffmpeg.input(file)
+                if width and width > 0:
+                    stream_sw3 = stream_sw3.filter('scale', width, -2)
+                out3, _err3 = (
+                    stream_sw3
+                    .output('pipe:', vframes=1, ss=screenshot_time, format='apng')
+                    .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
+                )
+                return Image.open(BytesIO(out3))
+            except Exception:
+                try:
+                    stream_sw4 = ffmpeg.input(file)
+                    if width and width > 0:
+                        stream_sw4 = stream_sw4.filter('scale', width, -2)
+                    out4, _err4 = (
+                        stream_sw4
+                        .output('pipe:', vframes=1, ss=screenshot_time, format='image2', vcodec='png')
+                        .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
+                    )
+                    return Image.open(BytesIO(out4))
+                except Exception:
+                    pass
+            # Quaternary attempt: small jitter around timestamp with PNG post-seek
+            for delta in (-0.25, 0.25, -0.5, 0.5):
+                t2 = max(0.0, (screenshot_time or 0.0) + delta)
+                try:
+                    stream_sw5 = ffmpeg.input(file)
+                    if width and width > 0:
+                        stream_sw5 = stream_sw5.filter('scale', width, -2)
+                    out5, _err5 = (
+                        stream_sw5
+                        .output('pipe:', vframes=1, ss=t2, format='image2', vcodec='png')
+                        .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
+                    )
+                    return Image.open(BytesIO(out5))
+                except Exception:
+                    continue
             return None
 
     def ffmpeg_version(self) -> Dict:
