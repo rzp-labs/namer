@@ -123,9 +123,20 @@ class VideoPerceptualHash:
         # Filter out None while keeping original order
         return [img for img in results_ordered if img is not None]
 
-    def __concat_images(self, images: List[Image.Image]) -> Image.Image:
-        width, height = images[0].size
+    def __concat_images(self, images: List[Image.Image]) -> Optional[Image.Image]:
+        # If no images, nothing to do
+        if not images:
+            return None
 
+        # Ensure we have exactly rows*columns images; pad by repeating the last available image
+        required = self.__columns * self.__rows
+        if len(images) < required:
+            last = images[-1]
+            images = images + [last] * (required - len(images))
+        elif len(images) > required:
+            images = images[:required]
+
+        width, height = images[0].size
         image_size = (width * self.__columns, height * self.__rows)
         image = Image.new('RGB', image_size)
 

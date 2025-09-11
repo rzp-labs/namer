@@ -454,6 +454,28 @@ class FFMpeg:
                     logger.error('Software pipeline failed for {} at t={}s: {}', file, screenshot_time, ex)
             except Exception:
                 logger.error('Software pipeline failed for {} at t={}s: {}', file, screenshot_time, ex)
+            # Secondary attempt: retry with PNG encoder instead of APNG to mitigate encoder-specific failures
+            try:
+                stream_sw2 = ffmpeg.input(file, ss=screenshot_time)
+                if width and width > 0:
+                    stream_sw2 = stream_sw2.filter('scale', width, -2)
+                out2, _err2 = (
+                    stream_sw2
+                    .output('pipe:', vframes=1, format='image2', vcodec='png')
+                    .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
+                )
+                return Image.open(BytesIO(out2))
+            except Exception as ex2:
+                try:
+                    import ffmpeg as _ff
+                    if isinstance(ex2, _ff._run.Error) and getattr(ex2, 'stderr', None):
+                        err_msg2 = ex2.stderr.decode('utf-8', errors='ignore')
+                        err_tail2 = '\n'.join(err_msg2.strip().split('\n')[-5:])
+                        logger.error('Software PNG fallback failed for {} at t={}s. Details: {}', file, screenshot_time, err_tail2)
+                    else:
+                        logger.error('Software PNG fallback failed for {} at t={}s: {}', file, screenshot_time, ex2)
+                except Exception:
+                    logger.error('Software PNG fallback failed for {} at t={}s: {}', file, screenshot_time, ex2)
             return None
 
     def ffmpeg_version(self) -> Dict:
