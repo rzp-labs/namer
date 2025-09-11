@@ -384,11 +384,15 @@ class FFMpeg:
                     logger.debug('GPU pipeline ({}) failed for {} (repeat), falling back to software: {}', key_backend, file, ex)
 
         # 2) Software fallback (no hwaccel args)
-        stream_sw = ffmpeg.input(file, ss=screenshot_time)
-        if width and width > 0:
-            stream_sw = stream_sw.filter('scale', width, -2)
-        out, _ = _run_pipeline(stream_sw, [])
-        return Image.open(BytesIO(out))
+        try:
+            stream_sw = ffmpeg.input(file, ss=screenshot_time)
+            if width and width > 0:
+                stream_sw = stream_sw.filter('scale', width, -2)
+            out, _ = _run_pipeline(stream_sw, [])
+            return Image.open(BytesIO(out))
+        except Exception as ex:
+            logger.error('Software pipeline failed for {} at t={}s: {}', file, screenshot_time, ex)
+            return None
 
     def ffmpeg_version(self) -> Dict:
         return self.__ffmpeg_version(self.__local_dir)

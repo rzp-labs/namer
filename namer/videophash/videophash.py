@@ -99,12 +99,27 @@ class VideoPerceptualHash:
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             for idx in range(chunk_count):
                 time = offset + (idx * step_size)
-                future = executor.submit(self.__ffmpeg.extract_screenshot, file, time, self.__screenshot_width, use_gpu,
-                                         hwaccel_backend, hwaccel_device, hwaccel_decoder)
+                future = executor.submit(
+                    self.__ffmpeg.extract_screenshot,
+                    file,
+                    time,
+                    self.__screenshot_width,
+                    use_gpu,
+                    hwaccel_backend,
+                    hwaccel_device,
+                    hwaccel_decoder,
+                )
                 queue.append(future)
 
-        concurrent.futures.wait(queue)
-        images = [item.result() for item in queue]
+            # Gather results as they complete to avoid holding exceptions
+            images: List[Image.Image] = []
+            for future in concurrent.futures.as_completed(queue):
+                try:
+                    img = future.result()
+                    if img is not None:
+                        images.append(img)
+                except Exception as ex:
+                    logger.error('Thumbnail extraction failed for {}: {}', file, ex)
 
         return images
 
