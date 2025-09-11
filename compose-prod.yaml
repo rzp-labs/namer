@@ -1,6 +1,6 @@
 services:
   namer:
-    image: ghcr.io/rzp-labs/namer:1.19.18
+    image: ghcr.io/rzp-labs/namer:1.19.19
     container_name: namer
     restart: unless-stopped
     networks:
@@ -38,7 +38,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
   # Backlog instance - for processing existing files
   namer-backlog:
-    image: ghcr.io/rzp-labs/namer:1.19.18
+    image: ghcr.io/rzp-labs/namer:1.19.19
     container_name: namer-backlog
     restart: unless-stopped
     networks:
