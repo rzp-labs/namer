@@ -316,9 +316,10 @@ class FFMpeg:
         def _run_pipeline(stream_builder, global_args_list):
             return (
                 stream_builder
-                .output('pipe:', vframes=1, format='apng')
+                # Use PNG for maximum compatibility
+                .output('pipe:', vframes=1, format='image2', vcodec='png')
                 .global_args(*global_args_list)
-                .run(quiet=True, capture_stdout=True, cmd=self.__ffmpeg_cmd)
+                .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
             )
 
         # Normalize inputs
@@ -349,29 +350,27 @@ class FFMpeg:
                     return Image.open(BytesIO(out))
 
                 if backend == 'vaapi':
-                    # VAAPI requires device and upload/download in filter graph
+                    # VAAPI: decode in software, then hwupload -> scale_vaapi -> hwdownload -> format
+                    # This avoids strict hw decoder requirements and matches the successful manual test.
                     global_args = []
                     if hwaccel_device:
                         global_args.extend(['-vaapi_device', hwaccel_device])
 
-                    input_args = {'hwaccel': 'vaapi'}
-                    if hwaccel_decoder:
-                        input_args['vcodec'] = hwaccel_decoder
+                    stream = ffmpeg.input(file, ss=screenshot_time)
 
-                    stream = ffmpeg.input(file, ss=screenshot_time, **input_args)
-
-                    # hwupload -> scale_vaapi -> hwdownload -> format
                     filt = stream.filter('hwupload')
                     if width and width > 0:
                         filt = filt.filter('scale_vaapi', width, -2)
                     filt = filt.filter('hwdownload').filter('format', 'rgba')
 
-                    out, _ = _run_pipeline(filt, global_args)
+                    out, _err = _run_pipeline(filt, global_args)
                     return Image.open(BytesIO(out))
 
             except Exception as ex:
                 key_backend = backend or 'none'
-                key = (key_backend, str(file))
+                key_device = hwaccel_device or 'none'
+                key_decoder = hwaccel_decoder or 'auto'
+                key = (key_backend, key_device, str(file))
                 first_time = False
                 with FFMpeg.__gpu_warned_lock:
                     if key not in FFMpeg.__gpu_warned_keys:
@@ -379,16 +378,30 @@ class FFMpeg:
                         first_time = True
 
                 if first_time:
-                    logger.warning('GPU pipeline ({}) failed for {}, falling back to software: {}', key_backend, file, ex)
+                    # Try to include stderr if present on ffmpeg Error
+                    try:
+                        import ffmpeg as _ff
+                        if isinstance(ex, _ff._run.Error) and getattr(ex, 'stderr', None):
+                            err_msg = ex.stderr.decode('utf-8', errors='ignore')
+                            err_msg_short = err_msg.strip().split('\n')[-5:]
+                            logger.warning('GPU pipeline (backend={}, device={}, decoder={}) failed for {}. Falling back to software. Details: {}',
+                                           key_backend, key_device, key_decoder, file, '\n'.join(err_msg_short))
+                        else:
+                            logger.warning('GPU pipeline (backend={}, device={}, decoder={}) failed for {}, falling back to software: {}',
+                                           key_backend, key_device, key_decoder, file, ex)
+                    except Exception:
+                        logger.warning('GPU pipeline (backend={}, device={}, decoder={}) failed for {}, falling back to software: {}',
+                                       key_backend, key_device, key_decoder, file, ex)
                 else:
-                    logger.debug('GPU pipeline ({}) failed for {} (repeat), falling back to software: {}', key_backend, file, ex)
+                    logger.debug('GPU pipeline (backend={}, device={}, decoder={}) failed for {} (repeat), falling back to software: {}',
+                                 key_backend, key_device, key_decoder, file, ex)
 
         # 2) Software fallback (no hwaccel args)
         try:
             stream_sw = ffmpeg.input(file, ss=screenshot_time)
             if width and width > 0:
                 stream_sw = stream_sw.filter('scale', width, -2)
-            out, _ = _run_pipeline(stream_sw, [])
+            out, _err = _run_pipeline(stream_sw, [])
             return Image.open(BytesIO(out))
         except Exception as ex:
             logger.error('Software pipeline failed for {} at t={}s: {}', file, screenshot_time, ex)
