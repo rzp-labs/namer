@@ -128,6 +128,9 @@ class FFMpeg:
     # Log throttling for repeated GPU fallback warnings: warn once per (backend, file), else debug
     __gpu_warned_keys: set = set()
     __gpu_warned_lock: Lock = Lock()
+    # Cache a working VAAPI render node across calls
+    __vaapi_device_cached: Optional[str] = None
+    __vaapi_lock: Lock = Lock()
 
     def __init__(self):
         versions = self.__ffmpeg_version()
@@ -350,27 +353,58 @@ class FFMpeg:
                     return Image.open(BytesIO(out))
 
                 if backend == 'vaapi':
-                    # VAAPI: decode in software, then hwupload -> scale_vaapi -> hwdownload -> format
-                    # This avoids strict hw decoder requirements and matches the successful manual test.
-                    global_args = []
-                    if hwaccel_device:
-                        global_args.extend(['-vaapi_device', hwaccel_device])
+                    # VAAPI: software decode, GPU scale. If configured device fails, try autodiscovery of /dev/dri/renderD*.
 
-                    stream = ffmpeg.input(file, ss=screenshot_time)
+                    def _try_device(device: Optional[str]) -> Optional[bytes]:
+                        ga = []
+                        if device:
+                            ga.extend(['-vaapi_device', device])
+                        stream_local = ffmpeg.input(file, ss=screenshot_time)
+                        filt_local = stream_local.filter('hwupload')
+                        if width and width > 0:
+                            filt_local = filt_local.filter('scale_vaapi', width, -2)
+                        filt_local = filt_local.filter('hwdownload').filter('format', 'rgba')
+                        out_bytes, _err = (
+                            filt_local
+                            .output('pipe:', vframes=1, format='image2', vcodec='png')
+                            .global_args(*ga)
+                            .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
+                        )
+                        return out_bytes
 
-                    filt = stream.filter('hwupload')
-                    if width and width > 0:
-                        filt = filt.filter('scale_vaapi', width, -2)
-                    filt = filt.filter('hwdownload').filter('format', 'rgba')
+                    # Build candidate list: cached -> configured -> all render nodes
+                    candidates: List[Optional[str]] = []
+                    with FFMpeg.__vaapi_lock:
+                        if FFMpeg.__vaapi_device_cached:
+                            candidates.append(FFMpeg.__vaapi_device_cached)
+                    if hwaccel_device and hwaccel_device not in candidates:
+                        candidates.append(hwaccel_device)
+                    try:
+                        dri_path = Path('/dev/dri')
+                        if dri_path.exists():
+                            for p in sorted(dri_path.glob('renderD*')):
+                                s = str(p)
+                                if s not in candidates:
+                                    candidates.append(s)
+                    except Exception:
+                        pass
 
-                    # For VAAPI, prefer PNG for broad decoder compatibility
-                    out, _err = (
-                        filt
-                        .output('pipe:', vframes=1, format='image2', vcodec='png')
-                        .global_args(*global_args)
-                        .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
-                    )
-                    return Image.open(BytesIO(out))
+                    last_ex: Optional[Exception] = None
+                    for dev in candidates:
+                        try:
+                            out = _try_device(dev)
+                            if out:
+                                # cache working device
+                                if dev:
+                                    with FFMpeg.__vaapi_lock:
+                                        FFMpeg.__vaapi_device_cached = dev
+                                return Image.open(BytesIO(out))
+                        except Exception as ex2:
+                            last_ex = ex2
+                            continue
+                    # If all candidates failed, re-raise the last exception to trigger software fallback logging
+                    if last_ex:
+                        raise last_ex
 
             except Exception as ex:
                 key_backend = backend or 'none'
@@ -410,7 +444,16 @@ class FFMpeg:
             out, _err = _run_pipeline(stream_sw, [])
             return Image.open(BytesIO(out))
         except Exception as ex:
-            logger.error('Software pipeline failed for {} at t={}s: {}', file, screenshot_time, ex)
+            try:
+                import ffmpeg as _ff
+                if isinstance(ex, _ff._run.Error) and getattr(ex, 'stderr', None):
+                    err_msg = ex.stderr.decode('utf-8', errors='ignore')
+                    err_tail = '\n'.join(err_msg.strip().split('\n')[-5:])
+                    logger.error('Software pipeline failed for {} at t={}s. Details: {}', file, screenshot_time, err_tail)
+                else:
+                    logger.error('Software pipeline failed for {} at t={}s: {}', file, screenshot_time, ex)
+            except Exception:
+                logger.error('Software pipeline failed for {} at t={}s: {}', file, screenshot_time, ex)
             return None
 
     def ffmpeg_version(self) -> Dict:
