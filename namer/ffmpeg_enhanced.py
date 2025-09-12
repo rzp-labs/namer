@@ -426,11 +426,26 @@ class FFMpeg:
                 # Build input
                 stream = ffmpeg.input(file, ss=screenshot_time, **input_args)
 
-                # Prefer QSV scale when a width is provided
+                # Prefer QSV scale when a width is provided, with proper format conversion
                 if width and width > 0:
-                    out, _ = _run_pipeline(stream.filter('scale_qsv', width, -2), global_args)
+                    # QSV decode -> QSV scale (maintaining aspect ratio) -> download to system memory -> format conversion -> encode
+                    # For QSV, we need to use -1 for aspect ratio since -2 is not supported
+                    filtered = stream.filter('scale_qsv', f'{width}:-1').filter('hwdownload').filter('format', 'nv12')
+                    out, _ = (
+                        filtered
+                        .output('pipe:', vframes=1, format='image2', vcodec='png')
+                        .global_args(*global_args)
+                        .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
+                    )
                 else:
-                    out, _ = _run_pipeline(stream, global_args)
+                    # QSV decode -> download to system memory -> format conversion -> encode 
+                    filtered = stream.filter('hwdownload').filter('format', 'nv12')
+                    out, _ = (
+                        filtered
+                        .output('pipe:', vframes=1, format='image2', vcodec='png')
+                        .global_args(*global_args)
+                        .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
+                    )
 
                 logger.debug(f"QSV decode successful for {file} using decoder: {selected_decoder or 'generic'}")
                 return Image.open(BytesIO(out))
