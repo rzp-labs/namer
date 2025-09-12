@@ -360,6 +360,7 @@ def environment(config: NamerConfig = None):  # type: ignore
         temp_dir = Path(tmp_dir).resolve()
 
         config.enabled_tagging = True
+        config.metadata_provider = "theporndb"
         config.enabled_poster = True
         config.override_tpdb_address = fake_tpdb.get_url()
         config.watch_dir = temp_dir / 'watch'

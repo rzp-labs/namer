@@ -1,10 +1,18 @@
-FROM ubuntu:latest AS base
+FROM ubuntu:24.04 AS base
 
 ENV PATH="/root/.local/bin:$PATH"
 ENV TZ=Europe/London
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies.
+# Switch to Ubuntu development repositories to get latest Intel GPU support
+RUN echo "Switching to Ubuntu development repositories for Intel Arc B580 support..." \
+    && echo "deb http://archive.ubuntu.com/ubuntu devel main restricted universe multiverse" > /etc/apt/sources.list \
+    && echo "deb http://archive.ubuntu.com/ubuntu devel-updates main restricted universe multiverse" >> /etc/apt/sources.list \
+    && echo "deb http://archive.ubuntu.com/ubuntu devel-backports main restricted universe multiverse" >> /etc/apt/sources.list \
+    && echo "deb http://security.ubuntu.com/ubuntu devel-security main restricted universe multiverse" >> /etc/apt/sources.list
+
+
+# Install dependencies with Intel GPU hardware acceleration support
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        python3-pip \
@@ -13,8 +21,12 @@ RUN apt-get update \
        ffmpeg \
        tzdata \
        curl \
+       wget \
+       gnupg2 \
        intel-media-va-driver \
+       libmfx-gen1.2 \
        vainfo \
+       bc \
     && rm -rf /var/lib/apt/lists/* \
     && rm -Rf /usr/share/doc && rm -Rf /usr/share/man \
     && apt-get clean
@@ -29,11 +41,9 @@ RUN apt-get update \
        systemd-sysv \
        python3-dev \
        python3-venv \
-       wget \
-       gnupg2 \
-       xvfb \
        golang \
        git \
+       xvfb \
     && rm -rf /var/lib/apt/lists/* \
     && rm -Rf /usr/share/doc && rm -Rf /usr/share/man \
     && apt-get clean
@@ -62,18 +72,34 @@ RUN . /root/.bashrc && npm i -g pnpm@latest-10
 RUN mkdir /work/
 COPY . /work
 WORKDIR /work
+
+# Copy enhanced FFMPEG module during build if it exists
+COPY namer/ffmpeg_enhanced.py /work/namer/ffmpeg.py
+
 RUN rm -rf /work/namer/__pycache__/ || true \
     && rm -rf /work/test/__pycache__/ || true \
     && poetry install
 RUN . /root/.bashrc && ( Xvfb :99 & cd /work/ && poetry run poe build_all )
 
 FROM base
+
+# Install the built namer package
 COPY --from=build /work/dist/namer-*.tar.gz /
 RUN pipx install /namer-*.tar.gz \
     && rm /namer-*.tar.gz
 
+# Install Intel GPU firmware from host if available, otherwise use a fallback
+# This step installs firmware to support Intel Arc, UHD Graphics, and other Intel GPUs
+RUN mkdir -p /lib/firmware/i915 /tmp/firmware-backup
+COPY scripts/install-intel-firmware-fast.sh /tmp/install-intel-firmware-fast.sh
+RUN timeout 300 bash -c "chmod +x /tmp/install-intel-firmware-fast.sh && /tmp/install-intel-firmware-fast.sh"
+
+# Copy Intel GPU detection script
+COPY scripts/detect-intel-gpu.sh /usr/local/bin/detect-gpu.sh
+RUN chmod +x /usr/local/bin/detect-gpu.sh
+
 ARG BUILD_DATE
-ARG GIT_HASH
+ARG GIT_HASH  
 ARG PROJECT_VERSION
 
 ENV PYTHONUNBUFFERED=1
@@ -81,7 +107,12 @@ ENV NAMER_CONFIG=/config/namer.cfg
 ENV BUILD_DATE=$BUILD_DATE
 ENV GIT_HASH=$GIT_HASH
 ENV PROJECT_VERSION=$PROJECT_VERSION
+ENV LIBVA_DRIVER_NAME=iHD
 
 EXPOSE 6980
 HEALTHCHECK --interval=1m --timeout=30s CMD curl -s $(namer url)/api/healthcheck >/dev/null || exit 1
-ENTRYPOINT ["namer", "watchdog"]
+
+# Enhanced entrypoint with Intel GPU support
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

@@ -1,0 +1,49 @@
+services:
+  namer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_DATE: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        GIT_HASH: "$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+        PROJECT_VERSION: "$(grep version pyproject.toml 2>/dev/null | cut -d'\"' -f2 || echo dev)"
+    image: namer:intel-hwaccell
+    container_name: namer
+    restart: unless-stopped
+    
+    # Intel GPU hardware acceleration support
+    devices:
+      - /dev/dri:/dev/dri
+    
+    # Volume mounts
+    volumes:
+      - ./config:/config
+      - /mnt/user/appdata/namer/media:/app/media
+    
+    # Port mapping
+    ports:
+      - "6980:6980"
+    
+    # Environment variables for Intel GPU support
+    environment:
+      - LIBVA_DRIVER_NAME=iHD
+      - DEBUG=false
+      # Uncomment below for GPU debugging
+      # - DEBUG=true
+      # - TEST_GPU=true
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-s", "http://localhost:6980/api/healthcheck"]
+      interval: 1m
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+
+# Alternative configuration for pre-built image
+# If you want to use a pre-built image instead of building locally,
+# replace the 'build:' section above with:
+#
+# image: your-registry/namer:intel-gpu
+#
+# and remove the 'build:' section entirely.
