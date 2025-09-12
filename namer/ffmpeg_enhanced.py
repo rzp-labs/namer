@@ -1,6 +1,32 @@
 """
 Enhanced ffmpeg module with automatic QSV decoder selection and robust hardware acceleration fallback.
 This module extends the original ffmpeg.py with intelligent codec detection and QSV decoder mapping.
+
+⚠️  CRITICAL MAINTENANCE WARNING ⚠️
+
+This file (ffmpeg_enhanced.py) is the PRODUCTION VERSION used in Docker containers!
+During container builds, THIS FILE REPLACES ffmpeg.py (see Dockerfile line 77).
+
+🚀 CONTAINER BUILD PROCESS:
+   Dockerfile: COPY namer/ffmpeg_enhanced.py /work/namer/ffmpeg.py
+   Result: This enhanced version becomes the active ffmpeg.py in containers
+
+🔧 WHEN MAKING CHANGES TO THIS FILE:
+   1. Apply the SAME changes to namer/ffmpeg.py (for local development)
+   2. Test both files to ensure they work identically
+   3. This file takes precedence in production containers
+
+🔄 DUAL FILE SYNCHRONIZATION REQUIRED:
+   - ffmpeg.py = Development/local version
+   - ffmpeg_enhanced.py = Production/container version (THIS FILE)
+   - Both must be kept in sync for consistent behavior
+
+ℹ️ PURPOSE: This enhanced version includes optimizations for:
+   - Intel GPU hardware acceleration (QSV)
+   - Advanced codec detection and mapping
+   - Robust fallback chains for different hardware configurations
+
+📖 See FFMPEG_DUAL_FILE_MAINTENANCE.md for complete maintenance guidelines.
 """
 
 import os
@@ -144,6 +170,13 @@ class FFProbeResults:
 
 
 class FFMpeg:
+    """
+    FFmpeg interface with hardware acceleration support.
+    
+    ⚠️  PRODUCTION VERSION - DUAL-FILE MAINTENANCE WARNING:
+    This is the CONTAINER PRODUCTION version! Any changes here should also
+    be applied to the base ffmpeg.py for local development consistency.
+    """
     __local_dir: Optional[Path] = None
     __ffmpeg_cmd: str = 'ffmpeg'
     __ffprobe_cmd: str = 'ffprobe'
@@ -375,6 +408,11 @@ class FFMpeg:
         """
         Extract a single frame as an image with enhanced QSV support and automatic decoder selection.
 
+        ⚠️  PRODUCTION VERSION - DUAL-FILE MAINTENANCE WARNING:
+        This method contains critical hardware acceleration fixes that MUST be synchronized
+        between ffmpeg.py (base) and ffmpeg_enhanced.py (THIS FILE - production).
+        This version is used in Docker containers!
+
         Enhanced robust fallback order:
         1. If QSV is available: auto-detect decoder based on codec, try QSV decode+scale
         2. If backend == 'vaapi': try VAAPI (hwupload -> scale_vaapi -> hwdownload -> format)  
@@ -429,11 +467,13 @@ class FFMpeg:
                 # Prefer QSV scale when a width is provided, with proper format conversion
                 if width and width > 0:
                     # QSV decode -> QSV scale (maintaining aspect ratio) -> download to system memory -> format conversion -> encode
+                    # Fix: Use named parameters to avoid colon escaping issues in ffmpeg-python
+                    # ⚠️  CRITICAL: This fix must be mirrored in base ffmpeg.py!
                     # For QSV, we need to use -1 for aspect ratio since -2 is not supported
-                    filtered = stream.filter('scale_qsv', f'{width}:-1').filter('hwdownload').filter('format', 'nv12')
+                    filtered = stream.filter('scale_qsv', w=width, h=-1).filter('hwdownload').filter('format', 'nv12')
                     out, _ = (
                         filtered
-                        .output('pipe:', vframes=1, format='image2', vcodec='png')
+                        .output('pipe:', vframes=1, format='image2', vcodec='png', update=1)  # ⚠️  Mirror in ffmpeg.py!
                         .global_args(*global_args)
                         .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                     )
@@ -442,7 +482,7 @@ class FFMpeg:
                     filtered = stream.filter('hwdownload').filter('format', 'nv12')
                     out, _ = (
                         filtered
-                        .output('pipe:', vframes=1, format='image2', vcodec='png')
+                        .output('pipe:', vframes=1, format='image2', vcodec='png', update=1)
                         .global_args(*global_args)
                         .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                     )
@@ -496,7 +536,7 @@ class FFMpeg:
                     filt_local = filt_local.filter('hwdownload').filter('format', 'rgba')
                     out_bytes, _err = (
                         filt_local
-                        .output('pipe:', vframes=1, format='image2', vcodec='png')
+                        .output('pipe:', vframes=1, format='image2', vcodec='png', update=1)
                         .global_args(*ga)
                         .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                     )
@@ -581,7 +621,7 @@ class FFMpeg:
                     stream_sw2 = stream_sw2.filter('scale', width, -2)
                 out2, _err2 = (
                     stream_sw2
-                    .output('pipe:', vframes=1, format='image2', vcodec='png')
+                    .output('pipe:', vframes=1, format='image2', vcodec='png', update=1)
                     .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                 )
                 try:

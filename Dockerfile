@@ -73,7 +73,18 @@ RUN mkdir /work/
 COPY . /work
 WORKDIR /work
 
-# Copy enhanced FFMPEG module during build if it exists
+# ⚠️  CRITICAL: Replace base ffmpeg.py with enhanced version for container builds
+# This OVERWRITES namer/ffmpeg.py with the enhanced version that includes:
+#   - Intel GPU hardware acceleration (QSV)
+#   - Advanced codec detection and mapping  
+#   - Robust fallback chains for different hardware configurations
+#
+# 🔧 MAINTENANCE WARNING:
+# When making changes to FFmpeg functionality, you MUST update BOTH files:
+#   - namer/ffmpeg.py (base/development version)
+#   - namer/ffmpeg_enhanced.py (production/container version - used here)
+#
+# Failure to sync both files will cause inconsistent behavior!
 COPY namer/ffmpeg_enhanced.py /work/namer/ffmpeg.py
 
 RUN rm -rf /work/namer/__pycache__/ || true \
