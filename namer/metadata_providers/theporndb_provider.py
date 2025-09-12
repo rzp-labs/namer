@@ -57,7 +57,7 @@ class ThePornDBProvider(BaseMetadataProvider):
         
         data = orjson.dumps(payload)
         # Endpoint resolution order: env > config override > built-in default
-        base = os.environ.get('TPDB_ENDPOINT') or (config.override_tpdb_address or '').strip() or 'https://api.theporndb.net'
+        base = os.environ.get('TPDB_ENDPOINT') or (config.override_tpdb_address or '').strip() or 'https://theporndb.net'
         graphql_url = base.rstrip('/') + '/graphql'
         
         try:
@@ -112,7 +112,11 @@ class ThePornDBProvider(BaseMetadataProvider):
         file_info.name = scene_data.get('title', '')
         file_info.description = scene_data.get('description', '')
         file_info.date = scene_data.get('date', '')
-        file_info.source_url = scene_data.get('url', '')
+        # Handle both old 'url' field and new 'urls' structure
+        if 'urls' in scene_data and scene_data['urls']:
+            file_info.source_url = scene_data['urls'].get('view', '')
+        else:
+            file_info.source_url = scene_data.get('url', '')
         file_info.duration = scene_data.get('duration')
         
         # External ID
@@ -124,7 +128,10 @@ class ThePornDBProvider(BaseMetadataProvider):
             file_info.poster_url = scene_data['poster']
         
         if 'background' in scene_data and scene_data['background']:
-            file_info.background_url = scene_data['background'].get('large', '')
+            if isinstance(scene_data['background'], dict):
+                file_info.background_url = scene_data['background'].get('large', '')
+            else:
+                file_info.background_url = scene_data['background']
         
         if 'trailer' in scene_data:
             file_info.trailer_url = scene_data['trailer']
@@ -297,52 +304,17 @@ class ThePornDBProvider(BaseMetadataProvider):
         Returns:
             List of scene data from GraphQL response
         """
-        # 1) Try legacy/older schema used in tests: searchScenes(input: {query, page})
-        search_scenes_query = '''
-            query SearchScenes($query: String!, $page: Int) {
-                searchScenes(input: {query: $query, page: $page}) {
-                    data {
-                        id
-                        title
-                        date
-                        url
-                        description
-                        duration
-                        poster
-                        background { large }
-                        trailer
-                        site { name parent { name } network { name } }
-                        performers {
-                            name
-                            parent { name image extras { gender } }
-                            image
-                            extras { gender }
-                        }
-                        tags { name }
-                        hashes { hash type duration }
-                    }
-                }
-            }
-        '''
-
-        variables = { 'query': query, 'page': page }
-        response_data = self._graphql_request(search_scenes_query, variables, config)
-        if response_data and 'searchScenes' in response_data:
-            return response_data['searchScenes'].get('data', []) or []
-
-        # 2) Fallback to newer schema: searchScene(term: $term)
+        # Try current schema: searchScene(term: $term) - this is the correct API
         search_scene_query = '''
             query SearchScene($term: String!) {
                 searchScene(term: $term) {
                     id
                     title
                     date
-                    url
                     description
                     duration
-                    poster
-                    background { large }
-                    trailer
+                    url
+                    urls { view }
                     site { name parent { name } network { name } }
                     performers {
                         name
@@ -360,6 +332,7 @@ class ThePornDBProvider(BaseMetadataProvider):
         if response_data and 'searchScene' in response_data:
             scenes = response_data['searchScene']
             return scenes if isinstance(scenes, list) else []
+
 
         return []
     
@@ -393,14 +366,12 @@ class ThePornDBProvider(BaseMetadataProvider):
                     id
                     title
                     date
-                    url
                     description
                     duration
-                    poster
-                    background {
-                        large
+                    url
+                    urls {
+                        view
                     }
-                    trailer
                     isCollected
                     site {
                         name
@@ -590,52 +561,44 @@ def _build_graphql_query(query_type: str, variables: Dict[str, Any]) -> Dict[str
     """
     # TODO: Implement GraphQL queries when migrating from REST
     queries = {
-        'searchScenes': '''
-            query SearchScenes($query: String!, $page: Int) {
-                searchScenes(input: {query: $query, page: $page}) {
-                    data {
-                        id
-                        title
-                        date
-                        url
-                        description
-                        duration
-                        poster
-                        background {
-                            large
-                        }
-                        trailer
-                        site {
+        'searchScene': '''
+            query SearchScene($term: String!) {
+                searchScene(term: $term) {
+                    id
+                    title
+                    date
+                    duration
+                    urls { view }
+                    site {
+                        name
+                        parent {
                             name
-                            parent {
-                                name
-                            }
-                            network {
-                                name
-                            }
                         }
-                        performers {
+                        network {
                             name
-                            parent {
-                                name
-                                image
-                                extras {
-                                    gender
-                                }
-                            }
+                        }
+                    }
+                    performers {
+                        name
+                        parent {
+                            name
                             image
                             extras {
                                 gender
                             }
                         }
-                        tags {
-                            name
+                        image
+                        extras {
+                            gender
                         }
-                        hashes {
-                            hash
-                            type
-                            duration
-                        }
+                    }
+                    tags {
+                        name
+                    }
+                    hashes {
+                        hash
+                        type
+                        duration
                     }
                 }
             }
@@ -646,14 +609,9 @@ def _build_graphql_query(query_type: str, variables: Dict[str, Any]) -> Dict[str
                     id
                     title
                     date
-                    url
-                    description
                     duration
-                    poster
-                    background {
-                        large
-                    }
-                    trailer
+                    urls { view }
+                    isCollected
                     site {
                         name
                         parent {

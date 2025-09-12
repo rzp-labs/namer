@@ -176,6 +176,16 @@ if [[ -n "$BEST_DEVICE" ]]; then
     export INTEL_MEDIA_RUNTIME_VERBOSE=1  # Enable verbose logging for debugging
 fi
 
+# Write environment variables to a file that can be sourced by the entrypoint
+GPU_ENV_FILE="/tmp/gpu-detected-env"
+cat > "$GPU_ENV_FILE" << EOF
+export NAMER_GPU_DEVICE="$BEST_DEVICE"
+export NAMER_GPU_BACKEND="$BEST_BACKEND"
+export LIBVA_DRIVER_NAME="${LIBVA_DRIVER_NAME:-}"
+EOF
+
+log "Environment variables written to $GPU_ENV_FILE for entrypoint sourcing"
+
 # Log the results
 log "GPU detection complete:"
 log "  GPU: ${BEST_GPU_NAME:-none}"

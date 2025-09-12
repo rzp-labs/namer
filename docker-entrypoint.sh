@@ -25,10 +25,21 @@ if [[ -d "/dev/dri" ]] && [[ -n "$(ls -A /dev/dri 2>/dev/null)" ]]; then
     done
     
     echo "[ENTRYPOINT] Running Intel GPU detection with debugging enabled..."
+    
+    # Run GPU detection script
     if DEBUG=true TEST_GPU=true /usr/local/bin/detect-gpu.sh; then
-        echo "[ENTRYPOINT] GPU detection successful"
-        echo "[ENTRYPOINT] Selected GPU: ${NAMER_GPU_DEVICE:-none}"
-        echo "[ENTRYPOINT] Backend: ${NAMER_GPU_BACKEND:-none}"
+        # Source the environment variables written by the GPU detection script
+        GPU_ENV_FILE="/tmp/gpu-detected-env"
+        if [[ -f "$GPU_ENV_FILE" ]]; then
+            source "$GPU_ENV_FILE"
+            echo "[ENTRYPOINT] GPU detection successful"
+            echo "[ENTRYPOINT] Selected GPU: ${NAMER_GPU_DEVICE:-none}"
+            echo "[ENTRYPOINT] Backend: ${NAMER_GPU_BACKEND:-none}"
+        else
+            echo "[ENTRYPOINT] GPU detection failed - environment file not created"
+            echo "[ENTRYPOINT] Selected GPU: none"
+            echo "[ENTRYPOINT] Backend: none"
+        fi
         
         # Identify the type of Intel GPU detected
         if [[ "${NAMER_GPU_DEVICE}" == *"renderD128"* ]]; then

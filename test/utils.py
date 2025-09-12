@@ -222,6 +222,8 @@ class FakeTPDB(ParrotWebServer):
                 # Route based on query type
                 if 'searchScenes' in query:
                     return self._handle_search_scenes(variables)
+                elif 'searchScene' in query:
+                    return self._handle_search_scene(variables)
                 elif 'findScene' in query:
                     return self._handle_find_scene(variables)
                 elif 'me' in query:
@@ -243,7 +245,7 @@ class FakeTPDB(ParrotWebServer):
         super().set_response('/graphql?', handle_graphql_request)
     
     def _handle_search_scenes(self, variables):
-        """Handle searchScenes GraphQL query."""
+        """Handle searchScenes GraphQL query (legacy)."""
         import orjson
         
         query_string = variables.get('query', '').lower()
@@ -274,6 +276,37 @@ class FakeTPDB(ParrotWebServer):
                 "searchScenes": {
                     "data": [scene_data]
                 }
+            }
+        }).decode('utf-8')
+        
+    def _handle_search_scene(self, variables):
+        """Handle searchScene GraphQL query (singular, current schema)."""
+        import orjson
+        
+        term_string = variables.get('term', '').lower()
+        
+        # Determine which scene data to return based on term
+        if 'evilangel' in term_string and 'carmela clutch' in term_string:
+            # ea.full.json has the scene data directly in 'data' field
+            scene_data = self._scenes['ea.full.json']['data']
+        elif ('dorcelclub' in term_string or 'dorcеlclub' in term_string) and ('aya benetti' in term_string or 'aya bеnеtti' in term_string):
+            # dc.json has REST API structure with 'data' array (supports unicode characters)
+            scene_data = self._scenes['dc.json']['data'][0]
+        elif 'brazzersexxtra' in term_string and 'marykate moss' in term_string:
+            # ssb2.json has REST API structure with 'data' array
+            scene_data = self._scenes['ssb2.json']['data'][0]  
+        else:
+            # Return empty results for unknown queries
+            return orjson.dumps({
+                "data": {
+                    "searchScene": []
+                }
+            }).decode('utf-8')
+        
+        # Return array of scenes for searchScene (current schema)
+        return orjson.dumps({
+            "data": {
+                "searchScene": [scene_data]
             }
         }).decode('utf-8')
     
