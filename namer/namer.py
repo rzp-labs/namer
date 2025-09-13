@@ -211,6 +211,14 @@ def process_file(command: Command) -> Optional[Command]:
         target_dir = command.target_directory if command.target_directory is not None else command.target_movie_file.parent
         set_permissions(target_dir, command.config)
         if new_metadata is not None:
+            # Ensure the original parsed filename extension matches the current file extension
+            # This handles both container conversion and cases where filename parsing failed to extract extension
+            if (new_metadata.original_parsed_filename and command.target_movie_file):
+                actual_extension = command.target_movie_file.suffix.lower()[1:]
+                parsed_extension = new_metadata.original_parsed_filename.extension
+                # Update if extension is None, empty, or different from actual file extension
+                if not parsed_extension or parsed_extension != actual_extension:
+                    new_metadata.original_parsed_filename.extension = actual_extension
             if command.config.manual_mode and command.is_auto:
                 failed = move_command_files(command, command.config.failed_dir)
                 if failed is not None and search_results is not None and failed.config.write_namer_failed_log:
