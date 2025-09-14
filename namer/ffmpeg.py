@@ -568,8 +568,8 @@ class FFMpeg:
                     stream_local = ffmpeg.input(file, ss=screenshot_time)
                     filt_local = stream_local.filter('hwupload')
                     if width and width > 0:
-                    filt_local = filt_local.filter('scale_vaapi', width, -2)
-                filt_local = filt_local.filter('hwdownload').filter('format', 'rgb24')  # Use rgb24 for consistency with QSV/SW
+                        filt_local = filt_local.filter('scale_vaapi', width, -2)
+                    filt_local = filt_local.filter('hwdownload').filter('format', 'rgb24')  # Use rgb24 for consistency with QSV/SW
                     out_bytes, _err = (
                         filt_local
                         .output('pipe:', vframes=1, format='image2', vcodec='png', update=1)
@@ -662,6 +662,8 @@ class FFMpeg:
                 stream_sw2 = ffmpeg.input(file, ss=screenshot_time)
                 if width and width > 0:
                     stream_sw2 = stream_sw2.filter('scale', width, -2)
+                # Apply consistent format processing
+                stream_sw2 = stream_sw2.filter('format', 'rgb24')
                 out2, _err2 = (
                     stream_sw2
                     .output('pipe:', vframes=1, format='image2', vcodec='png', update=1)
