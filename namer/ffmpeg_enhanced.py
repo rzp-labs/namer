@@ -464,32 +464,33 @@ class FFMpeg:
                 # Build input
                 stream = ffmpeg.input(file, ss=screenshot_time, **input_args)
 
-                # Prefer QSV scale when a width is provided, with improved format handling
+                # Prefer QSV scale when a width is provided, with robust format handling
                 if width and width > 0:
-                    # QSV decode -> QSV scale -> download -> format conversion for stability
-                    # Use more compatible format chain to avoid -22 invalid argument errors
+                    # QSV decode -> QSV scale -> download -> format conversion optimized for AV1/high-bit-depth
                     filtered = (
                         stream
                         .filter('scale_qsv', w=width, h=-1)
                         .filter('hwdownload')
-                        .filter('format', 'yuv420p')  # More compatible intermediate format
+                        .filter('format', 'nv12')  # Use NV12 as intermediate - better for QSV output
+                        .filter('format', 'rgb24')  # Convert to RGB24 for reliable APNG encoding
                     )
                     out, _ = (
                         filtered
-                        .output('pipe:', vframes=1, format='apng')  # Use APNG for better compatibility
+                        .output('pipe:', vframes=1, format='apng')
                         .global_args(*global_args)
                         .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                     )
                 else:
-                    # QSV decode -> download -> format conversion with compatible pipeline
+                    # QSV decode -> download -> format conversion optimized for AV1/high-bit-depth
                     filtered = (
                         stream
                         .filter('hwdownload')
-                        .filter('format', 'yuv420p')  # More compatible format
+                        .filter('format', 'nv12')  # Use NV12 as intermediate - native QSV output format
+                        .filter('format', 'rgb24')  # Convert to RGB24 for reliable APNG encoding
                     )
                     out, _ = (
                         filtered
-                        .output('pipe:', vframes=1, format='apng')  # Use APNG for compatibility
+                        .output('pipe:', vframes=1, format='apng')
                         .global_args(*global_args)
                         .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                     )
