@@ -464,25 +464,32 @@ class FFMpeg:
                 # Build input
                 stream = ffmpeg.input(file, ss=screenshot_time, **input_args)
 
-                # Prefer QSV scale when a width is provided, with proper format conversion
+                # Prefer QSV scale when a width is provided, with improved format handling
                 if width and width > 0:
-                    # QSV decode -> QSV scale (maintaining aspect ratio) -> download to system memory -> format conversion -> encode
-                    # Fix: Use named parameters to avoid colon escaping issues in ffmpeg-python
-                    # ⚠️  CRITICAL: This fix must be mirrored in base ffmpeg.py!
-                    # For QSV, we need to use -1 for aspect ratio since -2 is not supported
-                    filtered = stream.filter('scale_qsv', w=width, h=-1).filter('hwdownload').filter('format', 'nv12')
+                    # QSV decode -> QSV scale -> download -> format conversion for stability
+                    # Use more compatible format chain to avoid -22 invalid argument errors
+                    filtered = (
+                        stream
+                        .filter('scale_qsv', w=width, h=-1)
+                        .filter('hwdownload')
+                        .filter('format', 'yuv420p')  # More compatible intermediate format
+                    )
                     out, _ = (
                         filtered
-                        .output('pipe:', vframes=1, format='image2', vcodec='png', update=1)  # ⚠️  Mirror in ffmpeg.py!
+                        .output('pipe:', vframes=1, format='apng')  # Use APNG for better compatibility
                         .global_args(*global_args)
                         .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                     )
                 else:
-                    # QSV decode -> download to system memory -> format conversion -> encode 
-                    filtered = stream.filter('hwdownload').filter('format', 'nv12')
+                    # QSV decode -> download -> format conversion with compatible pipeline
+                    filtered = (
+                        stream
+                        .filter('hwdownload')
+                        .filter('format', 'yuv420p')  # More compatible format
+                    )
                     out, _ = (
                         filtered
-                        .output('pipe:', vframes=1, format='image2', vcodec='png', update=1)
+                        .output('pipe:', vframes=1, format='apng')  # Use APNG for compatibility
                         .global_args(*global_args)
                         .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                     )
