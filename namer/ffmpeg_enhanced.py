@@ -527,6 +527,43 @@ class FFMpeg:
                 else:
                     logger.debug('QSV pipeline (device={}, decoder={}) failed for {} (repeat), falling back to VAAPI/software: {}',
                                  key_device, key_decoder, file, ex)
+                
+                # ⚠️  Special handling for AV1 QSV decoder failures - try without specific decoder
+                if selected_decoder == 'av1_qsv' and not hwaccel_decoder:
+                    try:
+                        logger.debug(f"Retrying QSV without av1_qsv decoder for {file}")
+                        input_args_generic = {'hwaccel': 'qsv'}
+                        global_args = []
+                        if final_device:
+                            global_args.extend(['-qsv_device', final_device])
+                        
+                        stream_generic = ffmpeg.input(file, ss=screenshot_time, **input_args_generic)
+                        
+                        if width and width > 0:
+                            filtered = (
+                                stream_generic
+                                .filter('scale_qsv', w=width, h=-1)
+                                .filter('hwdownload')
+                                .filter('format', 'rgb24')  # Consistent format
+                            )
+                        else:
+                            filtered = (
+                                stream_generic
+                                .filter('hwdownload')
+                                .filter('format', 'rgb24')  # Consistent format
+                            )
+                        
+                        out_generic, _ = (
+                            filtered
+                            .output('pipe:', vframes=1, format='apng')
+                            .global_args(*global_args)
+                            .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
+                        )
+                        
+                        logger.debug(f"QSV decode successful for {file} using generic QSV (av1_qsv fallback)")
+                        return Image.open(BytesIO(out_generic))
+                    except Exception as ex_generic:
+                        logger.debug(f"Generic QSV fallback also failed for {file}: {ex_generic}")
 
         # 2) Attempt VAAPI fallback (if QSV failed or if VAAPI was explicitly requested)
         if use_gpu and (backend == 'vaapi' or backend == 'qsv'):  # Also try VAAPI if QSV failed
@@ -601,10 +638,17 @@ class FFMpeg:
                     logger.debug('VAAPI pipeline failed for {} (repeat), falling back to software: {}', file, ex)
 
         # 3) Software fallback (no hwaccel args)
+        # ⚠️  CRITICAL: Apply same color format processing as hardware paths for consistent hashing
         try:
             stream_sw = ffmpeg.input(file, ss=screenshot_time)
             if width and width > 0:
                 stream_sw = stream_sw.filter('scale', width, -2)
+            
+            # Apply consistent color format processing to match hardware paths
+            stream_sw = (
+                stream_sw
+                .filter('format', 'rgb24')  # Use RGB24 for consistent APNG encoding (matches QSV path)
+            )
             out, _err = _run_pipeline(stream_sw, [])
             try:
                 return Image.open(BytesIO(out))
