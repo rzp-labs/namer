@@ -33,3 +33,4 @@ namer-prod.cfg
 *.backup
 .github/workflows/*.backup
 .github/workflows/ci.yml.backup
+.prod-files/
