@@ -25,7 +25,8 @@ import namer.videohashes
 import namer.watchdog
 import namer.web
 from namer.configuration_utils import default_config
-from namer.models import db
+from namer.models import db, File
+from pony.orm import db_session, select
 
 DESCRIPTION = (
     namer.namer.DESCRIPTION
@@ -39,6 +40,7 @@ DESCRIPTION = (
     'suggest' takes a file name as input and will output a suggested file name.
     'url' print url to namer web ui.
     'hash' takes a file name as input and will output a hashes in json format.
+    'clear-cache' clears cached hashes for files matching a pattern (forces recalculation).
     """
 )
 
@@ -83,11 +85,62 @@ def main():
         print(f'http://{config.host}:{config.port}{config.web_root}')
     elif arg1 == 'hash':
         namer.videohashes.main(arg_list[1:])
+    elif arg1 == 'clear-cache':
+        clear_hash_cache(arg_list[1:])
     elif arg1 in ['-h', 'help', None]:
         print(DESCRIPTION)
 
     if config.use_requests_cache and config.cache_session:
         config.cache_session.cache.delete(expired=True)
+
+
+def clear_hash_cache(arg_list):
+    """Clear cached hashes for files matching a pattern."""
+    if len(arg_list) == 0:
+        print("Usage: namer clear-cache <filename_pattern>")
+        print("Example: namer clear-cache tushy.23.04.16.azul.hermosa")
+        return
+    
+    filename_pattern = arg_list[0]
+    config = default_config()
+    
+    if not config.use_database:
+        print("❌ Database is not enabled in configuration")
+        return
+    
+    db_file = config.database_path / 'namer_database.sqlite'
+    if not db_file.exists():
+        print("❌ Database file does not exist")
+        return
+    
+    try:
+        # Database should already be bound from main(), but ensure it's bound
+        if not db.provider:
+            db.bind(provider='sqlite', filename=str(db_file), create_db=False)
+            db.generate_mapping()
+        
+        with db_session:
+            # Find files matching the filename pattern
+            files = select(f for f in File if filename_pattern.lower() in f.file_name.lower())[:]
+            
+            if not files:
+                print(f"❌ No cached entries found for filename containing: {filename_pattern}")
+                return
+            
+            print(f"🔍 Found {len(files)} cached entries:")
+            for f in files:
+                print(f"   📁 {f.file_name} (size: {f.file_size}, phash: {f.phash})")
+            
+            # Delete the entries
+            for f in files:
+                f.delete()
+                print(f"🗑️  Deleted cache entry for: {f.file_name}")
+            
+            print("✅ Cache cleared successfully!")
+            print("🔄 Next processing will recalculate hash with format consistency fixes")
+            
+    except Exception as e:
+        print(f"❌ Error clearing cache: {e}")
 
 
 if __name__ == '__main__':
