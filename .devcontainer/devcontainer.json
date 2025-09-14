@@ -1,0 +1,50 @@
+{
+  "name": "namer dev",
+  "build": {
+    "dockerfile": ".devcontainer/Dockerfile",
+    "context": ".."
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12",
+      "installTools": true,
+      "poetry": "1.8.3"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22",
+      "pnpm": "true"
+    },
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.22"
+    }
+  },
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "PYTHONUNBUFFERED": "1"
+  },
+  "forwardPorts": [6980],
+  "portsAttributes": {
+    "6980": {
+      "label": "namer web UI"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+        "python.terminal.activateEnvironment": true,
+        "editor.formatOnSave": true
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-azuretools.vscode-docker",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ms-vscode.makefile-tools"
+      ]
+    }
+  },
+  "postCreateCommand": "bash -lc 'set -e; git submodule update --init --recursive || true; command -v pnpm >/dev/null || npm -g i pnpm@10; command -v poetry >/dev/null || pipx install poetry==1.8.3; poetry config virtualenvs.in-project true; poetry install --no-interaction; poetry run poe build_deps'"
+}
