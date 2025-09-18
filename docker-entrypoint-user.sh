@@ -40,9 +40,27 @@ umask ${UMASK}
 # Create necessary directories and set ownership
 mkdir -p /config /app/media
 
+# Create home directory for the new user
+USER_HOME="/home/nameruser"
+mkdir -p "$USER_HOME"/.local/bin "$USER_HOME"/.local/share "$USER_HOME"/.cache "$USER_HOME"/.config
+
 # Fix ownership of application directories
 echo "[ENTRYPOINT] Setting ownership of directories to ${PUID}:${PGID}"
-chown -R ${PUID}:${PGID} /config /app || true
+chown -R ${PUID}:${PGID} /config /app "$USER_HOME" || true
+
+# Security-conscious approach: Copy only the namer executable to a safe location
+echo "[ENTRYPOINT] Setting up secure Python environment access..."
+NAMER_EXEC="/root/.local/bin/namer"
+USER_NAMER="$USER_HOME/.local/bin/namer"
+
+# Copy the namer executable to user's bin (don't symlink to /root)
+if [[ -f "$NAMER_EXEC" ]]; then
+    cp "$NAMER_EXEC" "$USER_NAMER"
+    chmod 755 "$USER_NAMER"
+    chown ${PUID}:${PGID} "$USER_NAMER"
+else
+    echo "[ENTRYPOINT] WARNING: namer executable not found at expected location: $NAMER_EXEC"
+fi
 
 # Check if we're running the correct Ubuntu version for optimal Intel GPU support
 if command -v lsb_release >/dev/null 2>&1; then
@@ -97,6 +115,26 @@ export NAMER_GPU_DEVICE="${NAMER_GPU_DEVICE:-}"
 export NAMER_GPU_BACKEND="${NAMER_GPU_BACKEND:-}"
 export LIBVA_DRIVER_NAME="${LIBVA_DRIVER_NAME:-iHD}"
 
+# Ensure GPU device access using proper group membership (secure approach)
+if [[ -d "/dev/dri" ]]; then
+    echo "[ENTRYPOINT] Setting up GPU device access via group membership..."
+    USERNAME="$(getent passwd ${PUID} | cut -d: -f1)"
+    
+    # Add the user to video and render groups if they exist (standard approach)
+    if getent group video >/dev/null 2>&1; then
+        usermod -a -G video "$USERNAME" 2>/dev/null || true
+        echo "[ENTRYPOINT] Added user to video group"
+    fi
+    if getent group render >/dev/null 2>&1; then
+        usermod -a -G render "$USERNAME" 2>/dev/null || true
+        echo "[ENTRYPOINT] Added user to render group"
+    fi
+    
+    # DO NOT change device permissions - rely on group membership
+    # The devices should already have proper group permissions
+    ls -la /dev/dri/ | head -3
+fi
+
 # Show FFmpeg version and QSV capabilities
 echo "[ENTRYPOINT] FFmpeg information:"
 if command -v ffmpeg >/dev/null 2>&1; then
@@ -122,6 +160,57 @@ echo "[ENTRYPOINT]   NAMER_CONFIG=${NAMER_CONFIG:-/config/namer.cfg}"
 
 echo "[ENTRYPOINT] Starting namer watchdog as user ${PUID}:${PGID}..."
 
+# Find the namer executable path (pipx installs to /root/.local/bin)
+NAMER_PATH="/root/.local/bin/namer"
+if [[ ! -f "$NAMER_PATH" ]]; then
+    # Fallback: search for namer executable
+    NAMER_PATH=$(which namer 2>/dev/null || find /root/.local -name "namer" -type f 2>/dev/null | head -1)
+    if [[ -z "$NAMER_PATH" ]]; then
+        echo "[ENTRYPOINT] ERROR: namer executable not found!"
+        echo "[ENTRYPOINT] Searching for namer..."
+        find / -name "namer" -type f 2>/dev/null | head -5
+        exit 1
+    fi
+fi
+
+echo "[ENTRYPOINT] Using namer executable at: $NAMER_PATH"
+
+# Ensure the namer executable is accessible by the target user
+chmod 755 "$NAMER_PATH"
+
+# Set up environment for the switched user
+export HOME="$USER_HOME"
+export USER="nameruser"
+export PATH="$USER_HOME/.local/bin:$PATH"
+
 # Switch to specified user and execute the main application
 # Using gosu to properly drop privileges and maintain environment
-exec gosu ${PUID}:${PGID} namer watchdog
+echo "[ENTRYPOINT] Switching to user and starting application..."
+
+# Use the copied namer executable in user's directory
+USER_NAMER_EXEC="$USER_HOME/.local/bin/namer"
+if [[ -f "$USER_NAMER_EXEC" ]]; then
+    EXEC_PATH="$USER_NAMER_EXEC"
+else
+    # Fallback to original path with full path specification
+    EXEC_PATH="$NAMER_PATH"
+fi
+
+echo "[ENTRYPOINT] Using executable: $EXEC_PATH"
+
+# Most secure approach: Use Python module execution
+# This avoids copying executables and maintains proper Python environment
+echo "[ENTRYPOINT] Final security check..."
+echo "[ENTRYPOINT] User: $(getent passwd ${PUID} | cut -d: -f1)"
+echo "[ENTRYPOINT] Home: $USER_HOME"
+echo "[ENTRYPOINT] Groups: $(groups 2>/dev/null || echo 'unknown')"
+
+# Execute via Python module to maintain proper Python environment
+exec gosu ${PUID}:${PGID} env \
+    HOME="$USER_HOME" \
+    USER="nameruser" \
+    PATH="/usr/local/bin:/usr/bin:/bin" \
+    PYTHONPATH="/root/.local/lib/python3.12/site-packages:/usr/lib/python3/dist-packages" \
+    NAMER_CONFIG="${NAMER_CONFIG:-/config/namer.cfg}" \
+    LIBVA_DRIVER_NAME="${LIBVA_DRIVER_NAME:-iHD}" \
+    python3 -m namer watchdog
