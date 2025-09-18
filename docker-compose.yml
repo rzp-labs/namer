@@ -24,9 +24,16 @@ services:
     ports:
       - "6980:6980"
     
-    # Environment variables for Intel GPU support
+    # Environment variables for Intel GPU support and user management
     environment:
-      - LIBVA_DRIVER_NAME=iHD
+      - NAMER_CONFIG=/config/namer.cfg
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=${UMASK}
+      - LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-iHD}
+      - TPDB_TOKEN=${TPDB_TOKEN}
+      - STASHDB_TOKEN=${STASHDB_TOKEN}
       - DEBUG=false
       # Uncomment below for GPU debugging
       # - DEBUG=true

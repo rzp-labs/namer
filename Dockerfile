@@ -27,6 +27,7 @@ RUN apt-get update \
        libmfx-gen1.2 \
        vainfo \
        bc \
+       gosu \
     && rm -rf /var/lib/apt/lists/* \
     && rm -Rf /usr/share/doc && rm -Rf /usr/share/man \
     && apt-get clean
@@ -123,7 +124,7 @@ ENV LIBVA_DRIVER_NAME=iHD
 EXPOSE 6980
 HEALTHCHECK --interval=1m --timeout=30s CMD curl -s $(namer url)/api/healthcheck >/dev/null || exit 1
 
-# Enhanced entrypoint with Intel GPU support
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+# Enhanced entrypoint with Intel GPU support and user switching
+COPY docker-entrypoint-user.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
