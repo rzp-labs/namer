@@ -117,6 +117,10 @@ RUN timeout 300 bash -c "chmod +x /tmp/install-intel-firmware-fast.sh && /tmp/in
 COPY scripts/detect-intel-gpu.sh /usr/local/bin/detect-gpu.sh
 RUN chmod +x /usr/local/bin/detect-gpu.sh
 
+# Create necessary directories with appropriate permissions
+RUN mkdir -p /database /cache /tmp/namer \
+    && chmod 777 /database /cache /tmp/namer
+
 ARG BUILD_DATE
 ARG GIT_HASH  
 ARG PROJECT_VERSION
