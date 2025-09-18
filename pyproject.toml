@@ -79,6 +79,11 @@ test_format = { shell = "poetry run ruff check ." }
 test_namer = { shell = "poetry run pytest --log-cli-level=info --capture=no" }
 test = ["test_format", "test_namer"]
 build_all = ["build_deps", "test", "build_namer"]
+build_fast = ["build_deps", "build_namer"]
+test_quick = ["test_format"]
+test_unit = { shell = "poetry run pytest --log-cli-level=info --capture=no -x -v" }
+precommit = ["test_format", "test_unit"]
+dev_build = ["build_deps", "test_quick", "build_namer"]
 
 [tool.poetry.build]
 generate-setup-file = true

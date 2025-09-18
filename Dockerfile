@@ -1,6 +1,9 @@
 FROM ubuntu:24.04 AS base
 
-ENV PATH="/root/.local/bin:$PATH"
+# Automatically provided by Docker BuildKit
+ARG TARGETARCH
+
+ENV PATH="/usr/local/bin:/root/.local/bin:$PATH"
 ENV TZ=Europe/London
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -12,7 +15,7 @@ RUN echo "Switching to Ubuntu development repositories for Intel Arc B580 suppor
     && echo "deb http://security.ubuntu.com/ubuntu devel-security main restricted universe multiverse" >> /etc/apt/sources.list
 
 
-# Install dependencies with Intel GPU hardware acceleration support
+# Install dependencies with Intel GPU hardware acceleration support (Intel packages only on amd64)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        python3-pip \
@@ -23,11 +26,15 @@ RUN apt-get update \
        curl \
        wget \
        gnupg2 \
-       intel-media-va-driver \
-       libmfx-gen1.2 \
        vainfo \
        bc \
        gosu \
+    && if [ "$TARGETARCH" = "amd64" ]; then \
+         apt-get install -y --no-install-recommends \
+           intel-media-va-driver \
+           libmfx-gen1.2 \
+         ; \
+       fi \
     && rm -rf /var/lib/apt/lists/* \
     && rm -Rf /usr/share/doc && rm -Rf /usr/share/man \
     && apt-get clean
@@ -91,13 +98,13 @@ COPY namer/ffmpeg_enhanced.py /work/namer/ffmpeg.py
 RUN rm -rf /work/namer/__pycache__/ || true \
     && rm -rf /work/test/__pycache__/ || true \
     && poetry install
-RUN . /root/.bashrc && ( Xvfb :99 & cd /work/ && poetry run poe build_all )
+RUN . /root/.bashrc && ( Xvfb :99 & cd /work/ && poetry run poe build_deps && poetry run poe build_namer )
 
 FROM base
 
-# Install the built namer package
+# Install the built namer package globally
 COPY --from=build /work/dist/namer-*.tar.gz /
-RUN pipx install /namer-*.tar.gz \
+RUN pip3 install --break-system-packages /namer-*.tar.gz \
     && rm /namer-*.tar.gz
 
 # Install Intel GPU firmware from host if available, otherwise use a fallback
