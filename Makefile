@@ -1,91 +1,88 @@
-# Namer Docker Build Makefile
+# Namer Docker Build Makefile - Clean & Atomic
+#
+# Uses scripts in ./scripts/ for all complex operations
+# This Makefile focuses on simple composition and user interface
 
 # Configuration
 IMAGE_NAME ?= rzp-labs/namer
-VERSION ?= $(shell git describe --tags --always --dirty)
-BUILD_DATE = $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
-GIT_HASH = $(shell git rev-parse --verify HEAD)
-REMOTE_HOST ?= your-build-server.com
-REMOTE_USER ?= docker
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 'latest')
+SCRIPT_DIR = ./scripts
 
-# Docker build arguments
-DOCKER_BUILD_ARGS = \
-	--build-arg BUILD_DATE=$(BUILD_DATE) \
-	--build-arg GIT_HASH=$(GIT_HASH) \
-	--build-arg PROJECT_VERSION=$(VERSION)
+.PHONY: help build build-fast build-full build-dev test test-basic test-integration validate clean clean-deep config
 
-.PHONY: build build-remote build-multi push test clean help build-test
+help: ## Show available targets
+	@echo "🏗️  Namer Build System"
+	@echo "====================="
+	@echo ""
+	@echo "Build targets:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "Examples:"
+	@echo "  make build           # Fast build (recommended for development)"  
+	@echo "  make build-validated # Full validation + fast build"
+	@echo "  make build-full      # Complete build with all tests (slow)"
+	@echo "  make test            # Test the built image"
+	@echo ""
 
-help: ## Show this help message
-	@echo "Available targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+# Build targets (composable)
+build: build-fast ## Default: fast build for development iteration
 
-build: ## Build Docker image locally
-	@echo "🏗️  Building $(IMAGE_NAME):$(VERSION) locally..."
-	docker build $(DOCKER_BUILD_ARGS) -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .
+build-fast: ## Fast Docker build (skips tests, ~5 minutes)
+	@$(SCRIPT_DIR)/build-orbstack.sh fast $(IMAGE_NAME) $(VERSION)
 
-build-remote: ## Build Docker image on remote host
-	@echo "🌐 Building $(IMAGE_NAME):$(VERSION) on remote host $(REMOTE_HOST)..."
-	@./scripts/remote-build.sh
+build-full: ## Complete build with all tests (~20 minutes)  
+	@$(SCRIPT_DIR)/build-orbstack.sh full $(IMAGE_NAME) $(VERSION)
 
-build-multi: setup-remote-builder ## Build multi-platform images using remote builder
-	@echo "🚀 Building multi-platform $(IMAGE_NAME):$(VERSION)..."
-	docker buildx build \
-		--platform linux/amd64,linux/arm64 \
-		$(DOCKER_BUILD_ARGS) \
-		-t $(IMAGE_NAME):$(VERSION) \
-		-t $(IMAGE_NAME):latest \
-		--push \
-		.
+build-dev: ## Development build (build stage only, no export)
+	@$(SCRIPT_DIR)/build-orbstack.sh dev $(IMAGE_NAME) $(VERSION)
 
-setup-remote-builder: ## Set up remote buildx builder
-	@echo "⚙️  Setting up remote buildx builder..."
-	@./scripts/setup-remote-builder.sh
+# Quality gates (composable)
+validate: ## Run comprehensive pre-push validation
+	@if [ -f "validate.sh" ]; then \
+		chmod +x validate.sh && ./validate.sh; \
+	else \
+		echo "❌ validate.sh not found"; \
+		exit 1; \
+	fi
 
-test: ## Test the built Docker image
-	@echo "🧪 Testing $(IMAGE_NAME):$(VERSION)..."
-	docker run --rm $(IMAGE_NAME):$(VERSION) namer --help
-	docker run --rm $(IMAGE_NAME):$(VERSION) namer suggest --help
+build-validated: validate build-fast ## Validate then fast build
+	@echo "✅ Validated build complete: $(IMAGE_NAME):$(VERSION)"
 
-push: ## Push image to registry
-	@echo "📤 Pushing $(IMAGE_NAME):$(VERSION)..."
-	docker push $(IMAGE_NAME):$(VERSION)
-	docker push $(IMAGE_NAME):latest
+# Testing targets (composable)
+test: test-basic ## Default: basic functionality tests
 
-clean: ## Clean up build artifacts and unused images
-	@echo "🧹 Cleaning up..."
-	docker image prune -f
-	docker system prune -f
+test-basic: ## Test basic container functionality
+	@$(SCRIPT_DIR)/test-docker.sh $(IMAGE_NAME) $(VERSION) basic
 
-ci-build: ## GitHub Actions compatible build
-	@echo "🤖 CI Build - $(IMAGE_NAME):$(VERSION)"
-	docker build $(DOCKER_BUILD_ARGS) -t $(IMAGE_NAME):$(VERSION) .
-	docker tag $(IMAGE_NAME):$(VERSION) $(IMAGE_NAME):latest
+test-integration: ## Run integration tests
+	@$(SCRIPT_DIR)/test-docker.sh $(IMAGE_NAME) $(VERSION) integration
 
-# Build local test image with a fixed name used by test_dirs/docker-compose.yaml
-LOCAL_TEST_IMAGE ?= namer:local-test
-build-test: ## Build local test image used by test_dirs
-	@echo "🧪 Building local test image: $(LOCAL_TEST_IMAGE)"
-	docker build $(DOCKER_BUILD_ARGS) -t $(LOCAL_TEST_IMAGE) .
+# Utility targets
+clean: ## Clean up temporary files and containers
+	@$(SCRIPT_DIR)/cleanup.sh medium
 
-# Remote build with specific environment
-build-production: ## Build for production deployment
-	@$(MAKE) build-remote REMOTE_HOST=prod-build-server.com VERSION=$(VERSION)
+clean-deep: ## Deep clean (removes everything including VM)
+	@$(SCRIPT_DIR)/cleanup.sh deep
 
-build-staging: ## Build for staging deployment  
-	@$(MAKE) build-remote REMOTE_HOST=staging-build-server.com VERSION=staging-$(VERSION)
-
-# Development helpers
-dev-build: ## Quick development build without tests
-	@echo "🚀 Quick development build..."
-	docker build --target build $(DOCKER_BUILD_ARGS) -t $(IMAGE_NAME):dev .
-
-# Show current configuration
 config: ## Show current build configuration
 	@echo "Configuration:"
 	@echo "  IMAGE_NAME: $(IMAGE_NAME)"
-	@echo "  VERSION: $(VERSION)"
-	@echo "  BUILD_DATE: $(BUILD_DATE)"
-	@echo "  GIT_HASH: $(GIT_HASH)"
-	@echo "  REMOTE_HOST: $(REMOTE_HOST)"
-	@echo "  REMOTE_USER: $(REMOTE_USER)"
+	@echo "  VERSION:    $(VERSION)" 
+	@echo "  SCRIPT_DIR: $(SCRIPT_DIR)"
+
+# Workflow examples (combinations)
+dev-cycle: build-fast test-basic ## Quick development cycle
+	@echo "🚀 Development cycle complete"
+
+release-prep: validate build-full test-integration ## Full release preparation 
+	@echo "🎉 Release preparation complete"
+
+# Docker operations (using native commands)
+push: ## Push built image to registry
+	@echo "📤 Pushing $(IMAGE_NAME):$(VERSION)..."
+	@docker push $(IMAGE_NAME):$(VERSION)
+	@docker push $(IMAGE_NAME):latest
+
+pull: ## Pull image from registry
+	@echo "📥 Pulling $(IMAGE_NAME):$(VERSION)..."
+	@docker pull $(IMAGE_NAME):$(VERSION)
