@@ -64,31 +64,86 @@ class StashDBProvider(BaseMetadataProvider):
             try:
                 phash_results = self._search_by_phash(phash, config)
                 if phash_results:
-                    # Get unique scene IDs from phash results
-                    unique_scene_ids = set(scene_info.guid for scene_info in phash_results if scene_info.guid)
-                    
+                    # Get counts per scene ID
+                    from collections import Counter
+                    id_list = [scene_info.guid for scene_info in phash_results if scene_info.guid]
+                    counts = Counter(id_list)
+                    unique_scene_ids = list(counts.keys())
+
+                    # Helper to score disambiguation based on filename parts
+                    def score_scene(scene_info: LookedUpFileInfo) -> float:
+                        title_score = self._calculate_name_match(file_name_parts.name, scene_info.name) if (file_name_parts and file_name_parts.name) else 0.0
+                        site_score = 50.0 if self._compare_sites(file_name_parts.site if file_name_parts else None, scene_info.site) else 0.0
+                        date_score = 50.0 if self._compare_dates(file_name_parts.date if file_name_parts else None, scene_info.date) else 0.0
+                        return site_score + date_score + float(title_score)
+
+                    accepted_scene: Optional[LookedUpFileInfo] = None
+
                     if len(unique_scene_ids) == 1:
-                        # Single unique scene - treat as super match and return only one result
+                        # Single unique scene - accept immediately
+                        accepted_scene = phash_results[0]
                         logger.info(f"Phash match found single unique scene with {len(phash_results)} submissions - returning confident match")
-                        results.clear()  # Clear any name-based search results
-                        # Only add the first result to avoid conflict logic in get_match()
-                        scene_info = phash_results[0]
+                    else:
+                        # 1) Try filename-based disambiguation
+                        scored = [(scene_info, score_scene(scene_info)) for scene_info in phash_results]
+                        scored.sort(key=lambda x: x[1], reverse=True)
+                        if scored:
+                            top_scene, top_score = scored[0]
+                            second_score = scored[1][1] if len(scored) > 1 else -1.0
+                            # Consider distinct if strong margin or strong site+date match
+                            top_site_match = self._compare_sites(file_name_parts.site if file_name_parts else None, top_scene.site)
+                            top_date_match = self._compare_dates(file_name_parts.date if file_name_parts else None, top_scene.date)
+                            distinct = False
+                            if top_site_match and top_date_match:
+                                distinct = True
+                            elif top_score >= 80.0 and (top_score - second_score) >= 20.0:
+                                distinct = True
+                            if distinct:
+                                accepted_scene = top_scene
+                                logger.info("Selected scene by filename-based disambiguation: site/date/title scoring")
+
+                        # 2) If still ambiguous, apply frequency threshold
+                        if not accepted_scene:
+                            total = sum(counts.values()) if counts else 0
+                            if total > 0:
+                                # Choose the majority scene by count (break ties using filename score)
+                                # Build list of (scene_id, count, best_score_for_that_id, sample_scene)
+                                id_best = {}
+                                for scene_info, sc in scored:
+                                    sid = scene_info.guid
+                                    prev = id_best.get(sid)
+                                    if not prev or sc > prev[1]:
+                                        id_best[sid] = (scene_info, sc)
+
+                                ranked = sorted(((sid, cnt, id_best[sid][1], id_best[sid][0]) for sid, cnt in counts.items()), key=lambda x: (x[1], x[2]), reverse=True)
+                                if ranked:
+                                    top_sid, top_cnt, _, top_scene_obj = ranked[0]
+                                    fraction = top_cnt / float(total)
+                                    threshold = max(0.0, min(1.0, getattr(config, 'phash_unique_threshold', 1.0)))
+                                    logger.info(f"Phash majority check: top {top_cnt}/{total} = {fraction:.2f}, threshold={threshold:.2f}")
+                                    if fraction >= threshold:
+                                        accepted_scene = top_scene_obj
+                                        logger.info("Accepted scene by majority threshold over phash submissions")
+
+                    # If accepted, produce a single confident ComparisonResult and clear others
+                    if accepted_scene:
+                        results.clear()
+                        # Compute site/date/name metrics for logging purposes
+                        nm = self._calculate_name_match(file_name_parts.name, accepted_scene.name) if (file_name_parts and file_name_parts.name) else 100.0
+                        dm = self._compare_dates(file_name_parts.date if file_name_parts else None, accepted_scene.date) if file_name_parts else True
+                        sm = self._compare_sites(file_name_parts.site if file_name_parts else None, accepted_scene.site) if file_name_parts else True
                         comparison_result = ComparisonResult(
-                            name=scene_info.name or '',
-                            name_match=100.0,  # Force high name match for unique phash
-                            date_match=True,    # Force date match for unique phash
-                            site_match=True,    # Force site match for unique phash
+                            name=accepted_scene.name or '',
+                            name_match=float(nm),
+                            date_match=bool(dm),
+                            site_match=bool(sm),
                             name_parts=file_name_parts,
-                            looked_up=scene_info,
-                            phash_distance=0,   # Perfect phash match
+                            looked_up=accepted_scene,
+                            phash_distance=0,
                             phash_duration=True,
                         )
                         results.append(comparison_result)
-                    elif len(unique_scene_ids) > 1:
-                        # Multiple unique scenes - log failure and reject
-                        logger.error(f"Multiple scene IDs exist for this phash: {len(unique_scene_ids)} unique scenes found ({unique_scene_ids})")
-                        # Don't add any phash results to avoid ambiguity
-                    # If no unique scene IDs (shouldn't happen), fall through to name search
+                    # else: remain ambiguous, fall back to name-based search results
             except Exception as e:
                 logger.debug(f"Phash search failed: {e}")
         
