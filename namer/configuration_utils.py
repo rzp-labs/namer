@@ -216,6 +216,14 @@ def from_int(value: Optional[int]) -> str:
     return str(value) if value is not None else ''
 
 
+def to_float(value: Optional[str]) -> Optional[float]:
+    return float(value) if value is not None and value != '' else None
+
+
+def from_float(value: Optional[float]) -> str:
+    return str(value) if value is not None else ''
+
+
 def to_path(value: Optional[str]) -> Optional[Path]:
     return Path(value).resolve() if value else None
 
