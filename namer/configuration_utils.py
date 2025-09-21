@@ -332,6 +332,7 @@ field_info: Dict[str, Tuple[str, Optional[Callable[[Optional[str]], Any]], Optio
     'ffmpeg_hwaccel_backend': ('Phash', None, None),
     'ffmpeg_hwaccel_device': ('Phash', None, None),
     'ffmpeg_hwaccel_decoder': ('Phash', None, None),
+    'phash_unique_threshold': ('Phash', to_float, from_float),
     'mark_collected': ('metadata', to_bool, from_bool),
     'write_nfo': ('metadata', to_bool, from_bool),
     'enabled_tagging': ('metadata', to_bool, from_bool),
