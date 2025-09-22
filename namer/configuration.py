@@ -626,6 +626,9 @@ class NamerConfig:
             self.failed_dir = self.failed_dir.resolve()
         if hasattr(self, 'ambiguous_dir'):
             self.ambiguous_dir = self.ambiguous_dir.resolve()
+        # Resolve file logging directory like other dirs (if present)
+        if hasattr(self, 'file_logging_directory'):
+            self.file_logging_directory = self.file_logging_directory.resolve()
 
     def __str__(self):
         config = self.to_dict()
@@ -763,6 +766,11 @@ class NamerConfig:
                 'add_complete_column': self.add_complete_column,
                 'debug': self.debug,
                 'console_format': self.console_format,
+                'file_logging_enabled': self.file_logging_enabled,
+                'file_logging_level': self.file_logging_level,
+                'file_logging_rotation': self.file_logging_rotation,
+                'file_logging_retention': self.file_logging_retention,
+                'file_logging_directory': str(self.file_logging_directory) if hasattr(self, 'file_logging_directory') else '',
                 'manual_mode': self.manual_mode,
                 'diagnose_errors': self.diagnose_errors,
             },
