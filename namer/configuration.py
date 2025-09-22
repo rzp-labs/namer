@@ -407,6 +407,38 @@ class NamerConfig:
       0.5 -> accept simple majority
     """
 
+    # PHASH decision thresholds (provider-agnostic)
+    phash_accept_distance: int = 6
+    """
+    Maximum PHASH Hamming distance to consider a candidate as directly acceptable
+    when other conditions (e.g., duration match or margin) are met.
+    """
+
+    phash_ambiguous_min: int = 7
+    """
+    Minimum PHASH distance to begin considering results ambiguous when there are
+    multiple close candidates. Distances in [phash_ambiguous_min, phash_ambiguous_max]
+    fall into a "maybe" band.
+    """
+
+    phash_ambiguous_max: int = 12
+    """
+    Upper bound of the PHASH ambiguous band. Distances above this band are treated
+    as weak signals and will not be accepted automatically.
+    """
+
+    phash_distance_margin_accept: int = 3
+    """
+    Required distance gap between the best and the second-best candidate to
+    auto-accept the best one when within accept distance.
+    """
+
+    phash_majority_accept_fraction: float = 0.7
+    """
+    Required fraction of fingerprint hits for the best GUID to allow auto-accept
+    when within accept distance even if the distance margin is small.
+    """
+
     ignored_dir_regex: Pattern = re.compile(r'.*_UNPACK_.*', re.IGNORECASE)
     """
     If a file found in the watch dir matches this regex it will be ignored, useful for some file processes.
@@ -681,6 +713,11 @@ class NamerConfig:
                 'ffmpeg_hwaccel_device': self.ffmpeg_hwaccel_device if self.ffmpeg_hwaccel_device else '',
                 'ffmpeg_hwaccel_decoder': self.ffmpeg_hwaccel_decoder if self.ffmpeg_hwaccel_decoder else '',
                 'phash_unique_threshold': self.phash_unique_threshold,
+                'phash_accept_distance': self.phash_accept_distance,
+                'phash_ambiguous_min': self.phash_ambiguous_min,
+                'phash_ambiguous_max': self.phash_ambiguous_max,
+                'phash_distance_margin_accept': self.phash_distance_margin_accept,
+                'phash_majority_accept_fraction': self.phash_majority_accept_fraction,
                 # "require_match_phash_top": self.require_match_phash_top,
                 # "send_phash_of_matches_to_tpdb": self.send_phash_of_matches_to_tpdb,
             },

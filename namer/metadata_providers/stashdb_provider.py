@@ -18,7 +18,7 @@ from namer.configuration import NamerConfig
 from namer.fileinfo import FileInfo
 from namer.http import Http, RequestType
 from namer.metadata_providers.provider import BaseMetadataProvider
-from namer.videophash import PerceptualHash
+from namer.videophash import PerceptualHash, imagehash
 
 
 class StashDBProvider(BaseMetadataProvider):
@@ -62,68 +62,259 @@ class StashDBProvider(BaseMetadataProvider):
         # Handle phash-based searches
         if phash:
             try:
-                phash_results = self._search_by_phash(phash, config)
-                if phash_results:
-                    # Get counts per scene ID
-                    from collections import Counter
-                    id_list = [scene_info.guid for scene_info in phash_results if scene_info.guid]
-                    counts = Counter(id_list)
-                    unique_scene_ids = list(counts.keys())
+                # Query by PHASH and OSHASH (if available) separately
+                phash_results: List[LookedUpFileInfo] = []
+                oshash_results: List[LookedUpFileInfo] = []
+                try:
+                    phash_results = self._search_by_fingerprint(str(phash.phash), 'PHASH', config)
+                except Exception as e:
+                    logger.debug(f"PHASH search failed: {e}")
 
-                    # Helper to score disambiguation based on filename parts
-                    def score_scene(scene_info: LookedUpFileInfo) -> float:
-                        title_score = self._calculate_name_match(file_name_parts.name, scene_info.name) if (file_name_parts and file_name_parts.name) else 0.0
-                        site_score = 50.0 if self._compare_sites(file_name_parts.site if file_name_parts else None, scene_info.site) else 0.0
-                        date_score = 50.0 if self._compare_dates(file_name_parts.date if file_name_parts else None, scene_info.date) else 0.0
-                        return site_score + date_score + float(title_score)
+                if getattr(phash, 'oshash', None):
+                    try:
+                        oshash_results = self._search_by_fingerprint(phash.oshash, 'OSHASH', config)
+                    except Exception as e:
+                        logger.debug(f"OSHASH search failed: {e}")
+
+                combined_results = phash_results + oshash_results
+                if combined_results:
+                    # Helper: compute per-candidate PHASH distance and duration match
+                    def phash_metrics(scene_info: LookedUpFileInfo) -> tuple:
+                        if not phash:
+                            return (None, None)
+                        phash_len = len(str(phash.phash))
+                        distances: List[tuple] = []
+                        for fp in scene_info.hashes or []:
+                            try:
+                                # Normalize attribute names across models
+                                fp_type = getattr(fp, 'type', getattr(fp, 'hash_type', None))
+                                if fp_type != HashType.PHASH:
+                                    continue
+                                hex_val = getattr(fp, 'hash', getattr(fp, 'scene_hash', None))
+                                if not hex_val:
+                                    continue
+                                if len(hex_val) != phash_len:
+                                    continue
+                                scene_h = imagehash.hex_to_hash(hex_val)
+                                d = phash.phash - scene_h
+                                dur = getattr(fp, 'duration', None)
+                                duration_match = (dur == phash.duration) if dur else True
+                                distances.append((d, 0 if duration_match else 1))
+                            except Exception:
+                                continue
+                        if not distances:
+                            return (None, None)
+                        best_d, duration_pref = min(distances)
+                        return (best_d, duration_pref == 0)
+                    # Prefer scenes that appear in BOTH PHASH and OSHASH results
+                    phash_ids = set([fi.guid for fi in phash_results if fi.guid])
+                    oshash_ids = set([fi.guid for fi in oshash_results if fi.guid])
+                    intersection_ids = phash_ids.intersection(oshash_ids)
 
                     accepted_scene: Optional[LookedUpFileInfo] = None
-
-                    if len(unique_scene_ids) == 1:
-                        # Single unique scene - accept immediately
-                        accepted_scene = phash_results[0]
-                        logger.info(f"Phash match found single unique scene with {len(phash_results)} submissions - returning confident match")
-                    else:
-                        # 1) Try filename-based disambiguation
-                        scored = [(scene_info, score_scene(scene_info)) for scene_info in phash_results]
-                        scored.sort(key=lambda x: x[1], reverse=True)
+                    if intersection_ids:
+                        # If both hashes point to the same scene(s), pick the best one by filename scoring with keyword alignment
+                        candidates = [fi for fi in combined_results if fi.guid in intersection_ids]
+                        def score_scene(scene_info: LookedUpFileInfo) -> float:
+                            title_score = self._calculate_name_match(file_name_parts.name, scene_info.name) if (file_name_parts and file_name_parts.name) else 0.0
+                            site_score = 50.0 if self._compare_sites(file_name_parts.site if file_name_parts else None, scene_info.site) else 0.0
+                            date_score = 50.0 if self._compare_dates(file_name_parts.date if file_name_parts else None, scene_info.date) else 0.0
+                            return site_score + date_score + float(title_score)
+                        scored = sorted(((c, score_scene(c)) for c in candidates), key=lambda x: x[1], reverse=True)
+                        # DEBUG: Log per-candidate scores for intersection
                         if scored:
-                            top_scene, top_score = scored[0]
-                            second_score = scored[1][1] if len(scored) > 1 else -1.0
-                            # Consider distinct if strong margin or strong site+date match
-                            top_site_match = self._compare_sites(file_name_parts.site if file_name_parts else None, top_scene.site)
-                            top_date_match = self._compare_dates(file_name_parts.date if file_name_parts else None, top_scene.date)
-                            distinct = False
-                            if top_site_match and top_date_match:
-                                distinct = True
-                            elif top_score >= 80.0 and (top_score - second_score) >= 20.0:
-                                distinct = True
-                            if distinct:
-                                accepted_scene = top_scene
-                                logger.info("Selected scene by filename-based disambiguation: site/date/title scoring")
-
-                        # 2) If still ambiguous, apply frequency threshold
+                            for idx, (c, sc) in enumerate(scored):
+                                if idx >= 3:
+                                    break
+                                try:
+                                    ts = self._calculate_name_match(file_name_parts.name, c.name) if (file_name_parts and file_name_parts.name) else 0.0
+                                    ss = 50.0 if self._compare_sites(file_name_parts.site if file_name_parts else None, c.site) else 0.0
+                                    ds = 50.0 if self._compare_dates(file_name_parts.date if file_name_parts else None, c.date) else 0.0
+                                    logger.debug(f"Intersection score: id={c.guid} title='{c.name}' site='{c.site}' date='{c.date}' -> title={ts:.1f} site={ss:.1f} date={ds:.1f} total={sc:.1f}")
+                                except Exception:
+                                    pass
+                        # Only accept automatically if the top score is distinctly higher than the next (to avoid ambiguous auto-pick)
+                        if scored:
+                            accepted_scene = scored[0][0]
+                            if len(scored) > 1:
+                                margin = scored[0][1] - scored[1][1]
+                                logger.debug(f"Intersection decision margin={margin:.1f}")
+                                if margin < 25.0:
+                                    # too close; treat as ambiguous and continue heuristics below
+                                    accepted_scene = None
+                        if accepted_scene:
+                            logger.info("Accepted scene via combined PHASH + OSHASH intersection (filename-informed)")
+                        # If still ambiguous after intersection scoring, fall back to full disambiguation on combined_results
                         if not accepted_scene:
-                            total = sum(counts.values()) if counts else 0
-                            if total > 0:
-                                # Choose the majority scene by count (break ties using filename score)
-                                # Build list of (scene_id, count, best_score_for_that_id, sample_scene)
-                                id_best = {}
-                                for scene_info, sc in scored:
-                                    sid = scene_info.guid
-                                    prev = id_best.get(sid)
-                                    if not prev or sc > prev[1]:
-                                        id_best[sid] = (scene_info, sc)
+                            from collections import Counter
+                            id_list = [scene_info.guid for scene_info in combined_results if scene_info.guid]
+                            counts = Counter(id_list)
+                            unique_scene_ids = list(counts.keys())
+                            logger.debug(f"Ambiguous intersection; falling back. Candidate ID counts: {dict(counts)}")
+                            def score_scene(scene_info: LookedUpFileInfo) -> float:
+                                title_score = self._calculate_name_match(file_name_parts.name, scene_info.name) if (file_name_parts and file_name_parts.name) else 0.0
+                                site_score = 50.0 if self._compare_sites(file_name_parts.site if file_name_parts else None, scene_info.site) else 0.0
+                                date_score = 50.0 if self._compare_dates(file_name_parts.date if file_name_parts else None, scene_info.date) else 0.0
+                                return site_score + date_score + float(title_score)
+                            if len(unique_scene_ids) == 1:
+                                accepted_scene = combined_results[0]
+                                logger.info(f"Fingerprint match found single unique scene with {len(combined_results)} submissions - returning confident match")
+                            else:
+                                scored = [(scene_info, score_scene(scene_info)) for scene_info in combined_results]
+                                scored.sort(key=lambda x: x[1], reverse=True)
+                                # DEBUG: Log per-candidate scores
+                                for idx, (c, sc) in enumerate(scored):
+                                    if idx >= 3:
+                                        break
+                                    try:
+                                        ts = self._calculate_name_match(file_name_parts.name, c.name) if (file_name_parts and file_name_parts.name) else 0.0
+                                        ss = 50.0 if self._compare_sites(file_name_parts.site if file_name_parts else None, c.site) else 0.0
+                                        ds = 50.0 if self._compare_dates(file_name_parts.date if file_name_parts else None, c.date) else 0.0
+                                        logger.debug(f"Combined score: id={c.guid} title='{c.name}' site='{c.site}' date='{c.date}' -> title={ts:.1f} site={ss:.1f} date={ds:.1f} total={sc:.1f}")
+                                    except Exception:
+                                        pass
+                                if scored:
+                                    top_scene, top_score = scored[0]
+                                    second_score = scored[1][1] if len(scored) > 1 else -1.0
+                                    top_site_match = self._compare_sites(file_name_parts.site if file_name_parts else None, top_scene.site)
+                                    top_date_match = self._compare_dates(file_name_parts.date if file_name_parts else None, top_scene.date)
+                                    distinct = False
+                                    if top_site_match and top_date_match:
+                                        distinct = True
+                                    elif top_score >= 80.0 and (top_score - second_score) >= 20.0:
+                                        distinct = True
+                                    if distinct:
+                                        accepted_scene = top_scene
+                                        logger.info("Selected scene by filename-based disambiguation: site/date/title scoring")
+                                if not accepted_scene:
+                                    total = sum(counts.values()) if counts else 0
+                                    if total > 0 and scored:
+                                        id_best: Dict[str, tuple] = {}
+                                        for scene_info, sc in scored:
+                                            sid = scene_info.guid
+                                            prev = id_best.get(sid)
+                                            if not prev or sc > prev[1]:
+                                                id_best[sid] = (scene_info, sc)
+                                        ranked = sorted(((sid, cnt, id_best[sid][1], id_best[sid][0]) for sid, cnt in counts.items()), key=lambda x: (x[1], x[2]), reverse=True)
+                                        top_sid, top_cnt, _, top_scene_obj = ranked[0]
+                                        fraction = top_cnt / float(total)
+                                        threshold = max(0.0, min(1.0, getattr(config, 'phash_unique_threshold', 1.0)))
+                                        logger.info(f"Phash majority check: top {top_cnt}/{total} = {fraction:.2f}, threshold={threshold:.2f}")
+                                        if fraction >= threshold:
+                                            accepted_scene = top_scene_obj
+                                            logger.info("Accepted scene by majority threshold over fingerprint submissions")
+                    else:
+                        # No immediate intersection; continue with existing logic on combined set
+                        from collections import Counter
+                        id_list = [scene_info.guid for scene_info in combined_results if scene_info.guid]
+                        counts = Counter(id_list)
+                        unique_scene_ids = list(counts.keys())
 
-                                ranked = sorted(((sid, cnt, id_best[sid][1], id_best[sid][0]) for sid, cnt in counts.items()), key=lambda x: (x[1], x[2]), reverse=True)
-                                if ranked:
-                                    top_sid, top_cnt, _, top_scene_obj = ranked[0]
-                                    fraction = top_cnt / float(total)
-                                    threshold = max(0.0, min(1.0, getattr(config, 'phash_unique_threshold', 1.0)))
-                                    logger.info(f"Phash majority check: top {top_cnt}/{total} = {fraction:.2f}, threshold={threshold:.2f}")
-                                    if fraction >= threshold:
-                                        accepted_scene = top_scene_obj
-                                        logger.info("Accepted scene by majority threshold over phash submissions")
+                        # Helper to score disambiguation based on filename parts
+                        def score_scene(scene_info: LookedUpFileInfo) -> float:
+                            title_score = self._calculate_name_match(file_name_parts.name, scene_info.name) if (file_name_parts and file_name_parts.name) else 0.0
+                            site_score = 50.0 if self._compare_sites(file_name_parts.site if file_name_parts else None, scene_info.site) else 0.0
+                            date_score = 50.0 if self._compare_dates(file_name_parts.date if file_name_parts else None, scene_info.date) else 0.0
+                            return site_score + date_score + float(title_score)
+
+                        if len(unique_scene_ids) == 1:
+                            accepted_scene = combined_results[0]
+                            logger.info(f"Fingerprint match found single unique scene with {len(combined_results)} submissions - returning confident match")
+                        else:
+                            # 1) Try filename-based disambiguation
+                            scored = [(scene_info, score_scene(scene_info)) for scene_info in combined_results]
+                            scored.sort(key=lambda x: x[1], reverse=True)
+                            # DEBUG: Log per-candidate scores for non-intersection
+                            for idx, (c, sc) in enumerate(scored):
+                                if idx >= 3:
+                                    break
+                                try:
+                                    ts = self._calculate_name_match(file_name_parts.name, c.name) if (file_name_parts and file_name_parts.name) else 0.0
+                                    ss = 50.0 if self._compare_sites(file_name_parts.site if file_name_parts else None, c.site) else 0.0
+                                    ds = 50.0 if self._compare_dates(file_name_parts.date if file_name_parts else None, c.date) else 0.0
+                                    logger.debug(f"Fallback score: id={c.guid} title='{c.name}' site='{c.site}' date='{c.date}' -> title={ts:.1f} site={ss:.1f} date={ds:.1f} total={sc:.1f}")
+                                except Exception:
+                                    pass
+                            if scored:
+                                top_scene, top_score = scored[0]
+                                second_score = scored[1][1] if len(scored) > 1 else -1.0
+                                # Consider distinct if strong margin or strong site+date match
+                                top_site_match = self._compare_sites(file_name_parts.site if file_name_parts else None, top_scene.site)
+                                top_date_match = self._compare_dates(file_name_parts.date if file_name_parts else None, top_scene.date)
+                                distinct = False
+                                if top_site_match and top_date_match:
+                                    distinct = True
+                                elif top_score >= 80.0 and (top_score - second_score) >= 20.0:
+                                    distinct = True
+                                if distinct:
+                                    accepted_scene = top_scene
+                                    logger.info("Selected scene by filename-based disambiguation: site/date/title scoring")
+
+                            # 2) If still ambiguous, apply frequency threshold
+                            if not accepted_scene:
+                                total = sum(counts.values()) if counts else 0
+                                if total > 0:
+                                    # Choose the majority scene by count (break ties using filename score)
+                                    id_best = {}
+                                    for scene_info, sc in scored:
+                                        sid = scene_info.guid
+                                        prev = id_best.get(sid)
+                                        if not prev or sc > prev[1]:
+                                            id_best[sid] = (scene_info, sc)
+
+                                    ranked = sorted(((sid, cnt, id_best[sid][1], id_best[sid][0]) for sid, cnt in counts.items()), key=lambda x: (x[1], x[2]), reverse=True)
+                                    if ranked:
+                                        top_sid, top_cnt, _, top_scene_obj = ranked[0]
+                                        fraction = top_cnt / float(total)
+                                        threshold = max(0.0, min(1.0, getattr(config, 'phash_unique_threshold', 1.0)))
+                                        logger.info(f"Phash majority check: top {top_cnt}/{total} = {fraction:.2f}, threshold={threshold:.2f}")
+                                        if fraction >= threshold:
+                                            accepted_scene = top_scene_obj
+                                            logger.info("Accepted scene by majority threshold over fingerprint submissions")
+
+                        # PHASH-first acceptance/ambiguity using configured thresholds
+                        if not accepted_scene and combined_results:
+                            # Compute distances for all candidates
+                            metrics = []
+                            for c in combined_results:
+                                d, dur_ok = phash_metrics(c)
+                                metrics.append((c, d, dur_ok))
+                            # Filter to those with distances
+                            with_dist = [m for m in metrics if m[1] is not None]
+                            if with_dist:
+                                with_dist.sort(key=lambda x: (x[1], 0 if x[2] else 1))
+                                best = with_dist[0]
+                                second = with_dist[1] if len(with_dist) > 1 else None
+                                best_d = best[1]
+                                best_dur_ok = best[2]
+                                second_d = second[1] if second else None
+                                margin = (second_d - best_d) if (second_d is not None and best_d is not None) else None
+                                # Majority stats
+                                from collections import Counter
+                                id_list = [scene_info.guid for scene_info in combined_results if scene_info.guid]
+                                counts = Counter(id_list)
+                                total = sum(counts.values()) if counts else 0
+                                frac = 0.0
+                                if total:
+                                    top_sid, top_cnt = counts.most_common(1)[0]
+                                    frac = top_cnt / float(total)
+                                # Thresholds
+                                accept_d = getattr(config, 'phash_accept_distance', 6)
+                                margin_acc = getattr(config, 'phash_distance_margin_accept', 3)
+                                frac_acc = getattr(config, 'phash_majority_accept_fraction', 0.7)
+                                amb_min = getattr(config, 'phash_ambiguous_min', 7)
+                                amb_max = getattr(config, 'phash_ambiguous_max', 12)
+                                # Accept if within accept_d and either duration OK or margin/majority strong
+                                if best_d is not None and best_d <= accept_d and (
+                                    best_dur_ok or (margin is not None and margin >= margin_acc) or (frac >= frac_acc)
+                                ):
+                                    accepted_scene = best[0]
+                                    logger.info("Accepted scene by PHASH distance thresholds (best_d={}, margin={}, majority={:.2f})", best_d, margin, frac)
+                                else:
+                                    # Ambiguous if best in [amb_min, amb_max] or multiple within small margin
+                                    close_peers = [x for x in with_dist[1:4] if x[1] is not None and best_d is not None and (x[1] - best_d) <= 2]
+                                    if (best_d is not None and amb_min <= best_d <= amb_max) or close_peers:
+                                        ambiguous = True
 
                     # If accepted, produce a single confident ComparisonResult and clear others
                     if accepted_scene:
@@ -132,6 +323,8 @@ class StashDBProvider(BaseMetadataProvider):
                         nm = self._calculate_name_match(file_name_parts.name, accepted_scene.name) if (file_name_parts and file_name_parts.name) else 100.0
                         dm = self._compare_dates(file_name_parts.date if file_name_parts else None, accepted_scene.date) if file_name_parts else True
                         sm = self._compare_sites(file_name_parts.site if file_name_parts else None, accepted_scene.site) if file_name_parts else True
+                        # PHASH metrics for accepted: force is_match() via phash
+                        # by setting phash_distance=0 and phash_duration=True
                         comparison_result = ComparisonResult(
                             name=accepted_scene.name or '',
                             name_match=float(nm),
@@ -143,14 +336,40 @@ class StashDBProvider(BaseMetadataProvider):
                             phash_duration=True,
                         )
                         results.append(comparison_result)
-                    # else: remain ambiguous, fall back to name-based search results
+                    else:
+                        # No decisive pick; surface candidates to allow orchestrator to flag ambiguous
+                        for scene_info in combined_results:
+                            d, dur_ok = phash_metrics(scene_info)
+                            comparison_result = ComparisonResult(
+                                name=scene_info.name or '',
+                                name_match=self._calculate_name_match(file_name_parts.name, scene_info.name) if (file_name_parts and file_name_parts.name) else 0.0,
+                                date_match=self._compare_dates(file_name_parts.date if file_name_parts else None, scene_info.date) if file_name_parts else False,
+                                site_match=self._compare_sites(file_name_parts.site if file_name_parts else None, scene_info.site) if file_name_parts else False,
+                                name_parts=file_name_parts,
+                                looked_up=scene_info,
+                                phash_distance=d,
+                                phash_duration=dur_ok,
+                            )
+                            results.append(comparison_result)
+                        ambiguous = True
+                
             except Exception as e:
-                logger.debug(f"Phash search failed: {e}")
+                logger.debug(f"Fingerprint search failed: {e}")
         
         # Sort results by quality
         results = sorted(results, key=self._calculate_match_weight, reverse=True)
-        
-        return ComparisonResults(results, file_name_parts)
+
+        # Mark as ambiguous if we explicitly detected ambiguity above
+        try:
+            return ComparisonResults(results, file_name_parts, ambiguous=locals().get('ambiguous', False))
+        except TypeError:
+            # Backward compatibility if dataclass signature differs
+            cr = ComparisonResults(results, file_name_parts)
+            try:
+                setattr(cr, 'ambiguous', locals().get('ambiguous', False))
+            except Exception:
+                pass
+            return cr
     
     def get_complete_info(self, file_name_parts: Optional[FileInfo], uuid: str, config: NamerConfig) -> Optional[LookedUpFileInfo]:
         """
@@ -271,6 +490,12 @@ class StashDBProvider(BaseMetadataProvider):
             if isinstance(scenes, list):
                 for scene in scenes:
                     file_info = self._map_stashdb_scene_to_fileinfo(scene, config)
+                    if file_info:
+                        try:
+                            file_info.original_query = f"searchScene:{query}"
+                            file_info.original_response = orjson.dumps(scene, option=orjson.OPT_INDENT_2).decode('utf-8')
+                        except Exception:
+                            pass
                     if file_info:
                         results.append(file_info)
         
@@ -420,21 +645,18 @@ class StashDBProvider(BaseMetadataProvider):
         
         return file_info
     
-    def _search_by_phash(self, phash: PerceptualHash, config: NamerConfig) -> List[LookedUpFileInfo]:
+    def _search_by_fingerprint(self, hash_value: str, algorithm: str, config: NamerConfig) -> List[LookedUpFileInfo]:
         """
-        Search for scenes by perceptual hash.
+        Search for scenes by fingerprint (PHASH or OSHASH) using GraphQL.
         """
-        # Note: This query structure is a guess - StashDB phash search may need different approach
         query = {
             'query': '''
-                query SearchByFingerprint($hash: String!) {
-                    findSceneByFingerprint(fingerprint: {hash: $hash, algorithm: PHASH}) {
+                query SearchByFingerprint($hash: String!, $algorithm: FingerprintAlgorithm!) {
+                    findSceneByFingerprint(fingerprint: {hash: $hash, algorithm: $algorithm}) {
                         id
                         title
                         date
-                        urls {
-                            url
-                        }
+                        urls { url }
                         details
                         duration
                         images {
@@ -468,7 +690,8 @@ class StashDBProvider(BaseMetadataProvider):
                 }
             ''',
             'variables': {
-                'hash': str(phash.phash)
+                'hash': hash_value,
+                'algorithm': algorithm
             }
         }
         
@@ -483,10 +706,22 @@ class StashDBProvider(BaseMetadataProvider):
                     for scene in scenes:
                         file_info = self._map_stashdb_scene_to_fileinfo(scene, config)
                         if file_info:
+                            try:
+                                file_info.original_query = f"findSceneByFingerprint:{algorithm}:{hash_value}"
+                                file_info.original_response = orjson.dumps(scene, option=orjson.OPT_INDENT_2).decode('utf-8')
+                            except Exception:
+                                pass
+                        if file_info:
                             results.append(file_info)
                 else:
                     # Handle case where it might return a single scene object
                     file_info = self._map_stashdb_scene_to_fileinfo(scenes, config)
+                    if file_info:
+                        try:
+                            file_info.original_query = f"findSceneByFingerprint:{algorithm}:{hash_value}"
+                            file_info.original_response = orjson.dumps(scenes, option=orjson.OPT_INDENT_2).decode('utf-8')
+                        except Exception:
+                            pass
                     if file_info:
                         results.append(file_info)
         

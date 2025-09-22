@@ -384,6 +384,7 @@ class ComparisonResult:
 class ComparisonResults:
     results: List[ComparisonResult]
     fileinfo: Optional[FileInfo]
+    ambiguous: bool = False
 
     def get_match(self) -> Optional[ComparisonResult]:
         match = None
