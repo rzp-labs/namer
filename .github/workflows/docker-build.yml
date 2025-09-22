@@ -43,7 +43,8 @@ jobs:
           type=ref,event=pr
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
-          type=sha,prefix={{branch}}-
+          # Use a safe SHA tag with an explicit prefix to avoid leading dashes
+          type=sha,format=short,prefix=sha-
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
