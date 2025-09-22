@@ -144,20 +144,15 @@ def get_local_metadata_if_requested(video_file: Path) -> Optional[LookedUpFileIn
 
 def process_file(command: Command) -> Optional[Command]:
     """
-    Bread and butter method.
-    Given a file, determines if it's a dir, if so, the dir name may be used
-    for comparison with the porndb.   The larges mp4/mkv file in the directory
-    or any subdirectories will be assumed to be the movie file.
-
-    Does not properly handle multipart movies.
-
-    If the input file is not a dir it's name will be used, and it is assumed to
-    be the movie file we wish to tag.
-
-    The movie is either renamed in place if a file, or renamed and move to the root
-    of the dir if a dir was passed in.
-
-    The file is then update based on the metadata from the porndb if a mp4.
+    Process a single file or directory command: match metadata, optionally rename/move, tag MP4s, and produce artifacts.
+    
+    Given a Command describing a target file or directory, attempt to resolve metadata (from adjacent .nfo, TPDB, or perceptual-hash search), optionally convert the container, and apply the configured actions. If a confident match is found the function may move/rename the file to its final location, update MP4 atoms, download posters/backgrounds/trailers, write NFO/log files, and trigger a webhook. If no match is found and inplace is False the file is moved to either an ambiguous or failed directory depending on whether multiple plausible matches exist.
+    
+    Parameters:
+        command: Command — operation descriptor containing the input path, parsed filename, config and other runtime context.
+    
+    Returns:
+        Optional[Command]: The resulting Command for the moved/renamed target when processing completed successfully; otherwise None.
     """
     logger.info('Processing: {}', command.input_file)
     if command.target_movie_file is not None:

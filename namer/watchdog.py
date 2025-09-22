@@ -356,6 +356,20 @@ def create_watcher(namer_watchdog_config: NamerConfig) -> MovieWatcher:
 
 
 def main(config: NamerConfig):
+    """
+    Configure logging based on the provided NamerConfig and start the file-watching main loop.
+    
+    This function:
+    - Sets the console log level to DEBUG when config.debug is true, otherwise INFO, using config.console_format and config.diagnose_errors.
+    - Optionally enables a rotating file log sink when config.file_logging_enabled is true. If enabled, it requires config.file_logging_directory; other optional fields used are file_logging_rotation, file_logging_retention, and file_logging_level. Failures to initialize file logging are logged but do not stop execution.
+    - Constructs and runs the MovieWatcher via create_watcher(config).run(), which blocks until the watcher stops.
+    
+    Parameters:
+        config: NamerConfig — configuration used to control logging behavior and watcher startup (not mutated).
+    
+    Returns:
+        None
+    """
     level = 'DEBUG' if config.debug else 'INFO'
     logger.add(sys.stdout, format=config.console_format, level=level, diagnose=config.diagnose_errors)
 
