@@ -193,6 +193,9 @@ class LookedUpFileInfo:
         self.tags = []
         self.hashes = []
         self.original_parsed_filename = FileInfo()
+        # Ensure these attributes always exist even if providers don't set them
+        self.original_query = None
+        self.original_response = None
 
     def as_dict(self, config: NamerConfig):
         """
