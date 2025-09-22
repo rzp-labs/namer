@@ -31,7 +31,12 @@ orbctl pull -m "$ORBSTACK_VM" "/tmp/namer-$VERSION.tar" "$EXPORT_DIR/namer-$VERS
 echo "📥 Importing to host Docker..."
 docker load -i "$EXPORT_DIR/namer-$VERSION.tar"
 
+# Create latest tag on host
+echo "🏷️  Creating latest tag..."
+docker tag "$IMAGE_NAME:$VERSION" "$IMAGE_NAME:latest"
+
 # Clean up tar file
 rm "$EXPORT_DIR/namer-$VERSION.tar"
 
 echo "✅ Image exported and loaded: $IMAGE_NAME:$VERSION"
+echo "✅ Latest tag created: $IMAGE_NAME:latest"

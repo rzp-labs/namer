@@ -12,7 +12,7 @@ htmlcov
 include
 
 # Large test directories and files
-test_dirs/
+test/integration/
 database/
 test_config.cfg
 node_modules/

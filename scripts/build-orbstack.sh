@@ -58,7 +58,18 @@ echo "🏗️  Step 4: Building Docker image..."
 if [ "$BUILD_MODE" != "dev" ]; then
     echo "📤 Step 5: Exporting image..."
     "$SCRIPT_DIR/export-docker-image.sh" "$ORBSTACK_VM" "$IMAGE_NAME" "$VERSION"
+    
+    echo "🏷️  Step 6: Ensuring latest tag exists..."
+    # Ensure latest tag always exists (backup in case export script didn't create it)
+    if ! docker image inspect "$IMAGE_NAME:latest" >/dev/null 2>&1; then
+        echo "   Creating latest tag: $IMAGE_NAME:latest"
+        docker tag "$IMAGE_NAME:$VERSION" "$IMAGE_NAME:latest"
+    else
+        echo "   Latest tag already exists: $IMAGE_NAME:latest"
+    fi
+    
     echo "✅ Build complete: $IMAGE_NAME:$VERSION"
+    echo "✅ Latest tag available: $IMAGE_NAME:latest"
 else
     echo "✅ Development build complete (not exported): $IMAGE_NAME:$VERSION"
 fi

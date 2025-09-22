@@ -1,0 +1,86 @@
+FROM ubuntu:24.04 AS base
+
+ENV PATH="/root/.local/bin:$PATH"
+ENV TZ=Europe/London
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Use stable Ubuntu LTS repositories (better ARM64 support)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       python3-pip \
+       python3 \
+       pipx \
+       ffmpeg \
+       tzdata \
+       curl \
+       wget \
+       gnupg2 \
+       bc \
+       gosu \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -Rf /usr/share/doc && rm -Rf /usr/share/man \
+    && apt-get clean
+
+FROM base AS build
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       build-essential \
+       libffi-dev \
+       libssl-dev \
+       python3-dev \
+       python3-venv \
+       golang \
+       git \
+       xvfb \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -Rf /usr/share/doc && rm -Rf /usr/share/man \
+    && apt-get clean
+
+ENV DISPLAY=:99
+
+RUN pipx install poetry
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+RUN . /root/.bashrc && nvm install 22
+RUN . /root/.bashrc && npm i -g pnpm@latest-10
+
+RUN mkdir /work/
+COPY . /work
+WORKDIR /work
+
+# Use standard ffmpeg.py (no Intel GPU enhancements)
+# COPY namer/ffmpeg_enhanced.py /work/namer/ffmpeg.py  # <-- Skip this for dev
+
+RUN rm -rf /work/namer/__pycache__/ || true \
+    && rm -rf /work/test/__pycache__/ || true \
+    && poetry install
+
+# Fast build - skip tests for development
+RUN bash -c "source /root/.bashrc && export PATH=/root/.nvm/versions/node/$(ls /root/.nvm/versions/node | head -1)/bin:$PATH && ( Xvfb :99 & cd /work/ && poetry run poe build_fast )"
+
+FROM base
+
+# Install the built namer package (use pip --break-system-packages for development)
+COPY --from=build /work/dist/namer-*.tar.gz /
+RUN pip install --break-system-packages /namer-*.tar.gz \
+    && rm /namer-*.tar.gz
+
+# Create standard directories
+RUN mkdir -p /config /app/database /app/logs /app/media
+
+ARG BUILD_DATE
+ARG GIT_HASH  
+ARG PROJECT_VERSION
+
+ENV PYTHONUNBUFFERED=1
+ENV NAMER_CONFIG=/config/namer.cfg
+ENV BUILD_DATE=$BUILD_DATE
+ENV GIT_HASH=$GIT_HASH
+ENV PROJECT_VERSION=$PROJECT_VERSION
+
+EXPOSE 6980
+HEALTHCHECK --interval=1m --timeout=30s CMD curl -s $(namer url)/api/healthcheck >/dev/null || exit 1
+
+# Development-specific entrypoint (no GPU, no user switching, uses python3 -m namer)
+COPY docker-entrypoint-dev.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

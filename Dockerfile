@@ -98,7 +98,7 @@ COPY namer/ffmpeg_enhanced.py /work/namer/ffmpeg.py
 RUN rm -rf /work/namer/__pycache__/ || true \
     && rm -rf /work/test/__pycache__/ || true \
     && poetry install
-RUN . /root/.bashrc && ( Xvfb :99 & cd /work/ && poetry run poe build_deps && poetry run poe build_namer )
+RUN bash -c "source /root/.bashrc && export PATH=/root/.nvm/versions/node/$(ls /root/.nvm/versions/node | head -1)/bin:$PATH && ( Xvfb :99 & cd /work/ && poetry run poe build_deps && poetry run poe build_namer )"
 
 FROM base
 

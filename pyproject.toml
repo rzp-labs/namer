@@ -75,6 +75,7 @@ build_videohashes = { shell = "mkdir -p ./videohashes/dist && ARCH=$(uname -m | 
 move_videohashes = { "script" = "shutil:copytree('./videohashes/dist', './namer/tools', dirs_exist_ok=True)" }
 build_namer = { shell = "poetry build" }
 build_deps = ["install_npm", "build_node", "install_videohashes_src", "build_videohashes", "move_videohashes"]
+build_fast = ["build_deps", "build_namer"]
 test_format = { shell = "poetry run ruff check ." }
 test_namer = { shell = "poetry run pytest --log-cli-level=info --capture=no" }
 test = ["test_format", "test_namer"]

@@ -1,0 +1,40 @@
+services:
+  namer:
+    # Use pre-built image from OrbStack (avoids ARM64 build issues on macOS)
+    image: rzp-labs/namer:dev
+    container_name: namer
+    restart: unless-stopped
+    
+    # Intel GPU hardware acceleration support
+    # devices:
+    #   - /dev/dri:/dev/dri
+    
+    # Volume mounts
+    volumes:
+      - ./test/integration/config:/config
+      - ./test/integration/database:/app/database
+      - ./test/integration/logs:/app/logs
+      - ./test/integration/media:/app/media
+
+    # Port mapping
+    ports:
+      - "6980:6980"
+    
+    # Environment variables for Intel GPU support and user management
+    environment:
+      - NAMER_CONFIG=/config/namer.cfg
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - UMASK=${UMASK}
+      - LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-iHD}
+      - TPDB_TOKEN=${TPDB_TOKEN}
+      - STASHDB_TOKEN=${STASHDB_TOKEN}
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-s", "http://localhost:6980/api/healthcheck"]
+      interval: 1m
+      timeout: 30s
+      retries: 3
+      start_period: 30s

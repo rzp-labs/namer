@@ -10,6 +10,9 @@ SCRIPT_DIR = ./scripts
 
 .PHONY: help build build-fast build-full build-dev test test-basic test-integration validate clean clean-deep config
 
+.PHONY: help build build-fast build-full build-dev test test-basic test-integration validate clean clean-deep config
+.PHONY: build-local build-remote build-multi push build-test build-dev-arm64 build-orbstack build-orbstack-fast build-orbstack-full test-orbstack clean-orbstack
+
 help: ## Show available targets
 	@echo "🏗️  Namer Build System"
 	@echo "====================="
@@ -18,17 +21,37 @@ help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Examples:"
-	@echo "  make build           # Fast build (recommended for development)"  
+	@echo "  make build           # Fast build (recommended for development)"
 	@echo "  make build-validated # Full validation + fast build"
 	@echo "  make build-full      # Complete build with all tests (slow)"
 	@echo "  make test            # Test the built image"
 	@echo ""
 
 # Build targets (composable)
-build: build-fast ## Default: fast build for development iteration
+build: ## Build Docker image (auto-detects platform)
+	@echo "🔍 Detecting build platform..."
+	@if [ "$$(uname -s)" = "Darwin" ] && [ "$$(uname -m)" = "arm64" ]; then \
+		echo "🍎 Detected: macOS ARM64 - Using OrbStack build (avoids Ubuntu dev repo issues)"; \
+		echo "📋 Intel GPU hardware acceleration disabled (not applicable on macOS)"; \
+		$(MAKE) build-orbstack; \
+	elif [ "$$(uname -m)" = "x86_64" ] && [ -d "/dev/dri" ]; then \
+		echo "🖥️  Detected: x86_64 with Intel GPU support - Using standard build"; \
+		echo "🏗️  Building $(IMAGE_NAME):$(VERSION) with Intel GPU support..."; \
+		docker build $(DOCKER_BUILD_ARGS) -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .; \
+	else \
+		echo "🖥️  Detected: Standard build environment"; \
+		echo "⚠️  Intel GPU hardware acceleration may not be available"; \
+		echo "🏗️  Building $(IMAGE_NAME):$(VERSION)..."; \
+		docker build $(DOCKER_BUILD_ARGS) -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .; \
+	fi
 
 build-fast: ## Fast Docker build (skips tests, ~5 minutes)
 	@$(SCRIPT_DIR)/build-orbstack.sh fast $(IMAGE_NAME) $(VERSION)
+
+build-local: ## Force local Docker build (ignores platform detection)
+	@echo "🏗️  Force building $(IMAGE_NAME):$(VERSION) locally (ignoring platform)..."
+	@echo "⚠️  Warning: This may fail on macOS ARM64 due to Ubuntu dev repository issues"
+	docker build $(DOCKER_BUILD_ARGS) -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .
 
 build-full: ## Complete build with all tests (~20 minutes)  
 	@$(SCRIPT_DIR)/build-orbstack.sh full $(IMAGE_NAME) $(VERSION)
@@ -64,6 +87,39 @@ clean: ## Clean up temporary files and containers
 clean-deep: ## Deep clean (removes everything including VM)
 	@$(SCRIPT_DIR)/cleanup.sh deep
 
+build-staging: ## Build for staging deployment
+	@$(MAKE) build-remote REMOTE_HOST=staging-build-server.com VERSION=staging-$(VERSION)
+
+# Development helpers
+dev-build: ## Quick development build without tests
+	@echo "🚀 Quick development build..."
+	docker build --target build $(DOCKER_BUILD_ARGS) -t $(IMAGE_NAME):dev .
+
+build-dev-arm64: ## Fast ARM64 development build (no Intel GPU, stable repos)
+	@echo "🍎 Fast ARM64 development build for local testing..."
+	@echo "⚠️  Note: Intel GPU acceleration disabled for ARM64 compatibility"
+	docker build -f Dockerfile.dev-arm64 $(DOCKER_BUILD_ARGS) -t $(IMAGE_NAME):dev-arm64 -t $(IMAGE_NAME):dev .
+
+# OrbStack build targets (for macOS ARM64 compatibility)
+build-orbstack: build-orbstack-fast ## Build Docker image using OrbStack Ubuntu VM (default: fast)
+
+build-orbstack-fast: ## Fast OrbStack build (skips tests, ~5 minutes)
+	@echo "🚀 Building $(IMAGE_NAME):$(VERSION) via OrbStack (fast mode)..."
+	@./scripts/build-orbstack.sh fast $(IMAGE_NAME) $(VERSION)
+
+build-orbstack-full: ## Complete OrbStack build with tests (~20 minutes)
+	@echo "🚀 Building $(IMAGE_NAME):$(VERSION) via OrbStack (full mode)..."
+	@./scripts/build-orbstack.sh full $(IMAGE_NAME) $(VERSION)
+
+test-orbstack: ## Test OrbStack-built image with file ownership fix
+	@echo "🧪 Testing file ownership fix with OrbStack-built image..."
+	@./scripts/test-docker.sh $(IMAGE_NAME) $(VERSION) ownership
+
+clean-orbstack: ## Clean up OrbStack VM and test files
+	@echo "🧹 Cleaning up OrbStack resources..."
+	@./scripts/cleanup.sh orbstack
+
+# Show current configuration
 config: ## Show current build configuration
 	@echo "Configuration:"
 	@echo "  IMAGE_NAME: $(IMAGE_NAME)"
