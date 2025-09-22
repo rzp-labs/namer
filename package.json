@@ -58,5 +58,6 @@
     "node": "^22.0",
     "npm": "^9.0",
     "pnpm": "^10.0"
-  }
+  },
+  "packageManager": "pnpm@10"
 }
