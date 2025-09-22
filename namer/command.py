@@ -485,6 +485,10 @@ def make_command(input_file: Path, config: NamerConfig, nfo: bool = False, inpla
     if not target_movie:
         return None
 
+    # Early filter: if file is not interesting (wrong extension/too small), do not parse
+    if not ignore_file_restrictions and not is_interesting_movie(target_movie, config):
+        return None
+
     target_file = __exact_command(target_movie, target_dir, config)
     target_file.input_file = input_file
     target_file.tpdb_id = uuid
@@ -492,9 +496,7 @@ def make_command(input_file: Path, config: NamerConfig, nfo: bool = False, inpla
     target_file.inplace = inplace
     target_file.is_auto = is_auto
 
-    output = target_file if is_interesting_movie(target_file.target_movie_file, config) or ignore_file_restrictions else None
-
-    return output
+    return target_file
 
 
 def make_command_relative_to(input_dir: Path, relative_to: Path, config: NamerConfig, nfo: bool = False, inplace: bool = False, uuid: Optional[str] = None, is_auto: bool = True) -> Optional[Command]:

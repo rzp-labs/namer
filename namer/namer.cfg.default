@@ -5,14 +5,14 @@
 metadata_provider = stashdb
 
 # Tokens are sourced from environment (STASHDB_TOKEN / TPDB_TOKEN) for security.
-porndb_token = 
-stashdb_token = 
+porndb_token =
+stashdb_token =
 
 # Override the ThePornDB API base address (primarily for testing)
-override_tpdb_address = https://api.theporndb.net
+override_tpdb_address =
 
 # Override the StashDB API endpoint (primarily for advanced deployments)
-stashdb_endpoint = 
+stashdb_endpoint =
 
 # You should likely never edit this, unless you know regex really well and wont ask for help when you mess up.
 # Seriously don't edit it.
@@ -86,14 +86,14 @@ min_file_size = 300
 write_namer_log = False
 
 # Should namer's comparison log be written next to failed videos.
-write_namer_failed_log = True
+write_namer_failed_log = False
 
 # Comma separated list of extensions for namer to process (in order of preference in case multiple types exist in a target directory)
 # Case insensitive, Only mp4 supports tagging.
 target_extensions = mp4,mkv,avi,mov,flv
 
 # Should new and moved files have permissions and ownership set.
-update_permissions_ownership = True
+update_permissions_ownership = False
 
 # Settings for new/moved files/dirs.
 set_dir_permissions = 775
@@ -102,8 +102,8 @@ set_file_permissions = 664
 # Setting uid and groupid for new and moved files.
 # Use the id numbers, not names.  Defaults to process uid/gid in non windows systems.
 
-set_uid = 
-set_gid = 
+set_uid =
+set_gid =
 
 # If you want the trailers downloaded set the value relative to the final location of the movie file here.
 # Currently assumes directory per video, and doesn't work in vast majority of cases (cdns with caches busted,
@@ -143,7 +143,7 @@ max_performer_names = 5
 plex_hack = False
 
 # Cleanup final filename
-path_cleanup = True
+path_cleanup = False
 
 # Path where stores namer system data.
 database_path = ./database
@@ -152,7 +152,7 @@ database_path = ./database
 use_database = False
 
 # Cache http requests
-use_requests_cache = True
+use_requests_cache = False
 
 # Amount of minutes that http request would be in cache
 requests_cache_expire_minutes = 10
@@ -168,13 +168,13 @@ search_phash = True
 
 # Should phashes be sent to tpdb if no phash match was found but a name match was.
 # Requires search_phash be true or is ignored.
-send_phash = True
+send_phash = False
 
 # Use alternative phash generator (might be faster, not 100% compatible)
 use_alt_phash_tool = False
 
 # Max ffmpeg processes for alternative phash generation, empty for auto select
-max_ffmpeg_workers = 
+max_ffmpeg_workers =
 
 # Use gpu for alternative phash generation
 use_gpu = False
@@ -205,6 +205,21 @@ use_gpu = False
 ffmpeg_hwaccel_backend =
 ffmpeg_hwaccel_device =
 ffmpeg_hwaccel_decoder =
+
+# PHASH decision thresholds (tune routing/auto-accept behavior)
+# Lower accept distance or increase margin to be more conservative; loosen to auto-accept more.
+# Accept if best distance <= phash_accept_distance and either duration matches, margin is large, or majority is strong.
+phash_accept_distance = 6
+
+# Ambiguous band: if best distance is within [phash_ambiguous_min, phash_ambiguous_max] or peers are close, route to review.
+phash_ambiguous_min = 7
+phash_ambiguous_max = 12
+
+# Minimum distance gap (best vs runner-up) to allow auto-accept when within accept distance
+phash_distance_margin_accept = 3
+
+# Required majority fraction by GUID among fingerprint hits to allow auto-accept when within accept distance
+phash_majority_accept_fraction = 0.7
 
 # MANUAL OVERRIDE (Advanced):
 # Uncomment and modify these lines to override automatic detection:
@@ -298,20 +313,26 @@ new_relative_path_name_scene=
 new_relative_path_name_movie=
 new_relative_path_name_jav=
 
-# director where new downloads go.
-watch_dir = ./test/watch
+# directory where new downloads go.
+watch_dir = ./watch
 
 # temporary directory where work is done.
 # a log file shows attempted matches and match closeness.
-work_dir = ./test/work
+work_dir = ./work
 
-# Should processing fail the file or directory is moved here.
-# retries occur every 12 hours.   Files can be manually moved to watch-dir
-# to force reprocessing.
-failed_dir = ./test/failed
+# directory where finalized files get written.
+dest_dir = ./dest
 
-# dir where finalized files get written.
-dest_dir = ./test/dest
+# Should processing fail as a result of no matches
+# the file or directory is moved here.
+# Retries occur every 12 hours.
+# Files can be manually moved to watch-dir to force reprocessing.
+failed_dir = ./failed
+
+# directory where ambiguous files get written.
+# Ambiguous files are those that have multiple matches
+# and the user has not manually selected a match.
+ambiguous_dir = ./ambiguous
 
 # When to retry failed items, default is a random minute during the 3 am hour in your timezone.
 retry_time =
