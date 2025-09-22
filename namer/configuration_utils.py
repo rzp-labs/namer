@@ -45,7 +45,19 @@ def __verify_naming_config(config: NamerConfig, formatter: PartialFormatter) -> 
 
 def __verify_watchdog_config(config: NamerConfig, formatter: PartialFormatter) -> bool:
     """
-    Verifies the contents of your config file. Returns False if configuration failed.
+    Verify watchdog-related configuration fields and naming templates.
+    
+    Checks:
+    - If metadata-based genres are disabled (enable_metadataapi_genres is False), ensures a default_genre is set.
+    - Validates presence and correctness of watchdog directories (watch_dir, work_dir, failed_dir, ambiguous_dir, dest_dir) and that none are nested within one another.
+    - Validates the primary new_relative_path_name format and its scene/movie/jav variants using the provided PartialFormatter.
+    
+    Parameters:
+        config (NamerConfig): The loaded configuration to validate.
+        formatter (PartialFormatter): Formatter used to validate name-format strings.
+    
+    Returns:
+        bool: True if all checks pass; False if any validation fails. Errors and warnings are logged.
     """
     success = True
     if not config.enable_metadataapi_genres and not config.default_genre:
@@ -213,18 +225,43 @@ def to_int(value: Optional[str]) -> Optional[int]:
 
 
 def from_int(value: Optional[int]) -> str:
+    """
+    Return a string suitable for INI output from an optional integer.
+    
+    If `value` is None returns an empty string; otherwise returns `str(value)`.
+    """
     return str(value) if value is not None else ''
 
 
 def to_float(value: Optional[str]) -> Optional[float]:
+    """
+    Convert a numeric string to a float, returning None for missing or empty input.
+    
+    Parameters:
+        value (Optional[str]): String containing a floating-point number, or None/empty string to represent missing value.
+    
+    Returns:
+        Optional[float]: Parsed float if `value` is a non-empty string, otherwise None.
+    """
     return float(value) if value is not None and value != '' else None
 
 
 def from_float(value: Optional[float]) -> str:
+    """
+    Convert an optional float to its string representation suitable for INI storage.
+    
+    If value is None, returns an empty string; otherwise returns str(value).
+    """
     return str(value) if value is not None else ''
 
 
 def to_path(value: Optional[str]) -> Optional[Path]:
+    """
+    Convert an optional string into a resolved pathlib.Path, or return None.
+    
+    If `value` is a non-empty string, returns Path(value).resolve() (an absolute, symlink-resolved Path).
+    If `value` is None or an empty string, returns None.
+    """
     return Path(value).resolve() if value else None
 
 

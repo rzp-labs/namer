@@ -76,6 +76,15 @@ class Command:
 
 
 def move_command_files(target: Optional[Command], new_target: Path, is_auto: bool = True) -> Optional[Command]:
+    """
+    Move the movie file or containing directory described by a Command into a new destination and build a new Command for processing.
+    
+    If `target` is None this returns None. The function ensures `new_target` exists (returns None on failure), then:
+    - if the Command's `input_file` equals its `target_directory`, moves the entire directory into `new_target` and builds a Command for the moved directory;
+    - otherwise moves the single `target_movie_file` into `new_target` and builds a Command for the moved file.
+    
+    On success returns the newly created Command with `tpdb_id`, `inplace`, and `write_from_nfos` propagated from the original `target`. Filesystem moves and directory creation are performed as side effects.
+    """
     if not target:
         return None
 
@@ -106,6 +115,36 @@ def move_command_files(target: Optional[Command], new_target: Path, is_auto: boo
 
 
 def _build_summary(match_attempts: Optional[ComparisonResults]) -> Optional[dict]:
+    """
+    Build a compact, JSON-serializable summary from ComparisonResults suitable for logging or small summary files.
+    
+    If match_attempts is falsy, returns None.
+    
+    Parameters:
+        match_attempts (Optional[ComparisonResults]): ComparisonResults object containing ranked lookup results
+            and an optional `ambiguous` flag. Only the following fields from each result are used:
+            - result.looked_up: object with optional attributes `guid`, `uuid`, `name`, `site`, `date`
+            - result.name, result.name_match, result.site_match, result.date_match
+            - result.phash_distance, result.phash_duration
+    
+    Returns:
+        Optional[dict]: A dictionary with the keys:
+          - 'ambiguous' (bool): copied from match_attempts.
+          - 'candidates' (list): flat, rank-ordered list of candidate dicts with keys
+            ('rank','guid','uuid','title','site','date','name_match','site_match',
+             'date_match','phash_distance','phash_duration').
+          - 'groups' (list): grouped candidates by GUID with per-GUID stats:
+            ('guid','title','site','date','count','min_phash_distance','has_duration_match').
+          - 'summary_stats' (dict): top-level metrics including
+            ('best_guid','best_min_phash_distance','second_min_phash_distance',
+             'distance_margin','top_guid_fraction').
+        Returns None when match_attempts is None or empty.
+    
+    Notes:
+        - Numeric values are coerced to plain Python int/float where possible to ensure JSON compatibility.
+        - GUID grouping ignores candidates without a GUID.
+        - 'top_guid_fraction' is rounded to three decimal places when present.
+    """
     if not match_attempts:
         return None
     # Prepare a compact, readable summary for humans
@@ -117,11 +156,25 @@ def _build_summary(match_attempts: Optional[ComparisonResults]) -> Optional[dict
     }
     # Helpers to coerce potentially non-JSON-native numeric types
     def _to_int(val):
+        """
+        Convert a value to an int, returning None for None or if conversion fails.
+        
+        Parameters:
+            val: Value to convert (any). If val is None, returns None.
+        
+        Returns:
+            int or None: The integer conversion of val, or None if val is None or cannot be converted.
+        """
         try:
             return int(val) if val is not None else None
         except Exception:
             return None
     def _to_float(val):
+        """
+        Convert a value to float, returning None for None or if conversion fails.
+        
+        Accepts numbers or strings; returns a float on successful conversion, otherwise None.
+        """
         try:
             return float(val) if val is not None else None
         except Exception:
@@ -167,6 +220,20 @@ def _build_summary(match_attempts: Optional[ComparisonResults]) -> Optional[dict
         })
     # Sort groups by min distance then count desc
     def _group_key(g):
+        """
+        Return a sort key for a group dictionary used to order candidate groups.
+        
+        The key is a tuple (min_phash_distance, -count) so groups with smaller phash
+        distance sort first, and among equal distances groups with more members sort
+        first. If 'min_phash_distance' is None it is treated as a very large value
+        (9999) to place it after any real distances.
+        
+        Parameters:
+            g (dict): Group dictionary containing at least 'min_phash_distance' and 'count'.
+        
+        Returns:
+            tuple: (min_phash_distance_or_large_default, negative_count) suitable for sorting.
+        """
         md = g['min_phash_distance']
         return (md if md is not None else 9999, -g['count'])
     groups.sort(key=_group_key)
@@ -191,8 +258,26 @@ def _build_summary(match_attempts: Optional[ComparisonResults]) -> Optional[dict
 
 def write_log_file(movie_file: Optional[Path], match_attempts: Optional[ComparisonResults], namer_config: NamerConfig) -> Optional[Path]:
     """
-    Given porndb scene results sorted by how closely they match a file,  write the contents
-    of the result matches to a log file with json pickle, the ui could reconstitute the results
+    Write match attempt data to a compressed JSON log alongside an optional concise JSON summary.
+    
+    If movie_file is provided, this creates two files next to it:
+    - "{stem}_namer.json.gz": a gzip-compressed jsonpickle dump of match_attempts with any
+      sensitive lookup fields removed.
+    - "{stem}_namer.summary.json": a compact JSON summary produced by _build_summary (written
+      only if a summary can be built).
+    
+    Side effects:
+    - Removes `original_query` and `original_response` from each result.looked_up before serialization.
+    - Applies filesystem permissions/ownership from namer_config to any files written via set_permissions.
+    - Logs failures to write the summary at debug level but does not raise.
+    
+    Parameters:
+        movie_file: Path of the movie used to derive the log file names. If None, nothing is written.
+        match_attempts: ComparisonResults to serialize; may be None.
+        namer_config: Configuration used when applying permissions to created files.
+    
+    Returns:
+        Path to the created compressed log file, or None if no log was written.
     """
     log_name = None
     if movie_file:
@@ -478,7 +563,21 @@ def find_target_file(root_dir: Path, config: NamerConfig) -> Optional[Path]:
 
 def make_command(input_file: Path, config: NamerConfig, nfo: bool = False, inplace: bool = False, uuid: Optional[str] = None, ignore_file_restrictions: bool = False, is_auto: bool = True) -> Optional[Command]:
     """
-    after finding target directory and target movie from input, returns file name descriptors.
+    Create a Command describing how an input path (file or directory) should be processed.
+    
+    If input_file is a directory, the function locates the best candidate movie file inside it; otherwise the input_file itself is used as the target movie. If no suitable movie is found or the target is filtered out by file-extension/size rules (unless ignore_file_restrictions is True), returns None.
+    
+    Parameters:
+        input_file: Path to a file or directory to build a Command for.
+        config: NamerConfig used to find target files and apply filtering rules.
+        nfo: When True, indicates the command should prefer metadata from accompanying .nfo files.
+        inplace: When True, the command will operate in place rather than moving files to a new location.
+        uuid: Optional TPDB or external identifier to attach to the resulting Command.
+        ignore_file_restrictions: If True, bypasses extension/size filtering and accepts any found target movie.
+        is_auto: Marks whether the generated Command originated automatically (True) or was user-initiated (False).
+    
+    Returns:
+        A populated Command when a target movie is found and accepted; otherwise None.
     """
     target_dir = input_file if input_file.is_dir() else None
     target_movie = input_file if not input_file.is_dir() else find_target_file(input_file, config)
@@ -501,8 +600,22 @@ def make_command(input_file: Path, config: NamerConfig, nfo: bool = False, inpla
 
 def make_command_relative_to(input_dir: Path, relative_to: Path, config: NamerConfig, nfo: bool = False, inplace: bool = False, uuid: Optional[str] = None, is_auto: bool = True) -> Optional[Command]:
     """
-    Ensure we are going to handle the directory relative to another directory, rather than just the file
-    specified
+    Create a Command for a directory using its path relative to another directory.
+    
+    If input_dir is inside relative_to, compute the relative path, select the first path component under relative_to
+    (as the primary target file or directory) and call make_command on that target. Returns None if input_dir is not
+    relative to relative_to or no relative path can be computed.
+    
+    Parameters:
+        input_dir (Path): Directory to be interpreted relative to `relative_to`.
+        relative_to (Path): Base directory to which `input_dir` should be relative.
+        nfo (bool): If True, prefer metadata from accompanying `.nfo` files when building the Command.
+        inplace (bool): If True, produce a Command configured to operate in-place.
+        uuid (Optional[str]): Optional identifier to attach to the created Command.
+        is_auto (bool): Whether the created Command should be marked as automatically generated.
+    
+    Returns:
+        Optional[Command]: A newly created Command for the corresponding target under `relative_to`, or None.
     """
     if is_relative_to(input_dir, relative_to):
         relative_path = input_dir.resolve().relative_to(relative_to.resolve())

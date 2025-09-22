@@ -12,6 +12,8 @@ SMALL_FILE_LIMIT="100000"  # 100MB in KB
 echo "🎯 Smart backlog processing starting..."
 echo "Cache limit: $(($CACHE_LIMIT / 1000000))GB"
 
+# process_directory decides which processing strategy to use for a given media directory (cache, selective-cache, or in-place) based on the directory size and number of media files.
+# It prints a short summary (name, size, file count) and invokes cache_process, selective_cache_process, or inplace_process accordingly.
 process_directory() {
     local dir="$1"
     local dir_size=$(du -s "$dir" | cut -f1)
@@ -32,6 +34,7 @@ process_directory() {
     fi
 }
 
+# cache_process moves a directory into the configured cache, runs `namer` with the cache-mode config to process it, moves the top-level organized children back to "$ARRAY_PATH/organized", and removes the temporary cache directory.
 cache_process() {
     local dir="$1"
     local temp_dir="$CACHE_PATH/$(basename "$dir")"
@@ -51,6 +54,9 @@ cache_process() {
     rmdir "$temp_dir"
 }
 
+# selective_cache_process processes media files in DIR by using available cache space: files that fit in the remaining cache are moved into CACHE_PATH, processed there with `namer rename -f`, and then moved to the organized location; files that do not fit are processed in-place with `namer rename -f --inplace`.
+# 
+# DIR is the target directory containing media files; the function updates a local remaining cache counter (based on CACHE_LIMIT and current usage of CACHE_PATH), moves files into the cache when space permits, invokes `namer` to rename/process them, and otherwise invokes `namer` in-place. Side effects: moves files between filesystem locations and runs `namer`.
 selective_cache_process() {
     local dir="$1"
     
@@ -76,6 +82,8 @@ selective_cache_process() {
     done
 }
 
+# inplace_process processes media files in the given directory in-place using `namer` and does not move files.
+# If GENERATE_NFO is "true", it also runs `namer suggest --write-nfo` on each .mp4/.mkv to generate .nfo metadata; argument is the directory path to process.
 inplace_process() {
     local dir="$1"
     

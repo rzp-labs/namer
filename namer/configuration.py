@@ -610,6 +610,18 @@ class NamerConfig:
     re_cleanup: List[Pattern]
 
     def __init__(self):
+        """
+        Initialize derived runtime fields for NamerConfig.
+        
+        Sets platform-specific ownership defaults, compiles cleanup regexes, and resolves any path attributes to absolute Paths.
+        
+        Detailed behavior:
+        - On non-Windows platforms, sets self.set_uid and self.set_gid from the current process UID/GID.
+        - Compiles self.re_cleanup as a list of case-insensitive regex objects from database.re_cleanup (word-boundary wrapped).
+        - If any of the attributes watch_dir, work_dir, dest_dir, failed_dir, or ambiguous_dir exist on the instance, replaces each with its resolved absolute Path.
+        
+        No return value; modifies the instance in place.
+        """
         if sys.platform != 'win32':
             self.set_uid = os.getuid()
             self.set_gid = os.getgid()
@@ -628,6 +640,15 @@ class NamerConfig:
             self.ambiguous_dir = self.ambiguous_dir.resolve()
 
     def __str__(self):
+        """
+        Return a human-readable, multi-line string representation of the configuration.
+        
+        Builds a string from the nested dictionary produced by to_dict(), formatting each top-level
+        section on its own line followed by its keys and values indented on subsequent lines.
+        
+        Returns:
+            str: A multi-line string suitable for debugging or logging the current configuration.
+        """
         config = self.to_dict()
 
         output = []
@@ -647,6 +668,18 @@ class NamerConfig:
 
     def to_dict(self) -> dict:
         # Dynamic metadata provider information
+        """
+        Return a serializable dictionary snapshot of the NamerConfig suitable for JSON output and display.
+        
+        The returned dictionary contains top-level sections ('Namer Config', 'Phash', 'Duplicate Config',
+        'Tagging Config', 'Watchdog Config', 'Webhook Config') with configuration values converted to
+        JSON-friendly types (e.g., Path -> str, regex -> pattern string). Provider-specific credentials
+        are masked: ThePornDB and StashDB tokens are replaced by masked strings or an explanatory message.
+        Also includes provider-specific endpoints when applicable.
+        
+        Returns:
+            dict: Nested dictionary representing the current configuration state.
+        """
         provider_info = {}
         
         if self.metadata_provider.lower() == 'theporndb':

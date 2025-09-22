@@ -130,8 +130,16 @@ def parser_config_to_regex(tokens: str) -> Pattern[str]:
 
 def parse_file_name(filename: str, namer_config: NamerConfig) -> FileInfo:
     """
-    Given an input name of the form site-yy.mm.dd-some.name.part.1.XXX.2160p.mp4,
-    parses out the relevant information in to a structure form.
+    Parse a filename into a FileInfo structure containing site, date, trans flag, cleaned name, extension, and original source name/stem.
+    
+    Performs abbreviation replacement using namer_config, builds and applies a configurable regex from namer_config.name_parser, and extracts fields when the regex matches. Date fields are returned as YYYY-MM-DD (a two-digit year is prefixed with "20"); a leading 'TS' (case-insensitive) found in the matched token sets the `trans` flag. The original filename and stem are always recorded on the returned FileInfo even if parsing fails.
+    
+    Parameters:
+        filename (str): The file or path string to parse.
+        namer_config (NamerConfig): Configuration that provides the name_parser template, site_abbreviations, and re_cleanup patterns used for abbreviation replacement, regex construction, and name cleaning.
+    
+    Returns:
+        FileInfo: Populated FileInfo with any extracted fields (site, date, trans, name, extension) and source_file_name / source_file_stem set. If parsing fails, returns a FileInfo with only the recorded source fields and any extension derived from the path.
     """
     filename = replace_abbreviations(filename, namer_config)
     regex = parser_config_to_regex(namer_config.name_parser)

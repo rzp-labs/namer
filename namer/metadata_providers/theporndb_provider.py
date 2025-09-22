@@ -89,16 +89,27 @@ class ThePornDBProvider(BaseMetadataProvider):
     
     def _graphql_scene_to_fileinfo(self, scene_data: Dict[str, Any], original_query: str, original_response: str, name_parts: Optional[FileInfo]) -> LookedUpFileInfo:
         """
-        Convert GraphQL scene data to LookedUpFileInfo object.
+        Convert a GraphQL scene payload into a LookedUpFileInfo populated for legacy compatibility.
         
-        Args:
-            scene_data: Scene data from GraphQL response
-            original_query: Original query for reference
-            original_response: Original response for reference
-            name_parts: Parsed filename parts
-            
+        Creates and returns a LookedUpFileInfo with fields mapped from the GraphQL scene object:
+        - uuid is derived from `_id` (fallback to `id`) and formatted as `scenes/<numeric_id>`.
+        - guid, name (title), description (details), date, duration, and source_url (first entry of `urls`) are copied when present.
+        - poster_url, background_url (handles dict with `large` or plain string), and trailer_url are copied when present.
+        - site and parent are populated from `studio` → `name` and `studio.parent.name` when available.
+        - performers are built from `performers` appearances; each Performer includes name, alias (`as`), role/gender, and the first image URL when available.
+        - tags are deduplicated and sorted to maintain consistent ordering.
+        - `fingerprints` entries are converted to SceneHash objects; fingerprint `algorithm` is mapped to HashType (unknown algorithms default to PHASH) and duration is preserved.
+        - original_query, original_response, and original_parsed_filename are stored on the result for traceability.
+        - look_up_site_id is set to the numeric scene id (string) for compatibility.
+        
+        Parameters:
+            scene_data (Dict[str, Any]): The GraphQL scene object returned by the API.
+            original_query (str): The GraphQL query string or reference used to fetch this scene (kept for traceability).
+            original_response (str): Raw response payload or reference (kept for traceability).
+            name_parts (Optional[FileInfo]): Parsed filename parts used as context; stored on the result.
+        
         Returns:
-            LookedUpFileInfo object
+            LookedUpFileInfo: A populated LookedUpFileInfo instance representing the scene.
         """
         file_info = LookedUpFileInfo()
         
@@ -193,7 +204,25 @@ class ThePornDBProvider(BaseMetadataProvider):
     
     def match(self, file_name_parts: Optional[FileInfo], config: NamerConfig, phash: Optional[PerceptualHash] = None) -> ComparisonResults:
         """
-        Search for metadata matches based on file name parts and/or perceptual hash using GraphQL.
+        Find matching scene metadata for a file by using filename parts and/or a perceptual hash.
+        
+        Performs a hash-first search against ThePornDB GraphQL fingerprints when a `phash` is provided:
+        - Queries PHASH (and optional OSHASH) fingerprints and converts results into LookedUpFileInfo candidates.
+        - Attempts to resolve candidates by PHASH/OSHASH intersection, filename-based scoring (title/site/date), majority-of-submissions thresholds, and PHASH-distance thresholds and margins.
+        - May mark the outcome as ambiguous when fingerprint distances or close peers prevent a confident single selection.
+        
+        If no confident PHASH-based match is found (or no `phash` is provided), falls back to a text search:
+        - Builds a query from site, name, and date parts and searches scenes via GraphQL, returning converted LookedUpFileInfo results.
+        
+        Returns ComparisonResults containing zero or more ComparisonResult entries (one confident PHASH-based result when accepted, otherwise evaluated text-search results). The returned ComparisonResults may have its `ambiguous` flag set when fingerprint results were inconclusive.
+        
+        Parameters documented for clarity:
+        - file_name_parts: FileInfo | None — parsed filename metadata (name, site, date) used for scoring and text search.
+        - config: NamerConfig — provider configuration (used for thresholds such as phash_accept_distance, phash_unique_threshold, etc.).
+        - phash: PerceptualHash | None — perceptual hash object (must expose `.phash`, may include `.oshash` and `.duration`) used for fingerprint-based matching.
+        
+        Returns:
+            ComparisonResults — evaluation results for candidate matches; contains the original `file_name_parts`.
         """
         results: List[LookedUpFileInfo] = []
 
@@ -202,6 +231,20 @@ class ThePornDBProvider(BaseMetadataProvider):
 
         # Helper scoring for filename-based disambiguation
         def score_scene(scene_info: LookedUpFileInfo) -> float:
+            """
+            Compute a numeric score for how well a scene matches the current filename parts.
+            
+            Scoring components:
+            - Title similarity: rapidfuzz string ratio between the lowercased filename title and scene title (0–100). Falls back to 0 if rapidfuzz is unavailable or comparison fails.
+            - Site bonus: +50 if the filename site and scene site are considered matching by self._site_match.
+            - Date bonus: +50 if the filename date and scene date are equal according to self._date_match.
+            
+            Parameters:
+                scene_info (LookedUpFileInfo): Scene metadata to score.
+            
+            Returns:
+                float: Combined score (site + date bonuses plus title similarity). Higher values indicate a better match.
+            """
             title_score = 0.0
             if file_name_parts and file_name_parts.name and scene_info.name:
                 try:
@@ -218,7 +261,17 @@ class ThePornDBProvider(BaseMetadataProvider):
         if phash:
             try:
                 def gql_search_fingerprints(ph: PerceptualHash) -> List[List[LookedUpFileInfo]]:
-                    """Query TPDB GraphQL using findScenesBySceneFingerprints."""
+                    """
+                    Search ThePornDB for scenes matching the provided perceptual hash.
+                    
+                    Performs a GraphQL query grouping fingerprints (PHASH first, then OSHASH if present on `ph`) and converts each returned scene into a LookedUpFileInfo. The result is a list of groups (one per fingerprint group in the request); each group is a list of LookedUpFileInfo objects for scenes that matched that fingerprint group. Returns an empty list for groups with no results or when the GraphQL response is missing/invalid.
+                    
+                    Parameters:
+                        ph (PerceptualHash): PerceptualHash containing at minimum `ph.phash`. If `ph.oshash` exists it will be included as a second fingerprint group.
+                    
+                    Returns:
+                        List[List[LookedUpFileInfo]]: Outer list corresponds to fingerprint groups (PHASH, then optional OSHASH). Each inner list contains LookedUpFileInfo objects for scenes matched for that group.
+                    """
                     query = '''
                         query FindByFingerprints($fingerprints: [[FingerprintQueryInput!]!]) {
                             findScenesBySceneFingerprints(fingerprints: $fingerprints) {
@@ -270,6 +323,19 @@ class ThePornDBProvider(BaseMetadataProvider):
                     combined_results = phash_results + oshash_results
                     # Helper: compute PHASH distance metrics per candidate
                     def phash_metrics(scene_info: LookedUpFileInfo):
+                        """
+                        Compute the best Hamming distance between the active `phash` and any PHASH entry on a scene, and indicate whether the matching fingerprint also matches duration.
+                        
+                        This checks scene_info.hashes for entries with HashType.PHASH and a hex length matching the active `phash`. For each compatible fingerprint it computes the Hamming distance to the active `phash` and records whether the fingerprint's duration equals the active `phash` duration. The function returns the smallest distance found and a boolean that is True when that best-distance fingerprint has a matching duration.
+                        
+                        Parameters:
+                            scene_info (LookedUpFileInfo): Scene metadata containing fingerprint hashes to compare.
+                        
+                        Returns:
+                            tuple:
+                                - best_distance (int | None): Smallest Hamming distance found, or None if no compatible PHASH fingerprints exist.
+                                - duration_matches (bool | None): True if the best-distance fingerprint has matching duration, False if it does not, or None if no compatible fingerprints were present.
+                        """
                         ph_len = len(str(phash.phash))
                         distances = []
                         for fp in scene_info.hashes or []:
@@ -438,25 +504,38 @@ class ThePornDBProvider(BaseMetadataProvider):
 
     # Lightweight site/date helpers for scoring
     def _site_match(self, query_site: Optional[str], scene_site: Optional[str]) -> bool:
+        """
+        Return True if query_site is a case-insensitive substring of scene_site.
+        
+        Both inputs must be non-empty; comparison is performed case-insensitively using simple containment.
+        
+        Parameters:
+            query_site (Optional[str]): Site name extracted from the filename or query.
+            scene_site (Optional[str]): Site name from the scene metadata.
+        
+        Returns:
+            bool: True when both arguments are present and query_site.lower() is contained within scene_site.lower(), otherwise False.
+        """
         return bool(query_site and scene_site and query_site.lower() in scene_site.lower())
 
     def _date_match(self, query_date: Optional[str], scene_date: Optional[str]) -> bool:
+        """
+        Return True if both dates are present and exactly equal.
+        
+        Parameters:
+            query_date (Optional[str]): The date extracted from the filename or query (may be None).
+            scene_date (Optional[str]): The scene's date from metadata (may be None).
+        
+        Returns:
+            bool: True when both inputs are non-empty and identical; otherwise False.
+        """
         return bool(query_date and scene_date and query_date == scene_date)
     
     def _search_scenes(self, query: str, scene_type: SceneType, config: NamerConfig, page: int = 1) -> List[Dict[str, Any]]:
         """
-        Search for scenes using GraphQL.
-        Primary: searchScenes(input: {query, page}) to match test server.
-        Fallback: searchScene(term: $term) for newer schema compatibility.
+        Search for scenes via ThePornDB GraphQL API and return raw scene payloads.
         
-        Args:
-            query: Search query string
-            scene_type: Type of scene to search for
-            config: Namer configuration
-            page: Page number for pagination
-            
-        Returns:
-            List of scene data from GraphQL response
+        Uses the current public schema's `searchScene(term: String!)` query (preferred) to fetch scene records matching `query`. Returns a list of raw scene dictionaries as returned by the GraphQL response; returns an empty list when no matches are found or on request failure. Note: the `scene_type` parameter is accepted for API compatibility but is not used by this implementation; the `page` parameter is currently unused by the GraphQL query.
         """
         # Current schema: searchScene(term: $term)
         search_scene_query = '''
@@ -501,7 +580,19 @@ class ThePornDBProvider(BaseMetadataProvider):
     
     def get_complete_info(self, file_name_parts: Optional[FileInfo], uuid: str, config: NamerConfig) -> Optional[LookedUpFileInfo]:
         """
-        Get complete metadata information for a specific item by UUID using GraphQL.
+        Retrieve complete scene metadata by UUID from ThePornDB and convert it to a LookedUpFileInfo.
+        
+        The UUID may be in the form "scenes/<id>" or just "<id>"; the numeric id is extracted and used in a GraphQL GetScene query. If the scene is found the response is converted to a LookedUpFileInfo via _graphql_scene_to_fileinfo and returned.
+        
+        Side effects:
+        - If the returned scene payload contains an `isCollected` flag and the provider configuration has `mark_collected` enabled, this method will call _mark_collected(scene_id, config) to mark the scene collected.
+        
+        Parameters:
+            file_name_parts (Optional[FileInfo]): Optional parsed filename parts used to populate compatibility fields in the returned LookedUpFileInfo.
+            uuid (str): Scene UUID or id (e.g., "scenes/12345" or "12345").
+        
+        Returns:
+            Optional[LookedUpFileInfo]: Populated LookedUpFileInfo when the scene is found; otherwise None.
         """
         # Extract scene ID from UUID (format: scenes/12345)
         scene_id = uuid
@@ -648,7 +739,12 @@ class ThePornDBProvider(BaseMetadataProvider):
     
     def get_user_info(self, config: NamerConfig) -> Optional[dict]:
         """
-        Get user information from ThePornDB using GraphQL.
+        Retrieve the current authenticated user's basic info from ThePornDB.
+        
+        Performs a GraphQL query for the authenticated "me" object and returns its payload when available.
+        
+        Returns:
+            dict | None: The user's data (contains at least 'id' and 'name') or None if unavailable.
         """
         user_query = '''
             query GetUser {

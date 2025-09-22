@@ -189,6 +189,11 @@ class LookedUpFileInfo:
     """
 
     def __init__(self):
+        """
+        Initialize a LookedUpFileInfo with default empty collections and consistent metadata fields.
+        
+        Sets up fresh empty lists for performers, tags, and hashes; creates a default FileInfo for original_parsed_filename; and ensures original_query and original_response attributes exist (initialized to None) so callers can rely on their presence even if an external provider did not supply them.
+        """
         self.performers = []
         self.tags = []
         self.hashes = []
@@ -199,8 +204,22 @@ class LookedUpFileInfo:
 
     def as_dict(self, config: NamerConfig):
         """
-        Converts the info in to a dict that can be used
-        by PartialFormatter to return a new path for a file.
+        Create a dictionary of lookup metadata formatted for template-based filename generation.
+        
+        The returned mapping contains cleaned and template-friendly fields (uuid, date, year, name, site/full_site, parent/full_parent, network/full_network, performers/all_performers, performer-sites/all_performer-sites, file extension/source file stem/trans marker, vr flag, resolution string, codecs, type, external_id, etc.) suitable for use with PartialFormatter.
+        
+        Side effects:
+        - Ensures self.original_parsed_filename is set (creates a FileInfo() if missing).
+        - May update self.type based on self.original_query and site information.
+        
+        Notes:
+        - resolution is converted to a human-friendly string (e.g., "2160p", "1080p", "720p", "480p", or the raw resolution value).
+        - vr is set to "vr" when the site or tags match VR indicators from the configuration; otherwise empty.
+        - site/parent/network fields in the short forms have spaces removed (full_* keep the original).
+        - performer lists include only names; performer-sites prefers aliases where available.
+        
+        Returns:
+            dict: A dictionary of string-or-None values ready for PartialFormatter substitution.
         """
         if not self.original_parsed_filename:
             self.original_parsed_filename = FileInfo()
@@ -390,6 +409,19 @@ class ComparisonResults:
     ambiguous: bool = False
 
     def get_match(self) -> Optional[ComparisonResult]:
+        """
+        Return the best matching ComparisonResult from the results list or None.
+        
+        If the first result exists and qualifies as a match (ComparisonResult.is_match()), this routine tentatively selects it and then validates that selection against subsequent results. The tentative match is rejected (returns None) if any later result represents a stronger or conflicting match according to the following criteria:
+        - a later result is a match when the tentative is not a super match, or
+        - a later result is a super match, or
+        - a later result has a strictly higher name_match when the tentative is neither a super match nor a phash match.
+        
+        Relies on results being ordered with the most likely candidate first.
+        
+        Returns:
+            Optional[ComparisonResult]: the selected match, or None if no unambiguous match is found.
+        """
         match = None
         if self.results and self.results[0].is_match():
             # verify the match isn't covering over a better namer match, if it is, no match shall be made

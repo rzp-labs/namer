@@ -35,7 +35,30 @@ class StashDBProvider(BaseMetadataProvider):
     
     def match(self, file_name_parts: Optional[FileInfo], config: NamerConfig, phash: Optional[PerceptualHash] = None) -> ComparisonResults:
         """
-        Search for metadata matches based on file name parts and/or perceptual hash.
+        Find metadata matches for a file using filename parts and/or a perceptual hash.
+        
+        Performs a text search when filename parts are available and, if a PerceptualHash is supplied,
+        performs fingerprint lookups (PHASH and OSHASH) and a multi-step disambiguation to produce
+        candidate matches. Fingerprint logic may:
+        - prefer scenes found by both PHASH and OSHASH,
+        - score candidates by filename/site/date alignment,
+        - apply configurable distance/margin/majority thresholds to accept a single confident match,
+        - otherwise surface multiple candidates and mark the result ambiguous.
+        
+        If a single confident fingerprint match is accepted, the returned ComparisonResults will contain
+        one ComparisonResult with phash_distance set to 0 and phash_duration set to True. Results are
+        sorted by match weight before being returned.
+        
+        Parameters:
+            file_name_parts (Optional[FileInfo]): Parsed filename metadata (name, date, site) used to
+                score and disambiguate text and fingerprint matches.
+            phash (Optional[PerceptualHash]): Optional perceptual hash used to query fingerprints and
+                compute phash_distance/phash_duration metrics for candidates.
+        
+        Returns:
+            ComparisonResults: A container of ComparisonResult entries sorted by match quality. The
+            container's ambiguous flag will be True if fingerprint disambiguation could not produce a
+            single confident match.
         """
         results: List[ComparisonResult] = []
         
@@ -80,6 +103,23 @@ class StashDBProvider(BaseMetadataProvider):
                 if combined_results:
                     # Helper: compute per-candidate PHASH distance and duration match
                     def phash_metrics(scene_info: LookedUpFileInfo) -> tuple:
+                        """
+                        Compute the closest PHASH distance between the current `phash` (captured from outer scope) and the PHASH fingerprints found on `scene_info`.
+                        
+                        This inspects `scene_info.hashes` for entries that represent PHASH fingerprints (handles attributes named `type`/`hash_type` and `hash`/`scene_hash`), skips fingerprints with mismatched hex length, converts hex to imagehash and computes the Hamming distance to `phash.phash`. Duration is considered: if a fingerprint has a `duration` attribute it must equal `phash.duration` to count as a duration match; missing duration is treated as a match. The function returns the smallest distance found and whether that best match has a matching duration.
+                        
+                        Parameters:
+                            scene_info (LookedUpFileInfo): LookedUpFileInfo whose `hashes` will be searched for PHASH entries.
+                        
+                        Returns:
+                            tuple:
+                                - (int | None): the smallest Hamming distance between `phash` and any compatible PHASH on `scene_info`, or None if no compatible PHASH was found.
+                                - (bool | None): True if the selected best match has a matching duration, False if it does not, or None if no compatible PHASH was found.
+                        
+                        Notes:
+                            - Any exceptions raised while processing individual fingerprints are ignored; they do not stop the overall computation.
+                            - The function relies on an outer-scope `phash` variable and returns (None, None) if that `phash` is falsy.
+                        """
                         if not phash:
                             return (None, None)
                         phash_len = len(str(phash.phash))
@@ -116,6 +156,20 @@ class StashDBProvider(BaseMetadataProvider):
                         # If both hashes point to the same scene(s), pick the best one by filename scoring with keyword alignment
                         candidates = [fi for fi in combined_results if fi.guid in intersection_ids]
                         def score_scene(scene_info: LookedUpFileInfo) -> float:
+                            """
+                            Compute a composite score for a candidate scene based on name similarity, site match, and date match.
+                            
+                            The score is the sum of:
+                            - title similarity (0–100) from comparing the file's name and the scene's title,
+                            - site match (50 if the file's configured site appears in the scene's site, otherwise 0),
+                            - date match (50 if the file's date equals the scene's date, otherwise 0).
+                            
+                            Parameters:
+                                scene_info (LookedUpFileInfo): Candidate scene to score.
+                            
+                            Returns:
+                                float: Higher values indicate a better match (maximum possible score is 200).
+                            """
                             title_score = self._calculate_name_match(file_name_parts.name, scene_info.name) if (file_name_parts and file_name_parts.name) else 0.0
                             site_score = 50.0 if self._compare_sites(file_name_parts.site if file_name_parts else None, scene_info.site) else 0.0
                             date_score = 50.0 if self._compare_dates(file_name_parts.date if file_name_parts else None, scene_info.date) else 0.0
@@ -152,6 +206,20 @@ class StashDBProvider(BaseMetadataProvider):
                             unique_scene_ids = list(counts.keys())
                             logger.debug(f"Ambiguous intersection; falling back. Candidate ID counts: {dict(counts)}")
                             def score_scene(scene_info: LookedUpFileInfo) -> float:
+                                """
+                                Compute a numeric relevance score for a candidate scene by combining name similarity, site match, and date match.
+                                
+                                Detailed behavior:
+                                - Title/name match uses self._calculate_name_match against the current file_name_parts name (returns 0–100).
+                                - Site match contributes 50.0 if the query site appears in the scene site (via self._compare_sites), otherwise 0.0.
+                                - Date match contributes 50.0 if the query date equals the scene date (via self._compare_dates), otherwise 0.0.
+                                
+                                Parameters:
+                                    scene_info (LookedUpFileInfo): Candidate scene to score.
+                                
+                                Returns:
+                                    float: Combined score where higher values indicate a better match.
+                                """
                                 title_score = self._calculate_name_match(file_name_parts.name, scene_info.name) if (file_name_parts and file_name_parts.name) else 0.0
                                 site_score = 50.0 if self._compare_sites(file_name_parts.site if file_name_parts else None, scene_info.site) else 0.0
                                 date_score = 50.0 if self._compare_dates(file_name_parts.date if file_name_parts else None, scene_info.date) else 0.0
@@ -212,6 +280,20 @@ class StashDBProvider(BaseMetadataProvider):
 
                         # Helper to score disambiguation based on filename parts
                         def score_scene(scene_info: LookedUpFileInfo) -> float:
+                            """
+                            Compute a composite score for a candidate scene based on name similarity, site match, and date match.
+                            
+                            The score is the sum of:
+                            - title similarity (0–100) from comparing the file's name and the scene's title,
+                            - site match (50 if the file's configured site appears in the scene's site, otherwise 0),
+                            - date match (50 if the file's date equals the scene's date, otherwise 0).
+                            
+                            Parameters:
+                                scene_info (LookedUpFileInfo): Candidate scene to score.
+                            
+                            Returns:
+                                float: Higher values indicate a better match (maximum possible score is 200).
+                            """
                             title_score = self._calculate_name_match(file_name_parts.name, scene_info.name) if (file_name_parts and file_name_parts.name) else 0.0
                             site_score = 50.0 if self._compare_sites(file_name_parts.site if file_name_parts else None, scene_info.site) else 0.0
                             date_score = 50.0 if self._compare_dates(file_name_parts.date if file_name_parts else None, scene_info.date) else 0.0
@@ -373,7 +455,19 @@ class StashDBProvider(BaseMetadataProvider):
     
     def get_complete_info(self, file_name_parts: Optional[FileInfo], uuid: str, config: NamerConfig) -> Optional[LookedUpFileInfo]:
         """
-        Get complete metadata information for a specific item by UUID.
+        Retrieve full metadata for a single scene from StashDB by UUID.
+        
+        This issues a GraphQL `findScene` query (requesting id, title, date, urls, details, duration,
+        images, studio/parent, performers, tags, and fingerprints) and maps the returned scene
+        object to a LookedUpFileInfo via _map_stashdb_scene_to_fileinfo.
+        
+        Parameters:
+            uuid (str): Scene identifier or UUID. If the value contains slashes (e.g. "scenes/{id}"),
+                the final path segment is used as the GraphQL ID.
+            file_name_parts (Optional[FileInfo]): Optional filename-derived context (not used by the query).
+        
+        Returns:
+            Optional[LookedUpFileInfo]: Mapped scene metadata on success, or None if the scene was not found or the query failed.
         """
         query = {
             'query': '''
@@ -430,7 +524,17 @@ class StashDBProvider(BaseMetadataProvider):
     
     def search(self, query: str, scene_type: SceneType, config: NamerConfig, page: int = 1) -> List[LookedUpFileInfo]:
         """
-        Search for metadata by text query.
+        Search StashDB for scenes matching a text term and return mapped LookedUpFileInfo results.
+        
+        Performs a GraphQL search using the provided text term and maps each returned scene to a LookedUpFileInfo. The provider always searches scenes (the provided scene_type is ignored). When mapping succeeds, the method will attempt to attach `original_query` and `original_response` JSON to each returned LookedUpFileInfo for debugging/audit purposes.
+        
+        Parameters:
+            query (str): Text search term sent to StashDB.
+            scene_type (SceneType): Declared target type (ignored; search always queries scenes).
+            page (int): Reserved paging parameter (currently unused).
+        
+        Returns:
+            List[LookedUpFileInfo]: Mapped search results (may be empty).
         """
         # StashDB primarily deals with scenes, so we'll search scenes regardless of scene_type
         # Based on error messages, StashDB expects 'term' parameter and returns direct array
@@ -580,7 +684,26 @@ class StashDBProvider(BaseMetadataProvider):
     
     def _map_stashdb_scene_to_fileinfo(self, scene: Dict[str, Any], config: NamerConfig) -> Optional[LookedUpFileInfo]:
         """
-        Map StashDB scene data to LookedUpFileInfo.
+        Map a StashDB scene object to a LookedUpFileInfo populated with the provider's expected fields.
+        
+        The function extracts and translates common StashDB scene fields into the LookedUpFileInfo model:
+        - id -> uuid ("scenes/{id}") and guid
+        - title, details, date -> name, description, date
+        - urls[0].url -> source_url (first entry only)
+        - duration -> duration
+        - studio.name -> site; studio.parent.name -> parent (if present)
+        - images[0].url -> poster_url (first entry only)
+        - performers[] -> Performer entries using performer.name, performer.gender -> role, joined aliases -> alias, and images[0].url -> image
+        - tags[] -> tags (list of tag.name)
+        - fingerprints[] -> SceneHash entries for PHASH fingerprints (algorithm "PHASH" only); SceneHash.scene_hash and duration are populated
+        
+        Parameters:
+            scene (Dict[str, Any]): A StashDB scene dictionary expected to contain keys such as 'id', 'title', 'details',
+                'date', 'urls', 'duration', 'studio', 'images', 'performers', 'tags', and 'fingerprints'.
+            config (NamerConfig): Provider configuration (not used for field mapping; passed for callers' context).
+        
+        Returns:
+            LookedUpFileInfo: A LookedUpFileInfo instance populated from the provided scene. Never returns None.
         """
         file_info = LookedUpFileInfo()
         
@@ -647,7 +770,17 @@ class StashDBProvider(BaseMetadataProvider):
     
     def _search_by_fingerprint(self, hash_value: str, algorithm: str, config: NamerConfig) -> List[LookedUpFileInfo]:
         """
-        Search for scenes by fingerprint (PHASH or OSHASH) using GraphQL.
+        Search StashDB for scenes matching a fingerprint (PHASH or OSHASH) and map results to LookedUpFileInfo objects.
+        
+        Performs a GraphQL findSceneByFingerprint query using the provided hash and algorithm, maps any returned scene or list of scenes to LookedUpFileInfo via _map_stashdb_scene_to_fileinfo, and returns the mapped results.
+        
+        Parameters:
+            hash_value (str): Fingerprint value to search for.
+            algorithm (str): Fingerprint algorithm identifier (e.g., "PHASH" or "OSHASH").
+            config: Configuration object (not documented here — passed through to network/query helpers).
+        
+        Returns:
+            List[LookedUpFileInfo]: A list of mapped scene results (empty if no matches). Each returned LookedUpFileInfo will include original_query and original_response fields when those can be serialized successfully.
         """
         query = {
             'query': '''
