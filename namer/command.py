@@ -105,6 +105,90 @@ def move_command_files(target: Optional[Command], new_target: Path, is_auto: boo
     return output
 
 
+def _build_summary(match_attempts: Optional[ComparisonResults]) -> Optional[dict]:
+    if not match_attempts:
+        return None
+    # Prepare a compact, readable summary for humans
+    summary: dict = {
+        'ambiguous': getattr(match_attempts, 'ambiguous', False),
+        'summary_stats': {},
+        'groups': [],
+        'candidates': [],
+    }
+    # Helpers to coerce potentially non-JSON-native numeric types
+    def _to_int(val):
+        try:
+            return int(val) if val is not None else None
+        except Exception:
+            return None
+    def _to_float(val):
+        try:
+            return float(val) if val is not None else None
+        except Exception:
+            return None
+    # Flat candidates list (ranked as provided)
+    for idx, result in enumerate(match_attempts.results or []):
+        looked = result.looked_up
+        summary['candidates'].append({
+            'rank': idx + 1,
+            'guid': getattr(looked, 'guid', None),
+            'uuid': getattr(looked, 'uuid', None),
+            'title': getattr(looked, 'name', None) or result.name,
+            'site': getattr(looked, 'site', None),
+            'date': getattr(looked, 'date', None),
+            'name_match': getattr(result, 'name_match', None),
+            'site_match': getattr(result, 'site_match', None),
+            'date_match': getattr(result, 'date_match', None),
+            'phash_distance': _to_int(getattr(result, 'phash_distance', None)),
+            'phash_duration': getattr(result, 'phash_duration', None),
+        })
+    # Group by GUID to compute per-id stats
+    from collections import defaultdict
+    per_guid = defaultdict(list)
+    for item in summary['candidates']:
+        if item['guid']:
+            per_guid[item['guid']].append(item)
+    groups = []
+    for guid, items in per_guid.items():
+        distances = [i['phash_distance'] for i in items if i['phash_distance'] is not None]
+        min_distance = _to_int(min(distances)) if distances else None
+        any_duration_ok = any(bool(i['phash_duration']) for i in items)
+        title = items[0]['title']
+        site = items[0]['site']
+        date = items[0]['date']
+        groups.append({
+            'guid': guid,
+            'title': title,
+            'site': site,
+            'date': date,
+            'count': _to_int(len(items)),
+            'min_phash_distance': min_distance,
+            'has_duration_match': any_duration_ok,
+        })
+    # Sort groups by min distance then count desc
+    def _group_key(g):
+        md = g['min_phash_distance']
+        return (md if md is not None else 9999, -g['count'])
+    groups.sort(key=_group_key)
+    summary['groups'] = groups
+    # Overall stats: best, second best, margin, majority fraction
+    best = groups[0] if groups else None
+    second = groups[1] if len(groups) > 1 else None
+    best_d = _to_int(best['min_phash_distance']) if best else None
+    second_d = _to_int(second['min_phash_distance']) if second else None
+    margin = _to_int((second_d - best_d)) if (best_d is not None and second_d is not None) else None
+    total_items = _to_int(sum(int(g['count']) for g in groups)) if groups else 0
+    top_fraction = (_to_float(best['count'] / total_items) if (best and total_items) else None)
+    summary['summary_stats'] = {
+        'best_guid': best['guid'] if best else None,
+        'best_min_phash_distance': best_d,
+        'second_min_phash_distance': second_d,
+        'distance_margin': margin,
+        'top_guid_fraction': round(float(top_fraction), 3) if top_fraction is not None else None,
+    }
+    return summary
+
+
 def write_log_file(movie_file: Optional[Path], match_attempts: Optional[ComparisonResults], namer_config: NamerConfig) -> Optional[Path]:
     """
     Given porndb scene results sorted by how closely they match a file,  write the contents
@@ -127,6 +211,18 @@ def write_log_file(movie_file: Optional[Path], match_attempts: Optional[Comparis
                 log_file.write(json_out)
 
         set_permissions(log_name, namer_config)
+
+        # Additionally write a concise summary for quick inspection
+        try:
+            summary = _build_summary(match_attempts)
+            if summary is not None:
+                summary_name = movie_file.with_name(movie_file.stem + '_namer.summary.json')  # type: ignore[arg-type]
+                with open(summary_name, 'w', encoding='utf-8') as sfile:
+                    import json
+                    json.dump(summary, sfile, indent=2, ensure_ascii=False)
+                set_permissions(summary_name, namer_config)
+        except Exception as e:
+            logger.debug(f'Failed to write summary log: {e}')
 
     return log_name
 
