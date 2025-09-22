@@ -552,11 +552,14 @@ class NamerConfig:
             self.dest_dir = self.dest_dir.resolve()
         if hasattr(self, 'failed_dir'):
             self.failed_dir = self.failed_dir.resolve()
-        if hasattr(self, 'ambiguous_dir'):
-            self.ambiguous_dir = self.ambiguous_dir.resolve()
+        # Resolve ambiguous_dir if provided (coerce to Path; support str/None)
+        val = getattr(self, 'ambiguous_dir', None)
+        if val:
+            self.ambiguous_dir = Path(val).expanduser().resolve()
         # Resolve file logging directory like other dirs (if present)
-        if hasattr(self, 'file_logging_directory'):
-            self.file_logging_directory = self.file_logging_directory.resolve()
+        val = getattr(self, 'file_logging_directory', None)
+        if val:
+            self.file_logging_directory = Path(val).expanduser().resolve()
 
     def __str__(self):
         config = self.to_dict()
@@ -688,11 +691,11 @@ class NamerConfig:
                 'add_complete_column': self.add_complete_column,
                 'debug': self.debug,
                 'console_format': self.console_format,
-                'file_logging_enabled': self.file_logging_enabled,
-                'file_logging_level': self.file_logging_level,
-                'file_logging_rotation': self.file_logging_rotation,
-                'file_logging_retention': self.file_logging_retention,
-                'file_logging_directory': str(self.file_logging_directory) if hasattr(self, 'file_logging_directory') else '',
+                'file_logging_enabled': getattr(self, 'file_logging_enabled', False),
+                'file_logging_level': getattr(self, 'file_logging_level', ''),
+                'file_logging_rotation': getattr(self, 'file_logging_rotation', ''),
+                'file_logging_retention': getattr(self, 'file_logging_retention', ''),
+                'file_logging_directory': str(getattr(self, 'file_logging_directory', '')),
                 'manual_mode': self.manual_mode,
                 'diagnose_errors': self.diagnose_errors,
             },

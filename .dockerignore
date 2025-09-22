@@ -44,4 +44,4 @@ venv.bak/
 *.swp
 *.swo
 *~
-test_dirs/
+test/integration/
