@@ -256,9 +256,16 @@ def process_file(command: Command) -> Optional[Command]:
                 logger.success('Done processing file: {}, moved to {}', command.target_movie_file, target.target_movie_file)
                 return target
         elif command.inplace is False:
-            failed = move_command_files(command, command.config.failed_dir)
-            if failed is not None and search_results is not None and failed.config.write_namer_failed_log:
-                write_log_file(failed.target_movie_file, search_results, failed.config)
+            # If multiple plausible matches exist, move to ambiguous dir for manual review
+            if 'ambiguous' in locals() and ambiguous:
+                logger.info('Ambiguous results detected; moving to {} for manual review', command.config.ambiguous_dir)
+                moved = move_command_files(command, command.config.ambiguous_dir)
+                if moved is not None and search_results is not None and moved.config.write_namer_failed_log:
+                    write_log_file(moved.target_movie_file, search_results, moved.config)
+            else:
+                failed = move_command_files(command, command.config.failed_dir)
+                if failed is not None and search_results is not None and failed.config.write_namer_failed_log:
+                    write_log_file(failed.target_movie_file, search_results, failed.config)
 
     return None
 

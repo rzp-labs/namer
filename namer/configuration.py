@@ -445,6 +445,11 @@ class NamerConfig:
     Files can be manually moved to watch-dir to force reprocessing.
     """
 
+    ambiguous_dir: Path
+    """
+    If multiple plausible matches are found (ambiguous), move the file/directory here for manual review.
+    """
+
     dest_dir: Path
     """
     If running in watchdog mode, dir where finalized files get written.
@@ -562,6 +567,8 @@ class NamerConfig:
             self.dest_dir = self.dest_dir.resolve()
         if hasattr(self, 'failed_dir'):
             self.failed_dir = self.failed_dir.resolve()
+        if hasattr(self, 'ambiguous_dir'):
+            self.ambiguous_dir = self.ambiguous_dir.resolve()
 
     def __str__(self):
         config = self.to_dict()
@@ -679,6 +686,7 @@ class NamerConfig:
                 'watch_dir': str(self.watch_dir),
                 'work_dir': str(self.work_dir),
                 'failed_dir': str(self.failed_dir),
+                'ambiguous_dir': str(self.ambiguous_dir),
                 'dest_dir': str(self.dest_dir),
                 'retry_time': self.retry_time,
                 'extra_sleep_time': self.extra_sleep_time,

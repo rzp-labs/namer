@@ -52,7 +52,7 @@ def __verify_watchdog_config(config: NamerConfig, formatter: PartialFormatter) -
         logger.error('Since enable_metadataapi_genres is not True, you must specify a default_genre')
         success = False
 
-    watchdog_dirs = ['watch_dir', 'work_dir', 'failed_dir', 'dest_dir']
+    watchdog_dirs = ['watch_dir', 'work_dir', 'failed_dir', 'ambiguous_dir', 'dest_dir']
     for dir_name in watchdog_dirs:
         success = __verify_dir(config, dir_name, [name for name in watchdog_dirs if dir_name != name]) and success
 

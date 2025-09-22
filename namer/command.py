@@ -79,6 +79,13 @@ def move_command_files(target: Optional[Command], new_target: Path, is_auto: boo
     if not target:
         return None
 
+    # Ensure destination directory exists
+    try:
+        new_target.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.error(f'Failed to create destination directory {new_target}: {e}')
+        return None
+
     if target.target_directory and target.input_file == target.target_directory:
         working_dir = Path(new_target) / target.target_directory.name
         logger.info('Moving {} to {} for processing', target.target_directory, working_dir)
