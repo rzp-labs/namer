@@ -192,10 +192,21 @@ def process_file(command: Command) -> Optional[Command]:
                 command.parsed_file.hashes = phash
 
             search_results = match(command.parsed_file, command.config, phash=phash)
+            ambiguous = False
             if search_results:
                 matched = search_results.get_match()
                 if matched:
                     new_metadata = matched.looked_up
+                else:
+                    # Prefer provider-set ambiguity flag
+                    ambiguous = getattr(search_results, 'ambiguous', False)
+                    # Fallback heuristic only if provider didn't set it
+                    if not ambiguous:
+                        try:
+                            all_results = [r for r in search_results.results if r]
+                            ambiguous = len(all_results) > 0
+                        except Exception:
+                            ambiguous = False
 
             if not command.target_movie_file:
                 logger.error(
