@@ -16,15 +16,19 @@ case "$TEST_TYPE" in
     "basic")
         echo "🧪 Running basic functionality tests..."
         echo "   Testing namer CLI help..."
-        docker run --rm --entrypoint="" "$IMAGE_NAME:$VERSION" namer --help >/dev/null
+        docker run --rm --entrypoint="" "$IMAGE_NAME:$VERSION" namer --help > /dev/null
         echo "   Testing namer suggest help..."
-        docker run --rm --entrypoint="" "$IMAGE_NAME:$VERSION" namer suggest --help >/dev/null
+        docker run --rm --entrypoint="" "$IMAGE_NAME:$VERSION" namer suggest --help > /dev/null
         echo "✅ Basic tests passed"
         ;;
     
     "integration")
         echo "🧪 Running integration tests..."
-        if [ -d "test_dirs" ] && [ -f "test_dirs/test.sh" ]; then
+        if [ -d "test/integration" ] && [ -f "test/integration/test.sh" ]; then
+            cd test/integration
+            ./test.sh
+            echo "✅ Integration tests passed"
+        elif [ -d "test_dirs" ] && [ -f "test_dirs/test.sh" ]; then
             cd test_dirs
             ./test.sh
             echo "✅ Integration tests passed"
@@ -32,10 +36,5 @@ case "$TEST_TYPE" in
             echo "❌ Integration test directory not found"
             exit 1
         fi
-        ;;
-    
-    *)
-        echo "❌ Unknown test type: $TEST_TYPE. Use 'basic' or 'integration'" >&2
-        exit 1
         ;;
 esac
