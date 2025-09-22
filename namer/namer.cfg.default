@@ -343,6 +343,21 @@ debug = False
 # Set logger output format
 console_format = <green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level.icon} {level: <8}</level> | {message}
 
+# Enable file logging
+file_logging_enabled = True
+
+# Set file logging level
+file_logging_level = INFO
+
+# Set file logging rotation
+file_logging_rotation = 10 MB
+
+# Set file logging retention
+file_logging_retention = 5
+
+# Set file logging directory
+file_logging_directory = ./logs
+
 # Manual mode, successful matches will go to failed directory
 manual_mode = False
 

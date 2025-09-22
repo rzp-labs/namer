@@ -535,6 +535,31 @@ class NamerConfig:
     Set logger output format
     """
 
+    file_logging_enabled: bool = False
+    """
+    Enable writing application logs to a rotating file sink.
+    """
+
+    file_logging_level: str = 'INFO'
+    """
+    Log level for file sink (e.g., 'INFO', 'DEBUG').
+    """
+
+    file_logging_rotation: str = '10 MB'
+    """
+    Rotation policy for the file sink (e.g., '10 MB', '1 week').
+    """
+
+    file_logging_retention: str = '5'
+    """
+    Retention policy for rotated files (e.g., '5', '7 days').
+    """
+
+    file_logging_directory: Path
+    """
+    Directory to write rotating log files into.
+    """
+
     manual_mode: bool = False
     """
     If True, successful matches will go to failed directory

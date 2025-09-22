@@ -359,4 +359,26 @@ def main(config: NamerConfig):
     level = 'DEBUG' if config.debug else 'INFO'
     logger.add(sys.stdout, format=config.console_format, level=level, diagnose=config.diagnose_errors)
 
+    # Optional rotating file sink (Option B)
+    if getattr(config, 'file_logging_enabled', False):
+        try:
+            log_dir: Path = getattr(config, 'file_logging_directory', None)
+            if not log_dir:
+                logger.error('File logging enabled but file_logging_directory is not set; skipping file sink init')
+            else:
+                log_dir.mkdir(parents=True, exist_ok=True)
+                log_file = log_dir / 'namer.log'
+                logger.add(
+                    str(log_file),
+                    rotation=getattr(config, 'file_logging_rotation', '10 MB'),
+                    retention=getattr(config, 'file_logging_retention', '5'),
+                    level=getattr(config, 'file_logging_level', 'INFO'),
+                    enqueue=True,
+                    backtrace=config.diagnose_errors,
+                    diagnose=config.diagnose_errors,
+                )
+                logger.info('File logging enabled: {}', log_file)
+        except Exception as e:
+            logger.error('Failed to initialize file logging sink: {}', e)
+
     create_watcher(config).run()
