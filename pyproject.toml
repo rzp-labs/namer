@@ -43,7 +43,7 @@ orjson = "^3.10"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0"
-pytest-cov = "^6.0"
+pytest-cov = "^7.0"
 coverage = "^7.0"
 ruff = "^0.12"
 selenium = "^4.21"
