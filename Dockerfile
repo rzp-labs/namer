@@ -102,7 +102,7 @@ COPY namer/ffmpeg_enhanced.py /work/namer/ffmpeg.py
 
 RUN rm -rf /work/namer/__pycache__/ || true \
     && rm -rf /work/test/__pycache__/ || true \
-    && poetry lock --no-update \
+    && poetry lock \
     && poetry install
 RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps && poetry run poe build_namer )"
 
