@@ -28,7 +28,9 @@ ambiguous_dir = ./ambiguous
 ```
 
 Notes:
-- If set, ensure this directory is writable by the process. Depending on the version, config verification may expect the directory to already exist. To avoid verification failures, create it ahead of time (recommended):
+- Must exist and be writable before startup.
+- Must not be nested inside `watch_dir`, `work_dir`, `failed_dir`, or `dest_dir`.
+  Create it ahead of time:
   
   ```bash
   mkdir -p ./ambiguous
@@ -64,6 +66,8 @@ Decision summary:
 - Reject when the best distance is beyond `phash_ambiguous_max`.
 
 Defaults are tuned conservatively; adjust based on your library and quality goals.
+
+Misconfigurations (e.g., invalid ranges) are reported by the config verifier at startup.
 
 ## Hardware acceleration and performance (optional)
 

@@ -566,7 +566,7 @@ def create_dummy_video(tmp_path: Path, subdir: str = "src", filename: str = "vid
     Create a small dummy video file under tmp_path/subdir.
     """
     src = tmp_path / subdir
-    src.mkdir()
+    src.mkdir(parents=True, exist_ok=True)
     video = src / filename
     video.write_bytes(b"x")
     return video
@@ -579,7 +579,7 @@ def setup_disambiguation_config(tmp_path: Path, enable_flag: bool) -> tuple[Name
     """
     cfg = sample_config()
     ambiguous_dir = tmp_path / "ambiguous"
-    ambiguous_dir.mkdir()
+    ambiguous_dir.mkdir(parents=True, exist_ok=True)
 
     cfg.enable_disambiguation = enable_flag
     cfg.ambiguous_dir = ambiguous_dir
@@ -594,7 +594,7 @@ def patch_default_ambiguous_match(monkeypatch) -> None:
     Patch namer.metadataapi.match to return a fixed ambiguous set: [A:5, B:6 x3].
     """
 
-    def _fake_match(name_parts, conf, phash=None):  # noqa: ARG001
+    def _fake_match(*_args, **_kwargs):  # name_parts, conf, phash=None
         def mk(guid: str, dist: int) -> ComparisonResult:
             info = LookedUpFileInfo()
             info.guid = guid
@@ -610,7 +610,7 @@ def patch_default_ambiguous_match(monkeypatch) -> None:
             )
 
         results = [mk("A", 5), mk("B", 6), mk("B", 6), mk("B", 6)]
-        return ComparisonResults(results, None)
+        return ComparisonResults(results=results, fileinfo=None)
 
     monkeypatch.setattr("namer.metadataapi.match", _fake_match)
 
