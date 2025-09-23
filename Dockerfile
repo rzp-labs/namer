@@ -71,7 +71,8 @@ RUN pipx install poetry
 # Install Node.js and pin PNPM without using curl|bash
 RUN apt-get update \
     && apt-get install -y --no-install-recommends nodejs npm \
-    && npm i -g pnpm@10.0.0 \
+    # Install pnpm with scripts disabled to avoid executing arbitrary lifecycle scripts
+    && npm i -g pnpm@10.0.0 --ignore-scripts \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 RUN mkdir /work/
@@ -115,11 +116,26 @@ COPY scripts/detect-intel-gpu.sh /usr/local/bin/detect-gpu.sh
 RUN chmod +x /usr/local/bin/detect-gpu.sh
 
 # Create non-root user and secure directories
-RUN groupadd -g 1001 namer \
-    && useradd -m -u 1001 -g 1001 namer \
-    && mkdir -p /database /cache /tmp/namer \
-    && chown -R namer:namer /database /cache /tmp/namer \
-    && chmod 775 /database /cache /tmp/namer
+# Align defaults with docker-compose (PUID=99, PGID=100), but allow overrides at build time
+ARG PUID=99
+ARG PGID=100
+RUN set -eux; \
+    if getent group "$PGID" >/dev/null; then \
+      grpname="$(getent group "$PGID" | cut -d: -f1)"; \
+      groupmod -n namer "$grpname" 2>/dev/null || true; \
+    else \
+      groupadd -g "$PGID" namer; \
+    fi; \
+    if getent passwd "$PUID" >/dev/null; then \
+      usrname="$(getent passwd "$PUID" | cut -d: -f1)"; \
+      usermod -l namer "$usrname" 2>/dev/null || true; \
+      usermod -g "$PGID" namer 2>/dev/null || true; \
+    else \
+      useradd -m -u "$PUID" -g "$PGID" namer; \
+    fi; \
+    mkdir -p /database /cache /tmp/namer; \
+    chown -R namer:namer /database /cache /tmp/namer; \
+    chmod 775 /database /cache /tmp/namer
 
 ARG BUILD_DATE
 ARG GIT_HASH  
