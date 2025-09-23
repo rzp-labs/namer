@@ -19,7 +19,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-rapidfuzz = "^3.9"
+rapidfuzz = "^3.14"
 watchdog = "^6.0"
 pathvalidate = "^3.2"
 requests = "^2.32"
@@ -37,20 +37,20 @@ jsonpickle = "^4.0"
 ConfigUpdater = "^3.2"
 oshash = "^0.1"
 pony = "^0.7"
-numpy = "^2.1"
-scipy = "^1.13"
+numpy = "^2.3"
+scipy = "^1.16"
 orjson = "^3.10"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0"
+pytest = "^8.4"
 pytest-cov = "^7.0"
 coverage = "^7.10.6"
-ruff = "^0.12"
+ruff = "^0.13"
 selenium = "^4.21"
 assertpy = "^1.1"
 poethepoet = "^0.37"
 pony-stubs = "^0.5"
-scipy-stubs = "^1.13"
+scipy-stubs = "^1.16"
 
 [tool.ruff]
 exclude = [".git", "__pycache__", "docs/source/conf.py", "old", "build", "dist", "*migrations*", "init", "node_modules"]
