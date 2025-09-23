@@ -1,15 +1,13 @@
-import pytest
-
 from namer.disambiguation import Candidate, decide, Decision
 
 
-DEFAULTS = dict(
-    accept_distance=6,
-    ambiguous_min=7,
-    ambiguous_max=12,
-    distance_margin_accept=3,
-    majority_accept_fraction=0.7,
-)
+DEFAULTS = {
+    "accept_distance": 6,
+    "ambiguous_min": 7,
+    "ambiguous_max": 12,
+    "distance_margin_accept": 3,
+    "majority_accept_fraction": 0.7,
+}
 
 
 def test_accept_single_candidate_under_accept_distance():
@@ -17,6 +15,19 @@ def test_accept_single_candidate_under_accept_distance():
     guid, decision = decide(cands, **DEFAULTS)
     assert decision == Decision.ACCEPT
     assert guid == "A"
+
+
+def test_ambiguous_when_majority_guid_differs_from_best():
+    # best=5 for A, but B holds majority (3/4 = 0.75) >= 0.7 -> should NOT accept since majority_guid != best
+    cands = [
+        Candidate(guid="A", phash_distance=5),
+        Candidate(guid="B", phash_distance=6),
+        Candidate(guid="B", phash_distance=6),
+        Candidate(guid="B", phash_distance=6),
+    ]
+    guid, decision = decide(cands, **DEFAULTS)
+    assert decision == Decision.AMBIGUOUS
+    assert guid == ""
 
 
 def test_accept_with_distance_margin():

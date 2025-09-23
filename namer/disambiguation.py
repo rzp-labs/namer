@@ -82,8 +82,8 @@ def decide(
         if (second.phash_distance - best.phash_distance) >= distance_margin_accept:
             return best.guid, Decision.ACCEPT
         # Not enough distance margin, check majority
-        _, frac = _majority_fraction(ordered)
-        if frac >= majority_accept_fraction:
+        top_guid, frac = _majority_fraction(ordered)
+        if top_guid == best.guid and frac >= majority_accept_fraction:
             return best.guid, Decision.ACCEPT
         return "", Decision.AMBIGUOUS
 
