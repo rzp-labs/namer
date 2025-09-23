@@ -204,7 +204,7 @@ def process_file(command: Command) -> Optional[Command]:
                     if guid:
                         cand_list.append(Candidate(guid=guid, phash_distance=int(r.phash_distance)))
                 if cand_list:
-                    top_guid, decision = decide(
+                    _, decision = decide(
                         cand_list,
                         accept_distance=command.config.phash_accept_distance,
                         ambiguous_min=command.config.phash_ambiguous_min,
@@ -212,9 +212,11 @@ def process_file(command: Command) -> Optional[Command]:
                         distance_margin_accept=command.config.phash_distance_margin_accept,
                         majority_accept_fraction=command.config.phash_majority_accept_fraction,
                     )
-                    if decision == Decision.AMBIGUOUS and hasattr(command.config, 'ambiguous_dir') and command.config.ambiguous_dir:
+                    if decision == Decision.AMBIGUOUS and getattr(command.config, 'ambiguous_dir', None):
                         # Route to ambiguous review directory (mirrors failed_dir handling)
                         if command.inplace is False:
+                            command.config.ambiguous_dir.mkdir(parents=True, exist_ok=True)
+                            logger.info('Routing to ambiguous_dir due to ambiguous decision -> {}', command.config.ambiguous_dir)
                             moved = move_command_files(command, command.config.ambiguous_dir)
                             if moved is not None and search_results is not None and moved.config.write_namer_failed_log:
                                 write_log_file(moved.target_movie_file, search_results, moved.config)

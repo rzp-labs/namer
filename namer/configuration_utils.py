@@ -52,7 +52,7 @@ def __verify_watchdog_config(config: NamerConfig, formatter: PartialFormatter) -
         logger.error('Since enable_metadataapi_genres is not True, you must specify a default_genre')
         success = False
 
-    watchdog_dirs = ['watch_dir', 'work_dir', 'failed_dir', 'dest_dir']
+    watchdog_dirs = ['watch_dir', 'work_dir', 'failed_dir', 'dest_dir', 'ambiguous_dir']
     for dir_name in watchdog_dirs:
         success = __verify_dir(config, dir_name, [name for name in watchdog_dirs if dir_name != name]) and success
 
@@ -224,6 +224,14 @@ def from_path(value: Optional[Path]) -> str:
     return str(value) if value else ''
 
 
+def to_float(value: Optional[str]) -> Optional[float]:
+    return float(value) if value is not None else None
+
+
+def from_float(value: Optional[float]) -> str:
+    return str(value) if value is not None else ''
+
+
 def to_regex_list(value: Optional[str]) -> List[Pattern]:
     return [re.compile(x.strip()) for x in value.split(',')] if value else []
 
@@ -316,9 +324,16 @@ field_info: Dict[str, Tuple[str, Optional[Callable[[Optional[str]], Any]], Optio
     'stashdb_token': ('namer', None, None),
     'plex_hack': ('namer', to_bool, from_bool),
     'path_cleanup': ('namer', to_bool, from_bool),
+    # Disambiguation gating and thresholds
+    'enable_disambiguation': ('namer', to_bool, from_bool),
     'search_phash': ('Phash', to_bool, from_bool),
     'send_phash': ('Phash', to_bool, from_bool),
     'use_alt_phash_tool': ('Phash', to_bool, from_bool),
+    'phash_accept_distance': ('Phash', to_int, from_int),
+    'phash_ambiguous_min': ('Phash', to_int, from_int),
+    'phash_ambiguous_max': ('Phash', to_int, from_int),
+    'phash_distance_margin_accept': ('Phash', to_int, from_int),
+    'phash_majority_accept_fraction': ('Phash', to_float, from_float),
     'max_ffmpeg_workers': ('Phash', to_int, from_int),
     'use_gpu': ('Phash', to_bool, from_bool),
     'ffmpeg_hwaccel_backend': ('Phash', None, None),
@@ -349,6 +364,7 @@ field_info: Dict[str, Tuple[str, Optional[Callable[[Optional[str]], Any]], Optio
     'work_dir': ('watchdog', to_path, from_path),
     'failed_dir': ('watchdog', to_path, from_path),
     'dest_dir': ('watchdog', to_path, from_path),
+    'ambiguous_dir': ('watchdog', to_path, from_path),
     'retry_time': ('watchdog', None, None),
     'web': ('watchdog', to_bool, from_bool),
     'port': ('watchdog', to_int, from_int),

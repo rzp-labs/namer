@@ -4,6 +4,9 @@
 # Stashdb is the recommended provider default.
 metadata_provider = stashdb
 
+# Feature flag to enable scene disambiguation logic (off by default)
+enable_disambiguation = False
+
 # Tokens are sourced from environment (STASHDB_TOKEN / TPDB_TOKEN) for security.
 porndb_token = 
 stashdb_token = 
@@ -166,6 +169,13 @@ convert_container_to =
 # Calculate and use phashes in search for matches
 search_phash = True
 
+# Disambiguation decision thresholds (provider-agnostic)
+phash_accept_distance = 6
+phash_ambiguous_min = 7
+phash_ambiguous_max = 12
+phash_distance_margin_accept = 3
+phash_majority_accept_fraction = 0.7
+
 # Should phashes be sent to tpdb if no phash match was found but a name match was.
 # Requires search_phash be true or is ignored.
 send_phash = True
@@ -309,6 +319,9 @@ work_dir = ./test/work
 # retries occur every 12 hours.   Files can be manually moved to watch-dir
 # to force reprocessing.
 failed_dir = ./test/failed
+
+# Directory to route files to when disambiguation determines results are ambiguous
+ambiguous_dir = ./test/ambiguous
 
 # dir where finalized files get written.
 dest_dir = ./test/dest
