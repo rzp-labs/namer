@@ -4,7 +4,7 @@ set -eo pipefail
 
 version_bump=$1
 
-repo="ThePornDatabase"
+repo="rzp-labs"
 
 found=false
 for bump in 'minor' 'major' 'patch'; do 
@@ -13,8 +13,8 @@ for bump in 'minor' 'major' 'patch'; do
   fi  
 done
 
-if [ $found == false ]; then
-  echo invalid arguement please use on of 'minor' 'major' 'patch'
+if [[ "$found" == false ]]; then
+  echo "invalid argument; please use one of 'minor' 'major' 'patch'"
   exit 1
 fi
 
@@ -22,38 +22,40 @@ source ./creds.sh
 
 CLEAN=$(git diff-index --quiet HEAD; echo $?)
 if [[ "${CLEAN}" != "0" ]]; then
-  echo Your git repo is not clean, can\'t releases.
+  echo "Your git repo is not clean, can't release."
   exit 1
 fi
 
 if [[ -z ${PYPI_TOKEN} ]]; then
-  echo PYPI_TOKEN not set, make sure you have a token for this project set in a local creds.sh file \(it\'s git ignored\)
+  echo "PYPI_TOKEN not set, make sure you have a token for this project set in a local creds.sh file (it's git ignored)"
   exit 1
 fi
 
 if [[ -z ${GITHUB_TOKEN} ]]; then
-  echo GITHUB_TOKEN not set, make sure you have a token for this project set in a local creds.sh file \(it\'s git ignored\)
+  echo "GITHUB_TOKEN not set, make sure you have a token for this project set in a local creds.sh file (it's git ignored)"
   exit 1
 fi
 
 if [[ -z ${GITHUB_USERNAME} ]]; then
-  echo GITHUB_TOKEN not set, make sure you have a token for this project set in a local creds.sh file \(it\'s git ignored\)
+  echo "GITHUB_USERNAME not set, make sure you have a username set in creds.sh"
   exit 1
 fi
 
 branch=$(git rev-parse --abbrev-ref HEAD)
 
 if [[ "$branch" != "main" ]]; then
-  echo May only release off of the main branch, not other branches.
+  echo "May only release off of the main branch, not other branches."
+  exit 1
 fi
 
-poetry version $version_bump
+poetry version "$version_bump"
 new_version=$(poetry version -s)
 git add pyproject.toml
 
 poetry run pytest
-poetry run flakeheaven lint
+poetry run ruff check .
 
+command -v pnpm >/dev/null || { echo "pnpm not found; install or enable corepack"; exit 1; }
 pnpm install
 pnpm run build
 
@@ -74,7 +76,7 @@ git push
 git tag v"${new_version}" main
 git push origin v"${new_version}"
 
-docker login ghcr.io -u ${GITHUB_USERNAME} -p ${GITHUB_TOKEN}
+printf '%s' "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_USERNAME}" --password-stdin
 docker tag "${repo}"/namer:"${new_version}" ghcr.io/"${repo}"/namer:"${new_version}"
 docker tag "${repo}"/namer:"${new_version}" ghcr.io/"${repo}"/namer:latest
 docker push ghcr.io/"${repo}"/namer:"${new_version}"

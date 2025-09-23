@@ -1,0 +1,81 @@
+name: Bump Version and Open Release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+
+      - name: Bump version with Poetry
+        id: bump
+        shell: bash
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          case "${BUMP}" in
+            patch|minor|major) ;;
+            *) echo "Invalid bump type: ${BUMP}" >&2; exit 1 ;;
+          esac
+          poetry version "${BUMP}"
+          NEW_VERSION=$(poetry version -s)
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          MAJOR_MINOR=$(echo "$NEW_VERSION" | awk -F. '{print $1"."$2}')
+          echo "major_minor=$MAJOR_MINOR" >> "$GITHUB_OUTPUT"
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          git commit -m "chore(release): bump version to ${{ steps.bump.outputs.new_version }}"
+
+      - name: Create release PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: "feat/release-${{ steps.bump.outputs.new_version }}"
+          title: "chore(release): v${{ steps.bump.outputs.new_version }}"
+          body: |
+            Automated version bump to v${{ steps.bump.outputs.new_version }}.
+
+            - Bumps `pyproject.toml` version using Poetry
+            - On merge, CI will build and push GHCR image tags:
+              - `v${{ steps.bump.outputs.new_version }}`
+              - `${{ steps.bump.outputs.major_minor }}`
+              - `sha-*`
+              - `latest` (on default branch)
+            - Optionally tag the merge commit `v${{ steps.bump.outputs.new_version }}` to trigger semver tags on the Docker workflow for the tag event.
+          commit-message: "chore(release): bump version to ${{ steps.bump.outputs.new_version }}"
+          labels: release
+          draft: false

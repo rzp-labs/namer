@@ -45,6 +45,8 @@ jobs:
           type=semver,pattern={{major}}.{{minor}}
           # Use a safe SHA tag with an explicit prefix to avoid leading dashes
           type=sha,format=short,prefix=sha-
+          # Also publish the 'latest' tag on the default branch (e.g., main)
+          type=raw,value=latest,enable={{is_default_branch}}
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -54,7 +56,7 @@ jobs:
       with:
         context: .
         platforms: linux/amd64
-        push: true
+        push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         build-args: |
