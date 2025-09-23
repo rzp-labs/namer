@@ -470,6 +470,12 @@ class NamerConfig:
     Files can be manually moved to watch-dir to force reprocessing.
     """
 
+    ambiguous_dir: Optional[Path] = None
+    """
+    Optional directory to route files to when disambiguation detects ambiguous results.
+    Used only when `enable_disambiguation` is True.
+    """
+
     dest_dir: Path
     """
     If running in watchdog mode, dir where finalized files get written.
@@ -579,21 +585,17 @@ class NamerConfig:
 
         self.re_cleanup = [re.compile(rf'\b{regex}\b', re.IGNORECASE) for regex in database.re_cleanup]
 
-        if hasattr(self, 'watch_dir'):
-            self.watch_dir = self.watch_dir.resolve()
-        if hasattr(self, 'work_dir'):
-            self.work_dir = self.work_dir.resolve()
-        if hasattr(self, 'dest_dir'):
-            self.dest_dir = self.dest_dir.resolve()
-        if hasattr(self, 'failed_dir'):
-            self.failed_dir = self.failed_dir.resolve()
-        # Resolve ambiguous_dir if provided (coerce to Path; support str/None)
+        # Resolve configured directories if present
+        for _attr in ('watch_dir', 'work_dir', 'dest_dir', 'failed_dir'):
+            if hasattr(self, _attr):
+                setattr(self, _attr, getattr(self, _attr).resolve())
+
+        # Resolve optional paths if explicitly set
         val = getattr(self, 'ambiguous_dir', None)
-        if val:
+        if val is not None:
             self.ambiguous_dir = Path(val).expanduser().resolve()
-        # Resolve file logging directory like other dirs (if present)
         val = getattr(self, 'file_logging_directory', None)
-        if val:
+        if val is not None:
             self.file_logging_directory = Path(val).expanduser().resolve()
 
     def __str__(self):
@@ -610,35 +612,40 @@ class NamerConfig:
     def __hash__(self):
         return hash(self.__str__())
 
+    def _build_provider_info(self) -> Dict[str, str]:
+        """
+        Build provider-specific configuration info for to_dict() while masking tokens.
+        """
+        info: Dict[str, str] = {}
+        provider = self.metadata_provider.lower()
+        if provider == 'theporndb':
+            token = 'None is Set, Go to https://theporndb.net/register to get one!'
+            if self.porndb_token:
+                token = '*' * len(self.porndb_token)
+            info.update({
+                'porndb_token': token,
+                'override_tpdb_address': self.override_tpdb_address,
+            })
+        elif provider == 'stashdb':
+            token = 'None is Set, Get token from StashDB settings!'
+            if self.stashdb_token:
+                token = '*' * len(self.stashdb_token)
+            info.update({
+                'stashdb_token': token,
+                'stashdb_endpoint': self.stashdb_endpoint,
+            })
+        else:
+            info.update({'provider_config': f'Unknown provider: {self.metadata_provider}'})
+
+        return info
+
     def to_json(self):
         config = self.to_dict()
         return orjson.dumps(config, option=orjson.OPT_INDENT_2).decode('UTF-8')
 
     def to_dict(self) -> dict:
         # Dynamic metadata provider information
-        provider_info = {}
-        
-        if self.metadata_provider.lower() == 'theporndb':
-            token = 'None is Set, Go to https://theporndb.net/register to get one!'
-            if self.porndb_token:
-                token = '*' * len(self.porndb_token)
-            provider_info.update({
-                'porndb_token': token,
-                'override_tpdb_address': self.override_tpdb_address,
-            })
-        elif self.metadata_provider.lower() == 'stashdb':
-            token = 'None is Set, Get token from StashDB settings!'
-            if self.stashdb_token:
-                token = '*' * len(self.stashdb_token)
-            provider_info.update({
-                'stashdb_token': token,
-                'stashdb_endpoint': self.stashdb_endpoint,
-            })
-        else:
-            # Support for future providers
-            provider_info.update({
-                'provider_config': f'Unknown provider: {self.metadata_provider}',
-            })
+        provider_info = self._build_provider_info()
 
         config = {
             'Namer Config': {
@@ -679,9 +686,9 @@ class NamerConfig:
                 'use_alt_phash_tool': self.use_alt_phash_tool,
                 'max_ffmpeg_workers': self.max_ffmpeg_workers,
                 'use_gpu': self.use_gpu,
-                'ffmpeg_hwaccel_backend': self.ffmpeg_hwaccel_backend if self.ffmpeg_hwaccel_backend else '',
-                'ffmpeg_hwaccel_device': self.ffmpeg_hwaccel_device if self.ffmpeg_hwaccel_device else '',
-                'ffmpeg_hwaccel_decoder': self.ffmpeg_hwaccel_decoder if self.ffmpeg_hwaccel_decoder else '',
+                'ffmpeg_hwaccel_backend': self.ffmpeg_hwaccel_backend or '',
+                'ffmpeg_hwaccel_device': self.ffmpeg_hwaccel_device or '',
+                'ffmpeg_hwaccel_decoder': self.ffmpeg_hwaccel_decoder or '',
                 'phash_accept_distance': self.phash_accept_distance,
                 'phash_ambiguous_min': self.phash_ambiguous_min,
                 'phash_ambiguous_max': self.phash_ambiguous_max,
@@ -717,7 +724,7 @@ class NamerConfig:
                 'watch_dir': str(self.watch_dir),
                 'work_dir': str(self.work_dir),
                 'failed_dir': str(self.failed_dir),
-                'ambiguous_dir': str(self.ambiguous_dir) if hasattr(self, 'ambiguous_dir') else '',
+                'ambiguous_dir': str(self.ambiguous_dir) if (self.ambiguous_dir is not None) else '',
                 'dest_dir': str(self.dest_dir),
                 'retry_time': self.retry_time,
                 'extra_sleep_time': self.extra_sleep_time,

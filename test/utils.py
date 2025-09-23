@@ -23,6 +23,8 @@ from namer.configuration import NamerConfig
 from namer.configuration_utils import to_ini, from_config
 from test.web.parrot_webserver import ParrotWebServer
 from test.web.fake_stashdb import make_fake_stashdb
+from namer.comparison_results import ComparisonResults, ComparisonResult, LookedUpFileInfo
+from namer.fileinfo import FileInfo
 
 
 def is_debugging():
@@ -555,6 +557,62 @@ def new_ea(target_dir: Optional[Path] = None, relative: str = '', use_dir: bool 
     if target_dir:
         processing_target.setup(target_dir)
     return processing_target
+
+
+# --- Disambiguation test helpers ---
+
+def create_dummy_video(tmp_path: Path, subdir: str = "src", filename: str = "video.mp4") -> Path:
+    """
+    Create a small dummy video file under tmp_path/subdir.
+    """
+    src = tmp_path / subdir
+    src.mkdir()
+    video = src / filename
+    video.write_bytes(b"x")
+    return video
+
+
+def setup_disambiguation_config(tmp_path: Path, enable_flag: bool) -> tuple[NamerConfig, Path]:
+    """
+    Prepare a base config for disambiguation integration tests and create ambiguous_dir.
+    Returns (config, ambiguous_dir).
+    """
+    cfg = sample_config()
+    ambiguous_dir = tmp_path / "ambiguous"
+    ambiguous_dir.mkdir()
+
+    cfg.enable_disambiguation = enable_flag
+    cfg.ambiguous_dir = ambiguous_dir
+    cfg.min_file_size = 0
+    cfg.search_phash = False
+
+    return cfg, ambiguous_dir
+
+
+def patch_default_ambiguous_match(monkeypatch) -> None:
+    """
+    Patch namer.metadataapi.match to return a fixed ambiguous set: [A:5, B:6 x3].
+    """
+
+    def _fake_match(name_parts, conf, phash=None):  # noqa: ARG001
+        def mk(guid: str, dist: int) -> ComparisonResult:
+            info = LookedUpFileInfo()
+            info.guid = guid
+            return ComparisonResult(
+                name="n",
+                name_match=95.0,
+                site_match=True,
+                date_match=True,
+                name_parts=FileInfo(),
+                looked_up=info,
+                phash_distance=dist,
+                phash_duration=True,
+            )
+
+        results = [mk("A", 5), mk("B", 6), mk("B", 6), mk("B", 6)]
+        return ComparisonResults(results, None)
+
+    monkeypatch.setattr("namer.metadataapi.match", _fake_match)
 
 
 def new_dorcel(target_dir: Optional[Path] = None, relative: str = '', use_dir: bool = True, post_stem: str = '', match: bool = True, mp4_file_name: str = 'Site.22.01.01.painful.pun.XXX.720p.xpost.mp4'):

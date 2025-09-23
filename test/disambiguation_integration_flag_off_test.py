@@ -7,16 +7,16 @@ from test.utils import (
 )
 
 
-def test_flagged_wiring_routes_ambiguous(tmp_path, monkeypatch):
+def test_flag_off_does_not_route_ambiguous(tmp_path, monkeypatch):
     # Arrange
     video = create_dummy_video(tmp_path)
-    config, ambiguous_dir = setup_disambiguation_config(tmp_path, enable_flag=True)
+    config, ambiguous_dir = setup_disambiguation_config(tmp_path, enable_flag=False)
     patch_default_ambiguous_match(monkeypatch)
 
-    # Act: build command ignoring file restrictions and process
+    # Act
     cmd = make_command(video, config, ignore_file_restrictions=True)
     out = process_file(cmd)
 
-    # Assert: file was routed to ambiguous_dir under the feature flag
+    # Assert: no routing to ambiguous_dir when flag is off
     assert out is not None
-    assert out.target_movie_file.parent == ambiguous_dir
+    assert out.target_movie_file.parent != ambiguous_dir

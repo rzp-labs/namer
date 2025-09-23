@@ -43,6 +43,41 @@ def __verify_naming_config(config: NamerConfig, formatter: PartialFormatter) -> 
     return success
 
 
+def validate_disambiguation_config(config: NamerConfig) -> bool:
+    """
+    Validate relationships for disambiguation thresholds. Returns True when valid.
+    This function is intentionally lightweight and does not raise.
+    """
+    ok = True
+    # Majority fraction range
+    if not (0.0 <= config.phash_majority_accept_fraction <= 1.0):
+        logger.error(
+            'phash_majority_accept_fraction must be within [0.0, 1.0], got {}',
+            config.phash_majority_accept_fraction,
+        )
+        ok = False
+    # Distance relationships
+    if not (config.phash_accept_distance < config.phash_ambiguous_min):
+        logger.error(
+            'phash_accept_distance ({}) must be less than phash_ambiguous_min ({})',
+            config.phash_accept_distance,
+            config.phash_ambiguous_min,
+        )
+        ok = False
+    if not (config.phash_ambiguous_min <= config.phash_ambiguous_max):
+        logger.error(
+            'phash_ambiguous_min ({}) must be less than or equal to phash_ambiguous_max ({})',
+            config.phash_ambiguous_min,
+            config.phash_ambiguous_max,
+        )
+        ok = False
+    if config.phash_distance_margin_accept < 0:
+        logger.error('phash_distance_margin_accept must be >= 0, got {}', config.phash_distance_margin_accept)
+        ok = False
+
+    return ok
+
+
 def __verify_watchdog_config(config: NamerConfig, formatter: PartialFormatter) -> bool:
     """
     Verifies the contents of your config file. Returns False if configuration failed.
@@ -170,6 +205,9 @@ def verify_configuration(config: NamerConfig, formatter: PartialFormatter) -> bo
     if config.image_format not in ['jpeg', 'png'] and success:
         logger.error('image_format should be png or jpeg')
         success = False
+
+    # Disambiguation thresholds sanity
+    success = validate_disambiguation_config(config) and success
 
     return success
 
