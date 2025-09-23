@@ -470,6 +470,12 @@ class NamerConfig:
     Files can be manually moved to watch-dir to force reprocessing.
     """
 
+    ambiguous_dir: Optional[Path] = None
+    """
+    Optional directory to route files to when disambiguation detects ambiguous results.
+    Used only when `enable_disambiguation` is True.
+    """
+
     dest_dir: Path
     """
     If running in watchdog mode, dir where finalized files get written.
