@@ -60,6 +60,7 @@ jobs:
         context: .
         platforms: linux/amd64
         push: ${{ github.event_name != 'pull_request' }}
+        load: ${{ github.event_name == 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         build-args: |
@@ -69,7 +70,15 @@ jobs:
         cache-from: type=gha,scope=buildkit
         cache-to: type=gha,mode=max,scope=buildkit
 
+    - name: Test Docker image (local on PR)
+      if: ${{ github.event_name == 'pull_request' }}
+      run: |
+        TAG="$(echo "${{ steps.meta.outputs.tags }}" | head -n1)"
+        echo "Testing locally loaded image: $TAG"
+        docker run --rm --entrypoint="" "$TAG" namer --help
+
   test:
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     needs: build
     permissions:
@@ -88,8 +97,15 @@ jobs:
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         
-    - name: Test Docker image (by digest)
+    - name: Test Docker image (by digest with tag fallback)
       run: |
-        IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.digest }}"
-        echo "Testing image by digest: $IMAGE"
+        DIGEST="${{ needs.build.outputs.digest }}"
+        if [ -n "$DIGEST" ]; then
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@$DIGEST"
+          echo "Testing image by digest: $IMAGE"
+        else
+          TAG="$(echo "${{ steps.meta.outputs.tags }}" | head -n1)"
+          IMAGE="$TAG"
+          echo "Digest missing; falling back to tag: $IMAGE"
+        fi
         docker run --rm --entrypoint="" "$IMAGE" namer --help
