@@ -107,23 +107,52 @@ def __verify_watchdog_config(config: NamerConfig, formatter: PartialFormatter) -
 
 def __verify_dir(config: NamerConfig, name: str, other_dirs: List[str]) -> bool:
     """
-    verify a config directory exist. return false if verification fails
+    Verify a configured directory. Returns False if verification fails.
+    Special-case 'ambiguous_dir' to allow non-existent path (created later at runtime),
+    while still guarding against nesting within other watchdog directories.
     """
-    path_list = tuple(str(getattr(config, name)) for name in other_dirs if hasattr(config, name))
+    path_list = tuple(str(getattr(config, n)) for n in other_dirs if hasattr(config, n))
     dir_name: Optional[Path] = getattr(config, name) if hasattr(config, name) else None
-    if dir_name and (not dir_name.is_dir() or str(dir_name).startswith(path_list)):
-        logger.error(f'Configured directory {name}: "{dir_name}" is not a directory or not exist or in other watchdog directory')
 
-        return False
+    if dir_name:
+        dir_str = str(dir_name)
+        is_nested = dir_str.startswith(path_list) if path_list else False
+        exists = dir_name.exists()
 
-    min_size = config.min_file_size if config.min_file_size else 1
-    if dir_name and name == 'work_dir' and sum(file.stat().st_size for file in config.work_dir.rglob('*')) / 1024 / 1024 > min_size:
-        logger.error(f'Configured directory {name}: "{dir_name}" should be empty')
+        if name == 'ambiguous_dir':
+            # Allow non-existent ambiguous_dir (it will be created at runtime),
+            # but still forbid nesting within other watchdog directories.
+            if is_nested:
+                logger.error(
+                    f'Configured directory {name}: "{dir_name}" must not be inside another watchdog directory'
+                )
+                return False
+            if exists and not dir_name.is_dir():
+                logger.error(
+                    f'Configured directory {name}: "{dir_name}" exists but is not a directory'
+                )
+                return False
+        else:
+            # For all other watchdog dirs, require existing directory and no nesting
+            if (not dir_name.is_dir()) or is_nested:
+                logger.error(
+                    f'Configured directory {name}: "{dir_name}" is not a directory or is inside another watchdog directory'
+                )
+                return False
 
-        return False
+        # work_dir should be empty only if it exists
+        min_size = config.min_file_size if config.min_file_size else 1
+        if name == 'work_dir' and exists:
+            total_mb = sum(file.stat().st_size for file in dir_name.rglob('*')) / 1024 / 1024
+            if total_mb > min_size:
+                logger.error(f'Configured directory {name}: "{dir_name}" should be empty')
+                return False
 
-    if dir_name and not os.access(dir_name, os.W_OK):
-        logger.warning(f'Configured directory {name}: "{dir_name}" might have write permission problem')
+        # Warn about permissions only when the path exists
+        if exists and not os.access(dir_name, os.W_OK):
+            logger.warning(
+                f'Configured directory {name}: "{dir_name}" might have write permission problem'
+            )
 
     return True
 
@@ -341,12 +370,12 @@ field_info: Dict[str, Tuple[str, Optional[Callable[[Optional[str]], Any]], Optio
     'target_extensions': ('namer', to_str_list_lower, from_str_list_lower),
     'update_permissions_ownership': ('namer', to_bool, from_bool),
     'set_dir_permissions': ('namer', to_int, from_int),
-    'set_file_permissions': ('namer', to_int, from_int),
+    'set_file permissions': ('namer', to_int, from_int),
     'set_uid': ('namer', to_int, from_int),
     'set_gid': ('namer', to_int, from_int),
     'trailer_location': ('namer', None, None),
     'convert_container_to': ('namer', None, None),
-    'sites_with_no_date_info': ('namer', to_str_list_lower, from_str_list_lower),
+    'sites_with_no_date info': ('namer', to_str_list_lower, from_str_list_lower),
     'movie_data_preferred': ('namer', to_str_list_lower, from_str_list_lower),
     'vr_studios': ('namer', to_str_list_lower, from_str_list_lower),
     'vr_tags': ('namer', to_str_list_lower, from_str_list_lower),
@@ -408,7 +437,7 @@ field_info: Dict[str, Tuple[str, Optional[Callable[[Optional[str]], Any]], Optio
     'port': ('watchdog', to_int, from_int),
     'host': ('watchdog', None, None),
     'web_root': ('watchdog', None, None),
-    'allow_delete_files': ('watchdog', to_bool, from_bool),
+    'allow_delete files': ('watchdog', to_bool, from_bool),
     'add_columns_from_log': ('watchdog', to_bool, from_bool),
     'add_complete_column': ('watchdog', to_bool, from_bool),
     'webhook_enabled': ('webhook', to_bool, from_bool),
@@ -498,7 +527,7 @@ def default_config(user_set: Optional[Path] = None) -> NamerConfig:
     namer_config = from_config(config, NamerConfig())
     namer_config.config_updater = config
 
-    user_config = ConfigUpdater(allow_no_value=True)
+    user_config = ConfigUpdater(allow_no value=True)
     cfg_paths = [
         user_set,
         os.environ.get('NAMER_CONFIG'),
