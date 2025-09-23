@@ -31,6 +31,7 @@ from namer.moviexml import parse_movie_xml_file, write_nfo
 from namer.name_formatter import PartialFormatter
 from namer.mutagen import update_mp4_file
 from namer.videophash import PerceptualHash, return_perceptual_hash
+from namer.disambiguation import Candidate, decide, Decision
 
 DESCRIPTION = """
     Namer, the porndb local file renamer. It can be a command line tool to rename mp4/mkv/avi/mov/flv files and to embed tags in mp4s,
@@ -192,6 +193,34 @@ def process_file(command: Command) -> Optional[Command]:
                 command.parsed_file.hashes = phash
 
             search_results = match(command.parsed_file, command.config, phash=phash)
+            # Optional disambiguation routing under feature flag
+            if command.config.enable_disambiguation and search_results and getattr(command.config, 'phash_accept_distance', None) is not None:
+                # Build candidates from comparison results that have a phash_distance and a guid/uuid
+                cand_list = []
+                for r in search_results.results:
+                    if r.phash_distance is None or not r.looked_up:
+                        continue
+                    guid = r.looked_up.guid or r.looked_up.uuid or ''
+                    if guid:
+                        cand_list.append(Candidate(guid=guid, phash_distance=int(r.phash_distance)))
+                if cand_list:
+                    _, decision = decide(
+                        cand_list,
+                        accept_distance=command.config.phash_accept_distance,
+                        ambiguous_min=command.config.phash_ambiguous_min,
+                        ambiguous_max=command.config.phash_ambiguous_max,
+                        distance_margin_accept=command.config.phash_distance_margin_accept,
+                        majority_accept_fraction=command.config.phash_majority_accept_fraction,
+                    )
+                    if decision == Decision.AMBIGUOUS and getattr(command.config, 'ambiguous_dir', None):
+                        # Route to ambiguous review directory (mirrors failed_dir handling)
+                        if command.inplace is False:
+                            command.config.ambiguous_dir.mkdir(parents=True, exist_ok=True)
+                            logger.info('Routing to ambiguous_dir due to ambiguous decision -> {}', command.config.ambiguous_dir)
+                            moved = move_command_files(command, command.config.ambiguous_dir)
+                            if moved is not None and search_results is not None and moved.config.write_namer_failed_log:
+                                write_log_file(moved.target_movie_file, search_results, moved.config)
+                            return moved
             if search_results:
                 matched = search_results.get_match()
                 if matched:

@@ -387,6 +387,41 @@ class NamerConfig:
     Optional FFmpeg video decoder name to force, e.g. 'h264_qsv' or 'hevc_qsv'.
     """
 
+    # --- Disambiguation feature flag and thresholds (PR A: config-only, no behavior change) ---
+    enable_disambiguation: bool = False
+    """
+    Feature flag to enable scene disambiguation logic. Defaults to False (disabled).
+    """
+
+    # PHASH decision thresholds (provider-agnostic)
+    phash_accept_distance: int = 6
+    """
+    Maximum PHASH Hamming distance to consider a candidate as directly acceptable when
+    other conditions are met.
+    """
+
+    phash_ambiguous_min: int = 7
+    """
+    Minimum PHASH distance to begin considering results ambiguous when there are multiple close candidates.
+    """
+
+    phash_ambiguous_max: int = 12
+    """
+    Upper bound of the PHASH ambiguous band. Distances above this band are treated as weak signals.
+    """
+
+    phash_distance_margin_accept: int = 3
+    """
+    Required distance gap between the best and the second-best candidate to auto-accept the best one
+    when within accept distance.
+    """
+
+    phash_majority_accept_fraction: float = 0.7
+    """
+    Required fraction of fingerprint hits for the best GUID to allow auto-accept when within accept distance
+    even if the distance margin is small.
+    """
+
     mark_collected: bool = False
     """
     Mark any matched video as "collected" in TPDB, allowing TPDB to keep track of videos you have collected.
@@ -609,6 +644,7 @@ class NamerConfig:
             'Namer Config': {
                 'metadata_provider': self.metadata_provider,
                 **provider_info,
+                'enable_disambiguation': self.enable_disambiguation,
                 'inplace_name': self.inplace_name,
                 'inplace_name_scene': self.inplace_name_scene,
                 'inplace_name_movie': self.inplace_name_movie,
@@ -646,6 +682,11 @@ class NamerConfig:
                 'ffmpeg_hwaccel_backend': self.ffmpeg_hwaccel_backend if self.ffmpeg_hwaccel_backend else '',
                 'ffmpeg_hwaccel_device': self.ffmpeg_hwaccel_device if self.ffmpeg_hwaccel_device else '',
                 'ffmpeg_hwaccel_decoder': self.ffmpeg_hwaccel_decoder if self.ffmpeg_hwaccel_decoder else '',
+                'phash_accept_distance': self.phash_accept_distance,
+                'phash_ambiguous_min': self.phash_ambiguous_min,
+                'phash_ambiguous_max': self.phash_ambiguous_max,
+                'phash_distance_margin_accept': self.phash_distance_margin_accept,
+                'phash_majority_accept_fraction': self.phash_majority_accept_fraction,
                 # "require_match_phash_top": self.require_match_phash_top,
                 # "send_phash_of_matches_to_tpdb": self.send_phash_of_matches_to_tpdb,
             },
