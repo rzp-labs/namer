@@ -39,8 +39,15 @@ jobs:
       - name: Bump version with Poetry
         id: bump
         shell: bash
+        env:
+          BUMP: ${{ inputs.bump }}
         run: |
-          poetry version "${{ inputs.bump }}"
+          set -euo pipefail
+          case "${BUMP}" in
+            patch|minor|major) ;;
+            *) echo "Invalid bump type: ${BUMP}" >&2; exit 1 ;;
+          esac
+          poetry version "${BUMP}"
           NEW_VERSION=$(poetry version -s)
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           MAJOR_MINOR=$(echo "$NEW_VERSION" | awk -F. '{print $1"."$2}')
