@@ -68,12 +68,19 @@ RUN ARCH=$(dpkg --print-architecture) \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 RUN pipx install poetry
-# Install Node.js and pin PNPM without using curl|bash
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends nodejs npm \
+# Install Node.js (v20) from NodeSource with GPG verification, then pin PNPM 10
+RUN set -eux; \
+    ARCH=$(dpkg --print-architecture); \
+    # Add NodeSource GPG key and repository for Node 20
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg; \
+    echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends nodejs; \
+    # Verify node version is >= 18.12 (Node 20 expected)
+    node -v; \
     # Install pnpm with scripts disabled to avoid executing arbitrary lifecycle scripts
-    && npm i -g pnpm@10.0.0 --ignore-scripts \
-    && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+    npm i -g pnpm@10.0.0 --ignore-scripts; \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 RUN mkdir /work/
 COPY . /work
