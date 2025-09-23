@@ -43,6 +43,8 @@ jobs:
           poetry version "${{ inputs.bump }}"
           NEW_VERSION=$(poetry version -s)
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          MAJOR_MINOR=$(echo "$NEW_VERSION" | awk -F. '{print $1"."$2}')
+          echo "major_minor=$MAJOR_MINOR" >> "$GITHUB_OUTPUT"
 
       - name: Commit version bump
         run: |
@@ -61,10 +63,12 @@ jobs:
             Automated version bump to v${{ steps.bump.outputs.new_version }}.
 
             - Bumps `pyproject.toml` version using Poetry
-            - On merge, CI will:
-              - Build and push GHCR image tags `v${{ steps.bump.outputs.new_version }}`, `${{ steps.bump.outputs.new_version %%.* }}.${{ steps.bump.outputs.new_version#*. }}`, and `latest` on main
-            - You can optionally tag the commit `v${{ steps.bump.outputs.new_version }}` to force semver tags in the Docker workflow
+            - On merge, CI will build and push GHCR image tags:
+              - `v${{ steps.bump.outputs.new_version }}`
+              - `${{ steps.bump.outputs.major_minor }}`
+              - `sha-*`
+              - `latest` (on default branch)
+            - Optionally tag the merge commit `v${{ steps.bump.outputs.new_version }}` to trigger semver tags on the Docker workflow for the tag event.
           commit-message: "chore(release): bump version to ${{ steps.bump.outputs.new_version }}"
-          title-prefix: ""
           labels: release
           draft: false
