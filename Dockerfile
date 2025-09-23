@@ -83,8 +83,10 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 RUN mkdir /work/
-COPY . /work
 WORKDIR /work
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --with dev --no-interaction --no-ansi --no-root
+COPY . /work
 
 # ⚠️  CRITICAL: Replace base ffmpeg.py with enhanced version for container builds
 # This OVERWRITES namer/ffmpeg.py with the enhanced version that includes:
@@ -101,9 +103,7 @@ WORKDIR /work
 COPY namer/ffmpeg_enhanced.py /work/namer/ffmpeg.py
 
 RUN rm -rf /work/namer/__pycache__/ || true \
-    && rm -rf /work/test/__pycache__/ || true \
-    && poetry lock \
-    && poetry install
+    && rm -rf /work/test/__pycache__/ || true
 RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps && poetry run poe build_namer )"
 
 FROM base
