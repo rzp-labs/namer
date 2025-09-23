@@ -7,12 +7,7 @@ ENV PATH="/usr/local/bin:/root/.local/bin:$PATH"
 ENV TZ=Europe/London
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Switch to Ubuntu development repositories to get latest Intel GPU support
-RUN echo "Switching to Ubuntu development repositories for Intel Arc B580 support..." \
-    && echo "deb http://archive.ubuntu.com/ubuntu devel main restricted universe multiverse" > /etc/apt/sources.list \
-    && echo "deb http://archive.ubuntu.com/ubuntu devel-updates main restricted universe multiverse" >> /etc/apt/sources.list \
-    && echo "deb http://archive.ubuntu.com/ubuntu devel-backports main restricted universe multiverse" >> /etc/apt/sources.list \
-    && echo "deb http://security.ubuntu.com/ubuntu devel-security main restricted universe multiverse" >> /etc/apt/sources.list
+# Use standard Ubuntu repositories (avoid "devel" channels)
 
 
 # Install dependencies with Intel GPU hardware acceleration support (Intel packages only on amd64)
@@ -73,9 +68,11 @@ RUN ARCH=$(dpkg --print-architecture) \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 RUN pipx install poetry
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-RUN . /root/.bashrc && nvm install 22
-RUN . /root/.bashrc && npm i -g pnpm@latest-10
+# Install Node.js and pin PNPM without using curl|bash
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nodejs npm \
+    && npm i -g pnpm@10.0.0 \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 RUN mkdir /work/
 COPY . /work
@@ -98,7 +95,7 @@ COPY namer/ffmpeg_enhanced.py /work/namer/ffmpeg.py
 RUN rm -rf /work/namer/__pycache__/ || true \
     && rm -rf /work/test/__pycache__/ || true \
     && poetry install
-RUN . /root/.bashrc && ( Xvfb :99 & cd /work/ && poetry run poe build_deps && poetry run poe build_namer )
+RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps && poetry run poe build_namer )"
 
 FROM base
 
@@ -117,9 +114,12 @@ RUN timeout 300 bash -c "chmod +x /tmp/install-intel-firmware-fast.sh && /tmp/in
 COPY scripts/detect-intel-gpu.sh /usr/local/bin/detect-gpu.sh
 RUN chmod +x /usr/local/bin/detect-gpu.sh
 
-# Create necessary directories with appropriate permissions
-RUN mkdir -p /database /cache /tmp/namer \
-    && chmod 777 /database /cache /tmp/namer
+# Create non-root user and secure directories
+RUN groupadd -g 1001 namer \
+    && useradd -m -u 1001 -g 1001 namer \
+    && mkdir -p /database /cache /tmp/namer \
+    && chown -R namer:namer /database /cache /tmp/namer \
+    && chmod 775 /database /cache /tmp/namer
 
 ARG BUILD_DATE
 ARG GIT_HASH  
@@ -138,4 +138,6 @@ HEALTHCHECK --interval=1m --timeout=30s CMD curl -s $(namer url)/api/healthcheck
 # Enhanced entrypoint with Intel GPU support and user switching
 COPY docker-entrypoint-user.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# Drop privileges for runtime
+USER namer
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
