@@ -4,13 +4,13 @@ set -eo pipefail
 
 version_bump=$1
 
-repo="ThePornDatabase"
+repo="rzp-labs"
 
 found=false
-for bump in 'minor' 'major' 'patch'; do 
+for bump in 'minor' 'major' 'patch'; do
   if [[ "$version_bump" == "$bump" ]]; then
     found=true
-  fi  
+  fi
 done
 
 if [ $found == false ]; then
@@ -47,7 +47,7 @@ if [[ "$branch" != "main" ]]; then
   echo May only release off of the main branch, not other branches.
 fi
 
-poetry version $version_bump
+poetry version "$version_bump"
 new_version=$(poetry version -s)
 git add pyproject.toml
 
@@ -74,7 +74,7 @@ git push
 git tag v"${new_version}" main
 git push origin v"${new_version}"
 
-docker login ghcr.io -u ${GITHUB_USERNAME} -p ${GITHUB_TOKEN}
+docker login ghcr.io -u "${GITHUB_USERNAME}" -p "${GITHUB_TOKEN}"
 docker tag "${repo}"/namer:"${new_version}" ghcr.io/"${repo}"/namer:"${new_version}"
 docker tag "${repo}"/namer:"${new_version}" ghcr.io/"${repo}"/namer:latest
 docker push ghcr.io/"${repo}"/namer:"${new_version}"
