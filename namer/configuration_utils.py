@@ -57,14 +57,14 @@ def validate_disambiguation_config(config: NamerConfig) -> bool:
         )
         ok = False
     # Distance relationships
-    if not (config.phash_accept_distance < config.phash_ambiguous_min):
+    if config.phash_accept_distance >= config.phash_ambiguous_min:
         logger.error(
             'phash_accept_distance ({}) must be less than phash_ambiguous_min ({})',
             config.phash_accept_distance,
             config.phash_ambiguous_min,
         )
         ok = False
-    if not (config.phash_ambiguous_min <= config.phash_ambiguous_max):
+    if config.phash_ambiguous_min > config.phash_ambiguous_max:
         logger.error(
             'phash_ambiguous_min ({}) must be less than or equal to phash_ambiguous_max ({})',
             config.phash_ambiguous_min,
@@ -370,12 +370,12 @@ field_info: Dict[str, Tuple[str, Optional[Callable[[Optional[str]], Any]], Optio
     'target_extensions': ('namer', to_str_list_lower, from_str_list_lower),
     'update_permissions_ownership': ('namer', to_bool, from_bool),
     'set_dir_permissions': ('namer', to_int, from_int),
-    'set_file permissions': ('namer', to_int, from_int),
+    'set_file_permissions': ('namer', to_int, from_int),
     'set_uid': ('namer', to_int, from_int),
     'set_gid': ('namer', to_int, from_int),
     'trailer_location': ('namer', None, None),
     'convert_container_to': ('namer', None, None),
-    'sites_with_no_date info': ('namer', to_str_list_lower, from_str_list_lower),
+    'sites_with_no_date_info': ('namer', to_str_list_lower, from_str_list_lower),
     'movie_data_preferred': ('namer', to_str_list_lower, from_str_list_lower),
     'vr_studios': ('namer', to_str_list_lower, from_str_list_lower),
     'vr_tags': ('namer', to_str_list_lower, from_str_list_lower),
@@ -437,7 +437,7 @@ field_info: Dict[str, Tuple[str, Optional[Callable[[Optional[str]], Any]], Optio
     'port': ('watchdog', to_int, from_int),
     'host': ('watchdog', None, None),
     'web_root': ('watchdog', None, None),
-    'allow_delete files': ('watchdog', to_bool, from_bool),
+    'allow_delete_files': ('watchdog', to_bool, from_bool),
     'add_columns_from_log': ('watchdog', to_bool, from_bool),
     'add_complete_column': ('watchdog', to_bool, from_bool),
     'webhook_enabled': ('webhook', to_bool, from_bool),
@@ -527,7 +527,7 @@ def default_config(user_set: Optional[Path] = None) -> NamerConfig:
     namer_config = from_config(config, NamerConfig())
     namer_config.config_updater = config
 
-    user_config = ConfigUpdater(allow_no value=True)
+    user_config = ConfigUpdater(allow_no_value=True)
     cfg_paths = [
         user_set,
         os.environ.get('NAMER_CONFIG'),
