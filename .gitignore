@@ -34,3 +34,11 @@ namer-prod.cfg
 .github/workflows/*.backup
 .github/workflows/ci.yml.backup
 .prod-files/
+
+# Test artifacts
+test/failed/
+test/watch/
+test/work/
+test/dest/
+test/ambiguous/
+test/**/*_namer.json.gz

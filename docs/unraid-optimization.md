@@ -35,7 +35,7 @@ Downloads → Cache/downloads → Cache/processing → Cache/completed → [move
 ```yaml
 services:
   namer:
-    image: ghcr.io/rzp-labs/namer:latest
+    image: ghcr.io/nehpz/namer:latest
     volumes:
       # All processing happens on cache
       - /mnt/cache/namer-watch:/media/watch

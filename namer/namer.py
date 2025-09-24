@@ -26,7 +26,7 @@ from namer.database import search_file_in_database, write_file_to_database
 from namer.ffmpeg import FFProbeResults, FFMpeg
 from namer.fileinfo import FileInfo
 from namer.http import Http
-from namer.metadataapi import get_complete_metadataapi_net_fileinfo, get_image, get_trailer, match, share_hash
+import namer.metadataapi as metadataapi
 from namer.moviexml import parse_movie_xml_file, write_nfo
 from namer.name_formatter import PartialFormatter
 from namer.mutagen import update_mp4_file
@@ -121,7 +121,7 @@ def tag_in_place(video: Optional[Path], config: NamerConfig, new_metadata: Looke
         if config.enabled_tagging and video.suffix.lower() == '.mp4':
             if config.enabled_poster:
                 random = ''.join(choices(population=string.ascii_uppercase + string.digits, k=10))
-                poster = get_image(new_metadata.poster_url, random, video, config) if new_metadata.poster_url else None
+                poster = metadataapi.get_image(new_metadata.poster_url, random, video, config) if new_metadata.poster_url else None
 
             logger.info('Updating file metadata (atoms): {}', video)
             update_mp4_file(video, new_metadata, poster, ffprobe_results, config)
@@ -183,16 +183,16 @@ def process_file(command: Command) -> Optional[Command]:
         #    phash = VideoPerceptualHash().get_phash(command.target_movie_file)
         #    todo use phash
         elif new_metadata is None and command.tpdb_id is not None and command.parsed_file is not None:
-            file_infos = get_complete_metadataapi_net_fileinfo(command.parsed_file, command.tpdb_id, command.config)
+            file_infos = metadataapi.get_complete_metadataapi_net_fileinfo(command.parsed_file, command.tpdb_id, command.config)
             if file_infos is not None:
                 new_metadata = file_infos
-        elif new_metadata is None and ((command.parsed_file is not None and command.parsed_file.name is not None) or command.config.search_phash):
+        elif new_metadata is None and ((command.parsed_file is not None and command.parsed_file.name is not None) or command.config.search_phash or command.config.enable_disambiguation):
             phash = calculate_phash(command.target_movie_file, command.config) if command.config.search_phash else None
             if phash:
                 logger.info(f'Calculated hashes: {phash.to_dict()}')
                 command.parsed_file.hashes = phash
 
-            search_results = match(command.parsed_file, command.config, phash=phash)
+            search_results = metadataapi.match(command.parsed_file, command.config, phash=phash)
             # Optional disambiguation routing under feature flag
             if command.config.enable_disambiguation and search_results and getattr(command.config, 'phash_accept_distance', None) is not None:
                 # Build candidates from comparison results that have a phash_distance and a guid/uuid
@@ -269,10 +269,10 @@ def process_file(command: Command) -> Optional[Command]:
                         command.parsed_file.hashes = phash
 
                         scene_hash = SceneHash(str(phash.phash), HashType.PHASH, phash.duration)
-                        share_hash(new_metadata, scene_hash, command.config)
+                        metadataapi.share_hash(new_metadata, scene_hash, command.config)
 
                         scene_hash = SceneHash(phash.oshash, HashType.OSHASH, phash.duration)
-                        share_hash(new_metadata, scene_hash, command.config)
+                        metadataapi.share_hash(new_metadata, scene_hash, command.config)
 
                 log_file = command.config.failed_dir / (command.input_file.stem + '_namer.json.gz')
                 if log_file.is_file():
@@ -285,9 +285,26 @@ def process_file(command: Command) -> Optional[Command]:
                 logger.success('Done processing file: {}, moved to {}', command.target_movie_file, target.target_movie_file)
                 return target
         elif command.inplace is False:
+            # Ensure failed_dir exists before moving files
+            try:
+                command.config.failed_dir.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                # Directory creation failure should not mask original intent; move will still raise if invalid
+                pass
+            # If disambiguation is enabled and an ambiguous_dir is configured, prefer routing there over failed
+            if getattr(command.config, 'enable_disambiguation', False) and getattr(command.config, 'ambiguous_dir', None):
+                try:
+                    command.config.ambiguous_dir.mkdir(parents=True, exist_ok=True)  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+                moved = move_command_files(command, command.config.ambiguous_dir)  # type: ignore[arg-type]
+                if moved is not None and search_results is not None and moved.config.write_namer_failed_log:
+                    write_log_file(moved.target_movie_file, search_results, moved.config)
+                return moved
             failed = move_command_files(command, command.config.failed_dir)
             if failed is not None and search_results is not None and failed.config.write_namer_failed_log:
                 write_log_file(failed.target_movie_file, search_results, failed.config)
+            return failed
 
     return None
 
@@ -301,14 +318,14 @@ def add_extra_artifacts(video_file: Path, new_metadata: LookedUpFileInfo, search
 
     trailer = None
     if config.trailer_location and new_metadata:
-        trailer = get_trailer(new_metadata.trailer_url, video_file, config)
+        trailer = metadataapi.get_trailer(new_metadata.trailer_url, video_file, config)
 
     if new_metadata:
-        poster = get_image(new_metadata.poster_url, '-poster', video_file, config) if new_metadata.poster_url and config.enabled_poster and ImageDownloadType.POSTER in config.download_type else None
-        background = get_image(new_metadata.background_url, '-background', video_file, config) if new_metadata.background_url and config.enabled_poster and ImageDownloadType.BACKGROUND in config.download_type else None
+        poster = metadataapi.get_image(new_metadata.poster_url, '-poster', video_file, config) if new_metadata.poster_url and config.enabled_poster and ImageDownloadType.POSTER in config.download_type else None
+        background = metadataapi.get_image(new_metadata.background_url, '-background', video_file, config) if new_metadata.background_url and config.enabled_poster and ImageDownloadType.BACKGROUND in config.download_type else None
         for performer in new_metadata.performers:
             if isinstance(performer.image, str):
-                performer_image = get_image(performer.image, '-Performer-' + performer.name.replace(' ', '-') + '-image', video_file, config) if performer.image and config.enabled_poster and ImageDownloadType.PERFORMER in config.download_type else None
+                performer_image = metadataapi.get_image(performer.image, '-Performer-' + performer.name.replace(' ', '-') + '-image', video_file, config) if performer.image and config.enabled_poster and ImageDownloadType.PERFORMER in config.download_type else None
                 if performer_image:
                     performer.image = performer_image
 

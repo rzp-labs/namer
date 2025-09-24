@@ -4,7 +4,8 @@ set -eo pipefail
 
 version_bump=$1
 
-repo="rzp-labs"
+GHCR_OWNER=${GHCR_OWNER:-nehpz}
+repo="${GHCR_OWNER}"
 
 found=false
 for bump in 'minor' 'major' 'patch'; do 
