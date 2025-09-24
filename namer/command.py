@@ -79,16 +79,23 @@ def move_command_files(target: Optional[Command], new_target: Path, is_auto: boo
     if not target:
         return None
 
+    # Ensure destination directory exists
+    try:
+        Path(new_target).mkdir(parents=True, exist_ok=True)
+    except Exception:
+        # Best-effort; shutil.move will surface any real filesystem errors
+        pass
+
     if target.target_directory and target.input_file == target.target_directory:
         working_dir = Path(new_target) / target.target_directory.name
         logger.info('Moving {} to {} for processing', target.target_directory, working_dir)
         shutil.move(target.target_directory, working_dir)
-        output = make_command(working_dir, target.config, is_auto=is_auto)
+        output = make_command(working_dir, target.config, ignore_file_restrictions=True, is_auto=is_auto)
     else:
         working_file = Path(new_target) / target.target_movie_file.name
         shutil.move(target.target_movie_file, working_file)
         logger.info('Moving {} to {} for processing', target.target_movie_file, working_file)
-        output = make_command(working_file, target.config, is_auto=is_auto)
+        output = make_command(working_file, target.config, ignore_file_restrictions=True, is_auto=is_auto)
 
     if output:
         output.tpdb_id = target.tpdb_id
@@ -110,8 +117,15 @@ def write_log_file(movie_file: Optional[Path], match_attempts: Optional[Comparis
         with open(log_name, 'wb') as log_file:
             if match_attempts:
                 for result in match_attempts.results:
-                    del result.looked_up.original_query
-                    del result.looked_up.original_response
+                    # Some providers/test doubles may not provide these fields
+                    try:
+                        del result.looked_up.original_query
+                    except Exception:
+                        pass
+                    try:
+                        del result.looked_up.original_response
+                    except Exception:
+                        pass
 
             json_out = jsonpickle.encode(match_attempts, separators=(',', ':'))
             if json_out:

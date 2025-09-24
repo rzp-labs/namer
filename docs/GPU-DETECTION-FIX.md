@@ -95,7 +95,7 @@ With this fix, you should see:
 
 2. **Update compose file temporarily**:
    ```yaml
-   image: ghcr.io/rzp-labs/namer:gpu-fix-test
+   image: ghcr.io/nehpz/namer:gpu-fix-test
    ```
 
 3. **Deploy and verify**:

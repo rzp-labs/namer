@@ -3,11 +3,13 @@ Test namer_watchdog.py
 """
 
 import contextlib
+import os
 import time
 from typing import Any
 import unittest
 from pathlib import Path
 
+import pytest
 from loguru import logger
 from mutagen.mp4 import MP4
 
@@ -17,11 +19,17 @@ from namer.watchdog import create_watcher, done_copying, retry_failed, MovieWatc
 from test import utils
 from test.utils import Wait, new_ea, new_dorcel, validate_mp4_tags, validate_permissions, environment, sample_config, ProcessingTarget
 
+pytestmark = pytest.mark.slow
 
-def wait_until_processed(watcher: MovieWatcher, duration: int = 60):
+DEFAULT_WAIT_SECONDS = int(os.getenv('NAMER_TEST_TIMEOUT', '60'))
+
+
+def wait_until_processed(watcher: MovieWatcher, duration: int | None = None):
     """
     Waits until all files have been moved out of watch/working dirs.
     """
+    if duration is None:
+        duration = DEFAULT_WAIT_SECONDS
     config = watcher.get_config()
     Wait().seconds(duration).checking(1).until(lambda: len(list(config.watch_dir.iterdir())) > 0 or len(list(config.work_dir.iterdir())) > 0).is_false()
     watcher.stop()
