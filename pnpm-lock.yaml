@@ -18,8 +18,8 @@ importers:
         specifier: ^1.13.1
         version: 1.13.1
       datatables.net:
-        specifier: ^2.3.3
-        version: 2.3.3
+        specifier: ^2.3.4
+        version: 2.3.4
       datatables.net-bs5:
         specifier: ^2.3.3
         version: 2.3.3
@@ -904,6 +904,12 @@ packages:
     peerDependencies:
       eslint: ^6.0.0 || ^7.0.0 || >=8.0.0
 
+  '@eslint-community/eslint-utils@4.9.0':
+    resolution: {integrity: sha512-ayVFHdtZ+hsq1t2Dy24wCmGXGe4q9Gu3smhLYALJrr473ZH27MsnSL+LKUlimp4BWJqMDMLmPpx/Q9R3OAlL4g==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    peerDependencies:
+      eslint: ^6.0.0 || ^7.0.0 || >=8.0.0
+
   '@eslint-community/regexpp@4.12.1':
     resolution: {integrity: sha512-CCZCDJuduB9OUkFkY2IgppNZMi2lBQgD2qzwXkEia16cge2pijY/aXi96CJMquDMn3nJdlPV1A5KrJEXwfLNzQ==}
     engines: {node: ^12.0.0 || ^14.0.0 || >=16.0.0}
@@ -1632,6 +1638,9 @@ packages:
 
   datatables.net@2.3.3:
     resolution: {integrity: sha512-SWL3za6nheY6gdoiLgCc++tYmxbwrmv2bjrEiII9rXBWXXSbOZct6pjR3FueMVRM5jmt7pQcXiGovfuFDnutQg==}
+
+  datatables.net@2.3.4:
+    resolution: {integrity: sha512-fKuRlrBIdpAl2uIFgl9enKecHB41QmFd/2nN9LBbOvItV/JalAxLcyqdZXex7wX4ZXjnJQEnv6xeS9veOpKzSw==}
 
   debug@3.2.7:
     resolution: {integrity: sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==}
@@ -4306,6 +4315,11 @@ snapshots:
       eslint: 9.34.0(jiti@1.21.7)
       eslint-visitor-keys: 3.4.3
 
+  '@eslint-community/eslint-utils@4.9.0(eslint@9.34.0(jiti@1.21.7))':
+    dependencies:
+      eslint: 9.34.0(jiti@1.21.7)
+      eslint-visitor-keys: 3.4.3
+
   '@eslint-community/regexpp@4.12.1': {}
 
   '@eslint/config-array@0.21.0':
@@ -5063,7 +5077,7 @@ snapshots:
 
   datatables.net-buttons@3.2.4:
     dependencies:
-      datatables.net: 2.3.3
+      datatables.net: 2.3.4
       jquery: 3.7.1
 
   datatables.net-colreorder-bs5@2.1.1:
@@ -5074,7 +5088,7 @@ snapshots:
 
   datatables.net-colreorder@2.1.1:
     dependencies:
-      datatables.net: 2.3.3
+      datatables.net: 2.3.4
       jquery: 3.7.1
 
   datatables.net-fixedheader-bs5@4.0.3:
@@ -5085,7 +5099,7 @@ snapshots:
 
   datatables.net-fixedheader@4.0.3:
     dependencies:
-      datatables.net: 2.3.3
+      datatables.net: 2.3.4
       jquery: 3.7.1
 
   datatables.net-responsive-bs5@3.0.6:
@@ -5096,10 +5110,14 @@ snapshots:
 
   datatables.net-responsive@3.0.6:
     dependencies:
-      datatables.net: 2.3.3
+      datatables.net: 2.3.4
       jquery: 3.7.1
 
   datatables.net@2.3.3:
+    dependencies:
+      jquery: 3.7.1
+
+  datatables.net@2.3.4:
     dependencies:
       jquery: 3.7.1
 
@@ -5303,7 +5321,7 @@ snapshots:
 
   eslint-plugin-es-x@7.8.0(eslint@9.34.0(jiti@1.21.7)):
     dependencies:
-      '@eslint-community/eslint-utils': 4.7.0(eslint@9.34.0(jiti@1.21.7))
+      '@eslint-community/eslint-utils': 4.9.0(eslint@9.34.0(jiti@1.21.7))
       '@eslint-community/regexpp': 4.12.1
       eslint: 9.34.0(jiti@1.21.7)
       eslint-compat-utils: 0.5.1(eslint@9.34.0(jiti@1.21.7))
@@ -5337,7 +5355,7 @@ snapshots:
 
   eslint-plugin-n@16.6.2(eslint@9.34.0(jiti@1.21.7)):
     dependencies:
-      '@eslint-community/eslint-utils': 4.7.0(eslint@9.34.0(jiti@1.21.7))
+      '@eslint-community/eslint-utils': 4.9.0(eslint@9.34.0(jiti@1.21.7))
       builtins: 5.1.0
       eslint: 9.34.0(jiti@1.21.7)
       eslint-plugin-es-x: 7.8.0(eslint@9.34.0(jiti@1.21.7))
