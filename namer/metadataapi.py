@@ -627,7 +627,7 @@ def main(args_list: List[str]):
     if results:
         matched = results.get_match()
         if matched:
-            if file_name.input_file and file_name.input_file.is_file():
+            if file_name and file_name.input_file and file_name.input_file.is_file():
                 ffprobe_results = config.ffmpeg.ffprobe(file_name.input_file)
                 if ffprobe_results:
                     matched.looked_up.resolution = ffprobe_results.get_resolution()

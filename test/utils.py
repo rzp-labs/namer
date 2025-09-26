@@ -594,7 +594,7 @@ def patch_default_ambiguous_match(monkeypatch) -> None:
     Patch namer.metadataapi.match to return a fixed ambiguous set: [A:5, B:6 x3].
     """
 
-    def _fake_match(*_args, **_kwargs):  # noqa: ARG001
+    def _fake_match(*_args, **_kwargs):
         def mk(guid: str, dist: int) -> ComparisonResult:
             info = LookedUpFileInfo()
             info.guid = guid

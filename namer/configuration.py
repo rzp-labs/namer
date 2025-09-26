@@ -463,11 +463,11 @@ class NamerConfig:
     Used only when `enable_disambiguation` is True.
     """
 
+
     retry_time: str = '00:00'
     """
     Time to retry failed items every day.
     """
-
     extra_sleep_time: int = 30
     """
     Extra time to sleep in seconds to allow all information to be copied in dir

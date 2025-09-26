@@ -217,11 +217,6 @@ if [[ -d "/dev/dri" ]]; then
     
     # Add the user to video and render groups if they exist (standard approach)
     if getent group video >/dev/null 2>&1; then
-        # Ensure USERNAME is resolved before usermod
-        if [[ -z "${USERNAME:-}" ]]; then
-            USERNAME="$(getent passwd "${PUID}" | cut -d: -f1)"
-            [[ -n "$USERNAME" ]] || { echo "[ENTRYPOINT] ERROR: could not resolve username for PUID ${PUID}"; exit 1; }
-        fi
         if usermod -a -G video "$USERNAME" 2>/dev/null; then
             echo "[ENTRYPOINT] Added user to video group"
         else
@@ -229,11 +224,6 @@ if [[ -d "/dev/dri" ]]; then
         fi
     fi
     if getent group render >/dev/null 2>&1; then
-        # Ensure USERNAME is resolved before usermod
-        if [[ -z "${USERNAME:-}" ]]; then
-            USERNAME="$(getent passwd "${PUID}" | cut -d: -f1)"
-            [[ -n "$USERNAME" ]] || { echo "[ENTRYPOINT] ERROR: could not resolve username for PUID ${PUID}"; exit 1; }
-        fi
         if usermod -a -G render "$USERNAME" 2>/dev/null; then
             echo "[ENTRYPOINT] Added user to render group"
         else
@@ -272,17 +262,12 @@ echo "[ENTRYPOINT]   NAMER_GPU_DEVICE=${NAMER_GPU_DEVICE:-none}"
 echo "[ENTRYPOINT]   NAMER_GPU_BACKEND=${NAMER_GPU_BACKEND:-software}"
 echo "[ENTRYPOINT]   LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-unset}"
 echo "[ENTRYPOINT]   NAMER_CONFIG=${NAMER_CONFIG:-/config/namer.cfg}"
-
-
-# Set up environment for the switched user
 export HOME="$USER_HOME"
 export USER="${USERNAME}"
-export PATH="$USER_HOME/.local/bin:$PATH"
 
 # Switch to specified user and execute the main application
 # Using gosu to properly drop privileges and maintain environment
 echo "[ENTRYPOINT] Switching to user and starting application..."
-
 # Most secure approach: Use Python module execution
 # This avoids copying executables and maintains proper Python environment
 echo "[ENTRYPOINT] Final security check..."
