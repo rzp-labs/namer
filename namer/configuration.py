@@ -462,7 +462,7 @@ class NamerConfig:
     Optional directory to route files to when disambiguation detects ambiguous results.
     Used only when `enable_disambiguation` is True.
     """
-
+    # dest_dir intentionally omitted by default (see note above)
 
     retry_time: str = '00:00'
     """
