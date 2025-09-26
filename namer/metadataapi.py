@@ -220,20 +220,24 @@ def __request_response_json_object(url: str, config: NamerConfig, method: Reques
         'Accept': 'application/json',
         'User-Agent': 'namer-1',
     }
-    data = orjson.dumps(data) if data else None
-    http = Http.request(method, url, cache_session=config.cache_session, headers=headers, data=data)
+    payload = orjson.dumps(data) if data is not None else None
+    http = Http.request(method, url, cache_session=config.cache_session, headers=headers, data=payload, timeout=30)
     response = ''
     if http.ok:
         response = http.text
     else:
+        error_payload: Any = None
         with suppress(JSONDecodeError):
-            data = orjson.loads(http.content)
+            error_payload = orjson.loads(http.content)
 
         message = 'Unknown error'
-        if data and 'message' in data:
-            message = data['message']
+        if isinstance(error_payload, dict) and 'message' in error_payload:
+            message = error_payload['message']
+        if message == 'Unknown error':
+            with suppress(Exception):
+                message = http.text[:500]
 
-        logger.error(f'Server API error: "{message}"')
+        logger.error('Server API error {} {} for {}: "{}"', getattr(http, 'status_code', 'unknown'), getattr(http, 'reason', 'unknown'), url, message)
 
     return response
 

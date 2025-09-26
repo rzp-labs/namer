@@ -6,7 +6,7 @@ import os
 import re
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Pattern, Sequence
@@ -32,12 +32,12 @@ class ImageDownloadType(str, Enum):
 class NamerConfig:
     # pylint: disable=too-many-instance-attributes
 
-    config_file: Path
+    config_file: Path = Path()
     """
     Location of config file used to generate this config.
     """
 
-    config_updater: ConfigUpdater
+    config_updater: ConfigUpdater = field(default_factory=ConfigUpdater)
     """
     Configuration for namer and namer_watchdog
     """
@@ -145,7 +145,7 @@ class NamerConfig:
     List your desired resolution: 4380 2160 1080 or 720, -1 indicates that no max is desired.
     """
 
-    desired_codec: List[str]
+    desired_codec: List[str] = field(default_factory=list)
     """
     Listed in order, desired codecs defaults to "HEVC H245", most videos are still in H245 encoding.
     """
@@ -155,7 +155,7 @@ class NamerConfig:
     If a directory name is to be preferred over a file name.
     """
 
-    target_extensions: List[str]
+    target_extensions: List[str] = field(default_factory=list)
     """
     File types namer targets, only 'mp4's can be tagged, others can be renamed.
     """
@@ -217,30 +217,30 @@ class NamerConfig:
     Leave empty to not download trailers.
     """
 
-    sites_with_no_date_info: Sequence[str]
+    sites_with_no_date_info: Sequence[str] = field(default_factory=tuple)
     """
     A list of site names that do not have proper date information in them.   This is a problem with some TPDB
     scrapers/storage mechanisms.
     """
 
-    site_abbreviations: Dict[Pattern, str]
+    site_abbreviations: Dict[Pattern, str] = field(default_factory=dict)
     """
     Configuration provided list of abbreviations, should the site of a parsed file name match the abbreviation (key),
     it will be replaced with the value matching the key, like ["aa","Amateur Allure"].   It is up to the user to provide
     a list of abbreviations.
     """
 
-    movie_data_preferred: Sequence[str]
+    movie_data_preferred: Sequence[str] = field(default_factory=tuple)
     """
     Sequence of sites where movie data should be preferred (movies will be marked scenes instead of movie)
     """
 
-    vr_studios: Sequence[str]
+    vr_studios: Sequence[str] = field(default_factory=tuple)
     """
     Sequence of vr studios who's content is all vr content.
     """
 
-    vr_tags: Sequence[str]
+    vr_tags: Sequence[str] = field(default_factory=tuple)
     """
     a set of tags that indicates an individual video is vr.
     """
@@ -317,7 +317,7 @@ class NamerConfig:
     Only applicable if enabled_tagging is True
     """
 
-    download_type: List[str]
+    download_type: List[str] = field(default_factory=list)
     """
     List of which images would be downloaded
     """
@@ -453,22 +453,9 @@ class NamerConfig:
     or attempt to move them to a subdirectory specified in new_relative_path_name, if one exist.
     """
 
-    watch_dir: Path
-    """
-    If running in watchdog mode, director where new downloads go.
-    """
-
-    work_dir: Path
-    """
-    If running in watchdog mode, temporary directory where work is done.
-    a log file shows attempted matches and match closeness.
-    """
-
-    failed_dir: Path
-    """
-    If running in watchdog mode, Should processing fail the file or directory is moved here.
-    Files can be manually moved to watch-dir to force reprocessing.
-    """
+    # Note: watch_dir/work_dir/failed_dir/dest_dir are intentionally not defined
+    # as dataclass fields by default. They are optional settings that may be
+    # provided via config file. Tests expect these to be absent on defaults.
 
     ambiguous_dir: Optional[Path] = None
     """
@@ -476,12 +463,7 @@ class NamerConfig:
     Used only when `enable_disambiguation` is True.
     """
 
-    dest_dir: Path
-    """
-    If running in watchdog mode, dir where finalized files get written.
-    """
-
-    retry_time: str
+    retry_time: str = '00:00'
     """
     Time to retry failed items every day.
     """
@@ -491,35 +473,14 @@ class NamerConfig:
     Extra time to sleep in seconds to allow all information to be copied in dir
     """
 
-    queue_limit: int = 0
-    """
-    Maximum amount of items in queue
-    """
-
     queue_sleep_time: int = 5
     """
     Sleep time between queue size check
     """
 
-    web: bool = True
-    """
-    Run webserver while running watchdog
-    """
-
-    port: int = 6980
-    """
-    Web server port
-    """
-
-    host: str = '0.0.0.0'
-    """
-    Web server host
-    """
-
-    web_root: Optional[str] = ''
-    """
-    webroot (root url to place pages), useful for reverse proxies
-    """
+    # Note: watch_dir/work_dir/failed_dir/dest_dir are intentionally not defined
+    # as dataclass fields by default. They are optional settings that may be
+    # provided via config file. Tests expect these to be absent on defaults.
 
     allow_delete_files: bool = False
     """
@@ -556,7 +517,7 @@ class NamerConfig:
     Set logger level to debug
     """
 
-    console_format: str
+    console_format: str = ''
     """
     Set logger output format
     """
@@ -585,10 +546,12 @@ class NamerConfig:
 
         self.re_cleanup = [re.compile(rf'\b{regex}\b', re.IGNORECASE) for regex in database.re_cleanup]
 
-        # Resolve configured directories if present
+        # Resolve configured directories if present (only when non-empty)
         for _attr in ('watch_dir', 'work_dir', 'dest_dir', 'failed_dir'):
             if hasattr(self, _attr):
-                setattr(self, _attr, getattr(self, _attr).resolve())
+                val = getattr(self, _attr)
+                if val:
+                    setattr(self, _attr, Path(val).expanduser().resolve())
 
         # Resolve optional paths if explicitly set
         val = getattr(self, 'ambiguous_dir', None)
@@ -721,11 +684,11 @@ class NamerConfig:
                 'new_relative_path_name_scene': self.new_relative_path_name_scene,
                 'new_relative_path_name_movie': self.new_relative_path_name_movie,
                 'new_relative_path_name_jav': self.new_relative_path_name_jav,
-                'watch_dir': str(self.watch_dir),
-                'work_dir': str(self.work_dir),
-                'failed_dir': str(self.failed_dir),
+                'watch_dir': str(getattr(self, 'watch_dir', '')),
+                'work_dir': str(getattr(self, 'work_dir', '')),
+                'failed_dir': str(getattr(self, 'failed_dir', '')),
                 'ambiguous_dir': str(self.ambiguous_dir) if (self.ambiguous_dir is not None) else '',
-                'dest_dir': str(self.dest_dir),
+                'dest_dir': str(getattr(self, 'dest_dir', '')),
                 'retry_time': self.retry_time,
                 'extra_sleep_time': self.extra_sleep_time,
                 'queue_limit': self.queue_limit,

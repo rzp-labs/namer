@@ -3,15 +3,15 @@
 # Enhanced Docker entrypoint with Intel GPU hardware acceleration support and user switching
 # This script properly handles PUID/PGID environment variables to fix file ownership issues
 #
-set -e
+set -Eeuo pipefail
 
 echo "[ENTRYPOINT] Starting namer container with Intel GPU hardware acceleration..."
 echo "[ENTRYPOINT] Container OS: $(lsb_release -d -s 2>/dev/null || echo 'Unknown')"
 
 # Set default values for PUID/PGID if not provided
-PUID=${PUID:-1000}
-PGID=${PGID:-1000}
-UMASK=${UMASK:-022}
+PUID="${PUID:-1000}"
+PGID="${PGID:-1000}"
+UMASK="${UMASK:-0002}"
 
 echo "[ENTRYPOINT] User configuration:"
 echo "[ENTRYPOINT]   PUID=${PUID}"
@@ -19,34 +19,69 @@ echo "[ENTRYPOINT]   PGID=${PGID}"
 echo "[ENTRYPOINT]   UMASK=${UMASK}"
 
 # Create group with specified GID if it doesn't exist
-if ! getent group ${PGID} > /dev/null 2>&1; then
+if ! getent group "${PGID}" > /dev/null 2>&1; then
     echo "[ENTRYPOINT] Creating group with GID ${PGID}"
-    groupadd -g ${PGID} -o namergroup
+    groupadd -g "${PGID}" -o namergroup
 else
     echo "[ENTRYPOINT] Group with GID ${PGID} already exists"
 fi
 
 # Create user with specified UID if it doesn't exist
-if ! getent passwd ${PUID} > /dev/null 2>&1; then
+if ! getent passwd "${PUID}" > /dev/null 2>&1; then
     echo "[ENTRYPOINT] Creating user with UID ${PUID}"
-    useradd -u ${PUID} -g ${PGID} -o -m -s /bin/bash nameruser
+    useradd -u "${PUID}" -g "${PGID}" -o -m -s /bin/bash nameruser
 else
     echo "[ENTRYPOINT] User with UID ${PUID} already exists"
 fi
 
 # Set the umask for the user
-umask ${UMASK}
+umask "${UMASK}"
 
-# Create necessary directories and set ownership
-mkdir -p /config /app/media
+# Create necessary directories and set ownership, tolerating pre-created mounts
+ensure_dir() {
+    local target_dir="$1"
+    local errf
+    errf="$(mktemp -t entrypoint_mkdir_err.XXXXXX)"
+    if ! mkdir -p "$target_dir" 2>"$errf"; then
+        if [[ -d "$target_dir" ]]; then
+            echo "[ENTRYPOINT] Warning: could not create $target_dir (likely read-only bind mount); assuming it already exists"
+        else
+            echo "[ENTRYPOINT] ERROR: failed to create $target_dir"
+            cat "$errf"
+            exit 1
+        fi
+    fi
+    rm -f "$errf"
+}
+ensure_dir /config
+ensure_dir /app/media
 
-# Create home directory for the new user
-USER_HOME="/home/nameruser"
-mkdir -p "$USER_HOME"/.local/bin "$USER_HOME"/.local/share "$USER_HOME"/.cache "$USER_HOME"/.config
+# Resolve username and home for the PUID (supports pre-existing users)
+if entry="$(getent passwd "${PUID}")"; then
+    USERNAME="${entry%%:*}"
+    USER_HOME="$(echo "$entry" | awk -F: '{print $6}')"
+else
+    USERNAME="nameruser"
+    USER_HOME="/home/nameruser"
+fi
+export USERNAME USER_HOME
+
+# Ensure standard user home subdirectories exist
+mkdir -p "${USER_HOME}/.local/bin" \
+         "${USER_HOME}/.local/share" \
+         "${USER_HOME}/.cache" \
+         "${USER_HOME}/.config"
 
 # Fix ownership of application directories
 echo "[ENTRYPOINT] Setting ownership of directories to ${PUID}:${PGID}"
-chown -R ${PUID}:${PGID} /config /app "$USER_HOME" || true
+ownership="${PUID}:${PGID}"
+for dir in /config /app "${USER_HOME}"; do
+    if [[ -w "$dir" && -d "$dir" ]]; then
+        chown -R "$ownership" -- "$dir" || true
+    else
+        echo "[ENTRYPOINT] Warning: skipping chown for $dir (not writable or not a directory)"
+    fi
+done
 
 # Security-conscious approach: Copy only the namer executable to a safe location
 echo "[ENTRYPOINT] Setting up secure Python environment access..."
@@ -63,9 +98,9 @@ else
 fi
 
 # Check if we're running the correct Ubuntu version for optimal Intel GPU support
-if command -v lsb_release >/dev/null 2>&1; then
+if command -v lsb_release >/dev/null 2>&1 && command -v dpkg >/dev/null 2>&1; then
     UBUNTU_VERSION=$(lsb_release -r -s)
-    if [[ "$UBUNTU_VERSION" < "24.10" ]]; then
+    if dpkg --compare-versions "$UBUNTU_VERSION" lt "24.10"; then
         echo "[ENTRYPOINT] WARNING: Running Ubuntu $UBUNTU_VERSION. For full Intel Arc GPU support, Ubuntu 24.10+ is recommended."
     else
         echo "[ENTRYPOINT] Running Ubuntu $UBUNTU_VERSION - Full Intel GPU support available"
@@ -73,10 +108,11 @@ if command -v lsb_release >/dev/null 2>&1; then
 fi
 
 # Check for GPU devices
-if [[ -d "/dev/dri" ]] && [[ -n "$(ls -A /dev/dri 2>/dev/null)" ]]; then
+if [[ -d "/dev/dri" ]] && compgen -G "/dev/dri/*" > /dev/null; then
     echo "[ENTRYPOINT] GPU devices detected:"
-    ls -la /dev/dri/ | grep -E "(card|render)" | while read -r line; do
-        echo "[ENTRYPOINT]   $line"
+    for gpu_node in /dev/dri/card* /dev/dri/render*; do
+        [[ -e "$gpu_node" ]] || continue
+        echo "[ENTRYPOINT]   $(ls -ld "$gpu_node")"
     done
     
     echo "[ENTRYPOINT] Running Intel GPU detection with debugging enabled..."
@@ -86,6 +122,7 @@ if [[ -d "/dev/dri" ]] && [[ -n "$(ls -A /dev/dri 2>/dev/null)" ]]; then
         # Source the environment variables written by the GPU detection script
         GPU_ENV_FILE="/tmp/gpu-detected-env"
         if [[ -f "$GPU_ENV_FILE" ]]; then
+            # shellcheck source=/dev/null
             source "$GPU_ENV_FILE"
             echo "[ENTRYPOINT] GPU detection successful"
             echo "[ENTRYPOINT] Selected GPU: ${NAMER_GPU_DEVICE:-none}"
@@ -118,21 +155,34 @@ export LIBVA_DRIVER_NAME="${LIBVA_DRIVER_NAME:-iHD}"
 # Ensure GPU device access using proper group membership (secure approach)
 if [[ -d "/dev/dri" ]]; then
     echo "[ENTRYPOINT] Setting up GPU device access via group membership..."
-    USERNAME="$(getent passwd ${PUID} | cut -d: -f1)"
+    # USERNAME already resolved; if empty, derive from PUID and fail if unresolved
+    if [[ -z "${USERNAME:-}" ]]; then
+        USERNAME="$(getent passwd "${PUID}" | cut -d: -f1)"
+        [[ -n "$USERNAME" ]] || { echo "[ENTRYPOINT] ERROR: could not resolve username for PUID ${PUID}"; exit 1; }
+    fi
     
     # Add the user to video and render groups if they exist (standard approach)
     if getent group video >/dev/null 2>&1; then
-        usermod -a -G video "$USERNAME" 2>/dev/null || true
-        echo "[ENTRYPOINT] Added user to video group"
+        if usermod -a -G video "$USERNAME" 2>/dev/null; then
+            echo "[ENTRYPOINT] Added user to video group"
+        else
+            echo "[ENTRYPOINT] Warning: failed to add user to video group"
+        fi
     fi
     if getent group render >/dev/null 2>&1; then
-        usermod -a -G render "$USERNAME" 2>/dev/null || true
-        echo "[ENTRYPOINT] Added user to render group"
+        if usermod -a -G render "$USERNAME" 2>/dev/null; then
+            echo "[ENTRYPOINT] Added user to render group"
+        else
+            echo "[ENTRYPOINT] Warning: failed to add user to render group"
+        fi
     fi
     
     # DO NOT change device permissions - rely on group membership
     # The devices should already have proper group permissions
-    ls -la /dev/dri/ | head -3
+    for entry in /dev/dri/*; do
+        [[ -e "$entry" ]] || continue
+        stat -c '%A %G %U %n' "$entry" 2>/dev/null || true
+    done
 fi
 
 # Show FFmpeg version and QSV capabilities
@@ -151,66 +201,41 @@ dpkg -l intel-media-va-driver 2>/dev/null | tail -1 || echo "[ENTRYPOINT] Intel 
 
 # Display final configuration
 echo "[ENTRYPOINT] Final configuration:"
-echo "[ENTRYPOINT]   User: $(getent passwd ${PUID} | cut -d: -f1) (${PUID})"
-echo "[ENTRYPOINT]   Group: $(getent group ${PGID} | cut -d: -f1) (${PGID})"
+echo "[ENTRYPOINT]   User: ${USERNAME} (${PUID})"
+echo "[ENTRYPOINT]   Group: $(getent group | awk -F: -v gid="${PGID}" '$3==gid{print $1; exit}') (${PGID})"
 echo "[ENTRYPOINT]   NAMER_GPU_DEVICE=${NAMER_GPU_DEVICE:-none}"
 echo "[ENTRYPOINT]   NAMER_GPU_BACKEND=${NAMER_GPU_BACKEND:-software}"
 echo "[ENTRYPOINT]   LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-unset}"
 echo "[ENTRYPOINT]   NAMER_CONFIG=${NAMER_CONFIG:-/config/namer.cfg}"
 
-echo "[ENTRYPOINT] Starting namer watchdog as user ${PUID}:${PGID}..."
+echo "[ENTRYPOINT] Starting namer watchdog as user ${USERNAME}..."
 
-# Find the namer executable path (pipx installs to /root/.local/bin)
-NAMER_PATH="/root/.local/bin/namer"
-if [[ ! -f "$NAMER_PATH" ]]; then
-    # Fallback: search for namer executable
-    NAMER_PATH=$(which namer 2>/dev/null || find /root/.local -name "namer" -type f 2>/dev/null | head -1)
-    if [[ -z "$NAMER_PATH" ]]; then
-        echo "[ENTRYPOINT] ERROR: namer executable not found!"
-        echo "[ENTRYPOINT] Searching for namer..."
-        find / -name "namer" -type f 2>/dev/null | head -5
-        exit 1
-    fi
-fi
-
-echo "[ENTRYPOINT] Using namer executable at: $NAMER_PATH"
-
-# Ensure the namer executable is accessible by the target user
-chmod 755 "$NAMER_PATH"
 
 # Set up environment for the switched user
 export HOME="$USER_HOME"
-export USER="nameruser"
+export USER="${USERNAME}"
 export PATH="$USER_HOME/.local/bin:$PATH"
 
 # Switch to specified user and execute the main application
 # Using gosu to properly drop privileges and maintain environment
 echo "[ENTRYPOINT] Switching to user and starting application..."
 
-# Use the copied namer executable in user's directory
-USER_NAMER_EXEC="$USER_HOME/.local/bin/namer"
-if [[ -f "$USER_NAMER_EXEC" ]]; then
-    EXEC_PATH="$USER_NAMER_EXEC"
-else
-    # Fallback to original path with full path specification
-    EXEC_PATH="$NAMER_PATH"
-fi
-
-echo "[ENTRYPOINT] Using executable: $EXEC_PATH"
-
 # Most secure approach: Use Python module execution
 # This avoids copying executables and maintains proper Python environment
 echo "[ENTRYPOINT] Final security check..."
 echo "[ENTRYPOINT] User: $(getent passwd ${PUID} | cut -d: -f1)"
 echo "[ENTRYPOINT] Home: $USER_HOME"
-echo "[ENTRYPOINT] Groups: $(groups 2>/dev/null || echo 'unknown')"
+echo "[ENTRYPOINT] Groups: $(id -nG "${USERNAME}" 2>/dev/null || groups "${USERNAME}" 2>/dev/null || echo 'unknown')"
 
 # Execute via Python module to maintain proper Python environment
-exec gosu ${PUID}:${PGID} env \
+# Resolve root's user site-packages for current python
+PY_VER="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo '3.12')"
+PY_ROOT_SITE="/root/.local/lib/python${PY_VER}/site-packages"
+exec gosu "${USERNAME}" env \
     HOME="$USER_HOME" \
-    USER="nameruser" \
-    PATH="/usr/local/bin:/usr/bin:/bin" \
-    PYTHONPATH="/root/.local/lib/python3.12/site-packages:/usr/lib/python3/dist-packages" \
+    USER="${USERNAME}" \
+    PATH="$USER_HOME/.local/bin:/usr/local/bin:/usr/bin:/bin" \
+    PYTHONPATH="${PY_ROOT_SITE}:/usr/lib/python3/dist-packages" \
     NAMER_CONFIG="${NAMER_CONFIG:-/config/namer.cfg}" \
     LIBVA_DRIVER_NAME="${LIBVA_DRIVER_NAME:-iHD}" \
     python3 -m namer watchdog
