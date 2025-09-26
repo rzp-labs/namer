@@ -142,15 +142,18 @@ def __evaluate_match(name_parts: Optional[FileInfo], looked_up: LookedUpFileInfo
 
 def __update_results(results: List[ComparisonResult], name_parts: Optional[FileInfo], namer_config: NamerConfig, skip_date: bool = False, skip_name: bool = False, scene_type: SceneType = SceneType.SCENE, phash: Optional[PerceptualHash] = None):
     if not results or not results[0].is_match():
+        seen = {res.looked_up.uuid for res in results}
         for match_attempt in __get_metadataapi_net_fileinfo(name_parts, namer_config, skip_date, skip_name, scene_type=scene_type, phash=phash):
-            if match_attempt.uuid not in [res.looked_up.uuid for res in results]:
-                result: ComparisonResult = __evaluate_match(name_parts, match_attempt, namer_config, phash)
-                results.append(result)
+            if match_attempt.uuid not in seen:
+                evaluated_result: ComparisonResult = __evaluate_match(name_parts, match_attempt, namer_config, phash)
+                results.append(evaluated_result)
+                seen.add(match_attempt.uuid)
 
         for match_attempt in __get_metadataapi_net_fileinfo(name_parts, namer_config, skip_date, skip_name, scene_type=scene_type):
-            if match_attempt.uuid not in [res.looked_up.uuid for res in results]:
-                result: ComparisonResult = __evaluate_match(name_parts, match_attempt, namer_config, phash)
-                results.append(result)
+            if match_attempt.uuid not in seen:
+                evaluated_result: ComparisonResult = __evaluate_match(name_parts, match_attempt, namer_config, phash)
+                results.append(evaluated_result)
+                seen.add(match_attempt.uuid)
 
         results = sorted(results, key=__match_weight, reverse=True)
 
@@ -216,11 +219,12 @@ def __request_response_json_object(url: str, config: NamerConfig, method: Reques
     """
     headers = {
         'Authorization': f'Bearer {config.porndb_token}',
-        'Content-Type': 'application/json',
         'Accept': 'application/json',
         'User-Agent': 'namer-1',
     }
     payload = orjson.dumps(data) if data is not None else None
+    if payload is not None:
+        headers['Content-Type'] = 'application/json'
     http = Http.request(method, url, cache_session=config.cache_session, headers=headers, data=payload, timeout=30)
     response = ''
     if http.ok:

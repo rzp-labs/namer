@@ -83,19 +83,48 @@ for dir in /config /app "${USER_HOME}"; do
     fi
 done
 
-# Security-conscious approach: Copy only the namer executable to a safe location
-echo "[ENTRYPOINT] Setting up secure Python environment access..."
-NAMER_EXEC="/root/.local/bin/namer"
-USER_NAMER="$USER_HOME/.local/bin/namer"
+# Also fix ownership of common volume mounts and any env-configured directories
+chown_dir_if_possible() {
+    local d="$1"
+    if [[ -n "$d" && -d "$d" ]]; then
+        if [[ -w "$d" ]]; then
+            echo "[ENTRYPOINT] Ensuring ownership for: $d"
+            chown -R "$ownership" -- "$d" || true
+        else
+            echo "[ENTRYPOINT] Warning: cannot chown $d (read-only mount?)"
+        fi
+    fi
+}
 
-# Copy the namer executable to user's bin (don't symlink to /root)
-if [[ -f "$NAMER_EXEC" ]]; then
-    cp "$NAMER_EXEC" "$USER_NAMER"
-    chmod 755 "$USER_NAMER"
-    chown ${PUID}:${PGID} "$USER_NAMER"
-else
-    echo "[ENTRYPOINT] WARNING: namer executable not found at expected location: $NAMER_EXEC"
+# From env (if provided)
+chown_dir_if_possible "${WATCH_DIR:-}"
+chown_dir_if_possible "${WORK_DIR:-}"
+chown_dir_if_possible "${DEST_DIR:-}"
+chown_dir_if_possible "${FAILED_DIR:-}"
+chown_dir_if_possible "${AMBIGUOUS_DIR:-}"
+
+# Common default mount points
+for d in /watch /work /dest /failed /ambiguous; do
+    chown_dir_if_possible "$d"
+done
+
+# From NAMER_CONFIG (if provided), parse common directory settings and chown them
+if [[ -n "${NAMER_CONFIG:-}" && -f "${NAMER_CONFIG}" ]]; then
+    echo "[ENTRYPOINT] Parsing config for directory ownership fixes: ${NAMER_CONFIG}"
+    while IFS='=' read -r raw_key raw_val; do
+        # trim spaces and normalize key
+        key="$(echo "$raw_key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]')"
+        val="$(echo "$raw_val" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed 's/^"//;s/"$//' | sed "s/^'//;s/'$//")"
+        case "$key" in
+            watch_dir|work_dir|dest_dir|failed_dir|ambiguous_dir)
+                chown_dir_if_possible "$val"
+                ;;
+        esac
+    done < <(grep -E '^[[:space:]]*(watch_dir|work_dir|dest_dir|failed_dir|ambiguous_dir)[[:space:]]*=' "${NAMER_CONFIG}" || true)
 fi
+
+# We execute Namer via Python module; no need to copy any installed binary
+echo "[ENTRYPOINT] Preparing Python environment..."
 
 # Check if we're running the correct Ubuntu version for optimal Intel GPU support
 if command -v lsb_release >/dev/null 2>&1 && command -v dpkg >/dev/null 2>&1; then
