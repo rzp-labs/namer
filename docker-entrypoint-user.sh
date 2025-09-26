@@ -27,7 +27,11 @@ else
 fi
 
 # Create user with specified UID if it doesn't exist
+<<<<<<< HEAD
 if ! getent passwd | cut -d: -f3 | grep -qx "${PUID}"; then
+=======
+if ! getent passwd "${PUID}" > /dev/null 2>&1; then
+>>>>>>> a566d7b (chore: implement CodeRabbit suggestions)
     echo "[ENTRYPOINT] Creating user with UID ${PUID}"
     useradd -u "${PUID}" -g "${PGID}" -o -m -s /bin/bash nameruser
 else
@@ -192,11 +196,14 @@ if [[ -d "/dev/dri" ]]; then
     
     # Add the user to video and render groups if they exist (standard approach)
     if getent group video >/dev/null 2>&1; then
+<<<<<<< HEAD
         # Ensure USERNAME is resolved before usermod
         if [[ -z "${USERNAME:-}" ]]; then
             USERNAME="$(getent passwd "${PUID}" | cut -d: -f1)"
             [[ -n "$USERNAME" ]] || { echo "[ENTRYPOINT] ERROR: could not resolve username for PUID ${PUID}"; exit 1; }
         fi
+=======
+>>>>>>> a566d7b (chore: implement CodeRabbit suggestions)
         if usermod -a -G video "$USERNAME" 2>/dev/null; then
             echo "[ENTRYPOINT] Added user to video group"
         else
@@ -204,11 +211,14 @@ if [[ -d "/dev/dri" ]]; then
         fi
     fi
     if getent group render >/dev/null 2>&1; then
+<<<<<<< HEAD
         # Ensure USERNAME is resolved before usermod
         if [[ -z "${USERNAME:-}" ]]; then
             USERNAME="$(getent passwd "${PUID}" | cut -d: -f1)"
             [[ -n "$USERNAME" ]] || { echo "[ENTRYPOINT] ERROR: could not resolve username for PUID ${PUID}"; exit 1; }
         fi
+=======
+>>>>>>> a566d7b (chore: implement CodeRabbit suggestions)
         if usermod -a -G render "$USERNAME" 2>/dev/null; then
             echo "[ENTRYPOINT] Added user to render group"
         else
