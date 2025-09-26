@@ -276,8 +276,6 @@ echo "[ENTRYPOINT]   NAMER_GPU_BACKEND=${NAMER_GPU_BACKEND:-software}"
 echo "[ENTRYPOINT]   LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-unset}"
 echo "[ENTRYPOINT]   NAMER_CONFIG=${NAMER_CONFIG:-/config/namer.cfg}"
 
-echo "[ENTRYPOINT] Starting namer watchdog as user ${USERNAME}..."
-
 
 # Set up environment for the switched user
 export HOME="$USER_HOME"
@@ -291,7 +289,7 @@ echo "[ENTRYPOINT] Switching to user and starting application..."
 # Most secure approach: Use Python module execution
 # This avoids copying executables and maintains proper Python environment
 echo "[ENTRYPOINT] Final security check..."
-echo "[ENTRYPOINT] User: $(getent passwd ${PUID} | cut -d: -f1)"
+echo "[ENTRYPOINT] User: $(getent passwd "${PUID}" | cut -d: -f1)"
 echo "[ENTRYPOINT] Home: $USER_HOME"
 echo "[ENTRYPOINT] Groups: $(id -nG "${USERNAME}" 2>/dev/null || groups "${USERNAME}" 2>/dev/null || echo 'unknown')"
 
