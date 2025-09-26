@@ -61,7 +61,7 @@ def __attempt_better_match(existing: Tuple[str, float], query: Optional[str], ma
         return found
 
     if not found[0]:
-        return '', 0.0
+        return existing
 
     return existing if existing[1] >= found[1] else found
 

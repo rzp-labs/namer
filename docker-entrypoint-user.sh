@@ -93,13 +93,11 @@ else
     USER_HOME="/home/nameruser"
 fi
 export USERNAME USER_HOME
-
 # Ensure standard user home subdirectories exist
 mkdir -p "${USER_HOME}/.local/bin" \
          "${USER_HOME}/.local/share" \
          "${USER_HOME}/.cache" \
          "${USER_HOME}/.config"
-
 # Fix ownership of application directories
 echo "[ENTRYPOINT] Setting ownership of directories to ${PUID}:${PGID}"
 ownership="${PUID}:${PGID}"
@@ -110,7 +108,6 @@ for dir in /config /app "${USER_HOME}"; do
         echo "[ENTRYPOINT] Warning: skipping chown for $dir (not writable or not a directory)"
     fi
 done
-
 # Also fix ownership of common volume mounts and any env-configured directories
 chown_dir_if_possible() {
     local d="$1"
@@ -289,7 +286,7 @@ echo "[ENTRYPOINT] Switching to user and starting application..."
 # Most secure approach: Use Python module execution
 # This avoids copying executables and maintains proper Python environment
 echo "[ENTRYPOINT] Final security check..."
-echo "[ENTRYPOINT] User: $(getent passwd "${PUID}" | cut -d: -f1)"
+echo "[ENTRYPOINT] User: ${USERNAME}"
 echo "[ENTRYPOINT] Home: $USER_HOME"
 echo "[ENTRYPOINT] Groups: $(id -nG "${USERNAME}" 2>/dev/null || groups "${USERNAME}" 2>/dev/null || echo 'unknown')"
 
