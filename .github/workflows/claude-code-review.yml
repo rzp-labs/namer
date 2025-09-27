@@ -27,7 +27,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
@@ -51,19 +51,4 @@ jobs:
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://docs.claude.com/en/docs/claude-code/sdk#command-line for available options
           claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
-
-      - name: Post Claude review summary as PR comment
-        if: ${{ github.event_name == 'pull_request' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          echo "Posting Claude review summary to PR #$PR_NUMBER"
-          body_file="$(mktemp)"
-          if [ -s "$GITHUB_STEP_SUMMARY" ]; then
-            cat "$GITHUB_STEP_SUMMARY" > "$body_file"
-          else
-            echo "Claude Code Review completed. See workflow summary for details." > "$body_file"
-          fi
-          gh pr comment "$PR_NUMBER" --body-file "$body_file"
 
