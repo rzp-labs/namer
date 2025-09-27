@@ -162,6 +162,6 @@ HEALTHCHECK --interval=1m --timeout=30s CMD curl -sf "$(namer url)/api/healthche
 # Enhanced entrypoint with Intel GPU support and user switching
 COPY docker-entrypoint-user.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-# Drop privileges for runtime
-USER namer
+# Run as root; the entrypoint will drop privileges via gosu to the resolved user
+USER root
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
