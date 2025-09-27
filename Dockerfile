@@ -53,19 +53,18 @@ RUN apt-get update \
 
 ENV DISPLAY=:99
 ARG CHROME_VERSION="google-chrome-stable"
-RUN ARCH=$(dpkg --print-architecture) \
-  && if [ "$ARCH" = "amd64" ]; then \
-       CHROME_URL="https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"; \
-     elif [ "$ARCH" = "arm64" ]; then \
-       CHROME_URL="https://dl.google.com/linux/direct/google-chrome-stable_current_arm64.deb"; \
-     else \
-       echo "Unsupported architecture: $ARCH" && exit 1; \
-     fi \
-  && curl -fsSL "$CHROME_URL" -o chrome.deb \
-  && apt-get update \
-  && apt-get install -y --no-install-recommends ./chrome.deb \
-  && rm chrome.deb \
-  && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+ARG TARGETARCH
+RUN set -eux; \
+  if [ "${TARGETARCH}" = "amd64" ]; then \
+    ARCH=$(dpkg --print-architecture); \
+    curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-linux.gpg; \
+    echo "deb [arch=${ARCH} signed-by=/usr/share/keyrings/google-linux.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends google-chrome-stable; \
+  else \
+    echo "Skipping Google Chrome installation on ${TARGETARCH}"; \
+  fi; \
+  rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 RUN pipx install poetry
 # Install Node.js (v20) from NodeSource with GPG verification, then pin PNPM 10
