@@ -8,7 +8,7 @@ IMAGE_NAME ?= nehpz/namer
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 'latest')
 SCRIPT_DIR = ./scripts
 
-.PHONY: help build build-fast build-full build-dev \
+.PHONY: all help build build-fast build-full build-dev \
         build-amd64 build-arm64 build-multiarch ensure-builder \
         test test-basic test-integration validate clean clean-deep config
 
@@ -26,6 +26,8 @@ help: ## Show available targets
 	@echo "  make test            # Test the built image"
 	@echo ""
 
+all: build ## Default 'all' target builds the project
+
 build: build-fast ## Default: fast build for development iteration
 
 build-fast: ## Fast Docker build (skips tests, ~5 minutes)
@@ -42,6 +44,7 @@ build-dev: ## Development build (build stage only, no export)
 ensure-builder: ## Ensure a docker buildx builder exists and is active
 	@docker buildx inspect namer-builder >/dev/null 2>&1 || \
 		docker buildx create --name namer-builder --driver docker-container --use >/dev/null 2>&1
+	@docker buildx inspect namer-builder --bootstrap >/dev/null 2>&1
 	@docker buildx use namer-builder >/dev/null 2>&1
 
 build-amd64: ensure-builder ## Build for linux/amd64 (works on ARM64 hosts via emulation; loads into local Docker)
@@ -57,6 +60,8 @@ build-arm64: ensure-builder ## Build for linux/arm64 (native on Apple Silicon; l
 	@echo "🏗️  Building $(IMAGE_NAME):$(VERSION) for linux/arm64 (local load)"
 	@docker buildx build \
 		--platform linux/arm64 \
+		-t $(IMAGE_NAME):$(VERSION) \
+		-t $(IMAGE_NAME):latest \
 		-t $(IMAGE_NAME):$(VERSION)-arm64 \
 		-t $(IMAGE_NAME):latest-arm64 \
 		--load \
