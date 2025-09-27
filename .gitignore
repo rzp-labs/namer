@@ -18,10 +18,6 @@ namer/web/templates
 namer/tools
 .flakeheaven_cache
 .ruff_cache
-scripts/
-!scripts/install-intel-firmware-fast.sh
-!scripts/detect-intel-gpu.sh
-test_dirs/
 database/
 .pytest_cache/
 test_config.cfg
