@@ -27,7 +27,7 @@ services:
     environment:
       - NAMER_CONFIG=/config/cache.cfg
     labels:
-      - "net.unraid.docker.icon=https://github.com/rzp-labs/namer/raw/main/logo/cache-icon.png"
+      - "net.unraid.docker.icon=https://github.com/nehpz/namer/raw/main/logo/cache-icon.png"
 ```
 
 ### **Instance 2: Array Namer (Backlog)**
@@ -48,14 +48,14 @@ services:
     environment:
       - NAMER_CONFIG=/config/backlog.cfg
     labels:
-      - "net.unraid.docker.icon=https://github.com/rzp-labs/namer/raw/main/logo/backlog-icon.png"
+      - "net.unraid.docker.icon=https://github.com/nehpz/namer/raw/main/logo/backlog-icon.png"
 ```
 
 ## 🔄 **Complete Workflow**
 
 ### **New Files (Cache Instance)**
 
-```
+```text
 Download Client → /mnt/cache/downloads
                 ↓
 Cache Namer → /mnt/cache/media-organized
@@ -69,7 +69,7 @@ Final Location → /mnt/user/media/organized
 
 ### **Backlog Files (Array Instance)**
 
-```
+```text
 Existing Files → /mnt/user/media/backlog
                 ↓
 Array Namer → /mnt/user/media/organized (in-place or move)

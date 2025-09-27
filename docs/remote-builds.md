@@ -164,7 +164,7 @@ export DOCKER_REMOTE_HOST=your-build-server.com
 export DOCKER_REMOTE_USER=docker
 
 # Image configuration  
-export IMAGE_NAME=rzp-labs/namer
+export IMAGE_NAME=nehpz/namer
 export VERSION=1.19.16-stashdb
 
 # Registry authentication (for pushes)

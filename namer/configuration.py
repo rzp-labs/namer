@@ -9,7 +9,7 @@ import tempfile
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Pattern, Sequence
+from typing import ClassVar, Dict, List, Optional, Pattern, Sequence, Set
 from configupdater import ConfigUpdater
 
 import orjson
@@ -538,7 +538,7 @@ class NamerConfig:
     vph: VideoPerceptualHash = StashVideoPerceptualHash()  # type: ignore
     vph_alt: VideoPerceptualHash = VideoPerceptualHash(ffmpeg)
     re_cleanup: List[Pattern]
-    _PATH_FIELDS = {'watch_dir', 'work_dir', 'dest_dir', 'failed_dir'}
+    _PATH_FIELDS: ClassVar[Set[str]] = {'watch_dir', 'work_dir', 'dest_dir', 'failed_dir'}
 
     def __init__(self):
         if sys.platform != 'win32':

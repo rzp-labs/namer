@@ -18,13 +18,31 @@ echo "[ENTRYPOINT]   PUID=${PUID}"
 echo "[ENTRYPOINT]   PGID=${PGID}"
 echo "[ENTRYPOINT]   UMASK=${UMASK}"
 
-# Create group with specified GID if it doesn't exist
-if ! getent group "${PGID}" > /dev/null 2>&1; then
-    echo "[ENTRYPOINT] Creating group with GID ${PGID}"
-    groupadd -g "${PGID}" -o namergroup
+# Create or reuse group for specified GID and record its name
+GROUPNAME=""
+if getent group "${PGID}" > /dev/null 2>&1; then
+    GROUPNAME="$(getent group "${PGID}" | cut -d: -f1)"
+    echo "[ENTRYPOINT] Reusing existing group ${GROUPNAME} (GID ${PGID})"
 else
-    echo "[ENTRYPOINT] Group with GID ${PGID} already exists"
+    if getent group namergroup >/dev/null 2>&1; then
+        echo "[ENTRYPOINT] Updating existing group 'namergroup' to GID ${PGID}"
+        if groupmod -g "${PGID}" namergroup 2>/dev/null; then
+            GROUPNAME="namergroup"
+        else
+            echo "[ENTRYPOINT] Warning: failed to update 'namergroup' GID; attempting to resolve group by PGID"
+            GROUPNAME="$(getent group "${PGID}" | cut -d: -f1 || true)"
+        fi
+    else
+        echo "[ENTRYPOINT] Creating group with GID ${PGID}"
+        if groupadd -g "${PGID}" -o namergroup 2>/dev/null; then
+            GROUPNAME="namergroup"
+        else
+            GROUPNAME="$(getent group "${PGID}" | cut -d: -f1 || true)"
+        fi
+    fi
+    : "${GROUPNAME:=namergroup}"
 fi
+export GROUPNAME
 
 # Create user with specified UID if it doesn't exist
 if ! getent passwd | cut -d: -f3 | grep -qx "${PUID}"; then
@@ -59,6 +77,16 @@ ensure_dir /app/media
 # Resolve username and home for the PUID (supports pre-existing users)
 if entry="$(getent passwd "${PUID}")"; then
     USERNAME="${entry%%:*}"
+    CURRENT_GID="$(echo "$entry" | awk -F: '{print $4}')"
+    # If user exists and is not root, and the current primary GID differs, update it
+    if [[ "${PUID}" != "0" && "${CURRENT_GID}" != "${PGID}" ]]; then
+        echo "[ENTRYPOINT] Updating primary group for ${USERNAME} to GID ${PGID}"
+        if ! usermod -g "${PGID}" "${USERNAME}" 2>/dev/null; then
+            echo "[ENTRYPOINT] Warning: failed to update primary group for ${USERNAME}"
+        else
+            entry="$(getent passwd "${PUID}")"
+        fi
+    fi
     USER_HOME="$(echo "$entry" | awk -F: '{print $6}')"
 else
     USERNAME="nameruser"
@@ -241,7 +269,8 @@ dpkg -l intel-media-va-driver 2>/dev/null | tail -1 || echo "[ENTRYPOINT] Intel 
 # Display final configuration
 echo "[ENTRYPOINT] Final configuration:"
 echo "[ENTRYPOINT]   User: ${USERNAME} (${PUID})"
-echo "[ENTRYPOINT]   Group: $(getent group | awk -F: -v gid="${PGID}" '$3==gid{print $1; exit}') (${PGID})"
+GROUP_FALLBACK_NAME=$(getent group | awk -F: -v gid="${PGID}" '$3==gid{print $1; exit}')
+echo "[ENTRYPOINT]   Group: ${GROUPNAME:-$GROUP_FALLBACK_NAME} (${PGID})"
 echo "[ENTRYPOINT]   NAMER_GPU_DEVICE=${NAMER_GPU_DEVICE:-none}"
 echo "[ENTRYPOINT]   NAMER_GPU_BACKEND=${NAMER_GPU_BACKEND:-software}"
 echo "[ENTRYPOINT]   LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-unset}"
