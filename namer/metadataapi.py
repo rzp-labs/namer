@@ -10,7 +10,7 @@ import sys
 from contextlib import suppress
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple, cast
 from urllib.parse import quote
 
 import orjson
@@ -33,7 +33,7 @@ from namer.metadata_providers.factory import get_metadata_provider
 
 
 def __find_best_match(query: Optional[str], match_terms: List[str], config: NamerConfig) -> Tuple[str, float]:
-    powerset_iter = []
+    powerset_iter: Iterable[str] = ()
 
     max_size = len(match_terms)
     if config.max_performer_names > 0:
@@ -44,7 +44,12 @@ def __find_best_match(query: Optional[str], match_terms: List[str], config: Name
         powerset_iter = itertools.chain(powerset_iter, data)
 
     ratio = rapidfuzz.process.extractOne(query, choices=powerset_iter, processor=utils.default_process)
-    return (ratio[0], ratio[1]) if ratio else ratio
+    if not ratio:
+        return ('', 0.0)
+
+    choice = cast(str, ratio[0])
+    score = float(ratio[1])
+    return (choice, score)
 
 
 def __attempt_better_match(existing: Tuple[str, float], query: Optional[str], match_terms: List[str], namer_config: NamerConfig) -> Tuple[str, float]:
@@ -52,11 +57,11 @@ def __attempt_better_match(existing: Tuple[str, float], query: Optional[str], ma
         return existing
 
     found = __find_best_match(query, match_terms, namer_config)
-    if not existing:
+    if not existing[0]:
         return found
 
-    if not found:
-        return '', 0.0
+    if not found[0]:
+        return existing
 
     return existing if existing[1] >= found[1] else found
 
@@ -182,10 +187,10 @@ def __metadata_api_lookup(name_parts: FileInfo, namer_config: NamerConfig, phash
             scene_type = SceneType.MOVIE
 
     results: List[ComparisonResult] = []
-    results: List[ComparisonResult] = __metadata_api_lookup_type(results, name_parts, namer_config, scene_type, phash)
+    results = __metadata_api_lookup_type(results, name_parts, namer_config, scene_type, phash)
     if not results or not results[0].is_match():
         scene_type = SceneType.MOVIE if scene_type == SceneType.SCENE else SceneType.SCENE
-        results: List[ComparisonResult] = __metadata_api_lookup_type(results, name_parts, namer_config, scene_type, phash)
+        results = __metadata_api_lookup_type(results, name_parts, namer_config, scene_type, phash)
 
     return results
 
@@ -343,7 +348,7 @@ def __json_to_fileinfo(data: dict, url: str, json_response: str, name_parts: Opt
     file_info.site = data['site']['name']
 
     # clean up messy site metadata from adultdvdempire -> tpdb.
-    if file_info.type == SceneType.MOVIE:
+    if file_info.type == SceneType.MOVIE and file_info.site:
         file_info.site = re.sub(r'\(.*\)$', '', file_info.site.strip()).strip()
 
     # This is for backwards compatibility of sha hashes only.
@@ -423,11 +428,9 @@ def __metadataapi_response_to_data(json_object: dict, url: str, json_response: s
     if 'data' in json_object:
         if isinstance(json_object['data'], list):
             for data in json_object['data']:
-                found_file_info = __json_to_fileinfo(data, url, json_response, name_parts, config)
-                file_infos.append(found_file_info)
+                file_infos.append(__json_to_fileinfo(data, url, json_response, name_parts, config))
         else:
-            found_file_info: LookedUpFileInfo = __json_to_fileinfo(json_object['data'], url, json_response, name_parts, config)
-            file_infos.append(found_file_info)
+            file_infos.append(__json_to_fileinfo(json_object['data'], url, json_response, name_parts, config))
 
     return file_infos
 
@@ -532,7 +535,7 @@ def _match_legacy_theporndb(file_name_parts: Optional[FileInfo], namer_config: N
     if not file_name_parts:
         results = __metadata_api_lookup_type(results, None, namer_config, SceneType.SCENE, phash)
     else:
-        results: List[ComparisonResult] = __metadata_api_lookup(file_name_parts, namer_config, phash)
+        results = __metadata_api_lookup(file_name_parts, namer_config, phash)
 
     comparison_results = sorted(results, key=__match_weight, reverse=True)
 
@@ -624,7 +627,7 @@ def main(args_list: List[str]):
     if results:
         matched = results.get_match()
         if matched:
-            if file_name.input_file.is_file():
+            if file_name and file_name.input_file and file_name.input_file.is_file():
                 ffprobe_results = config.ffmpeg.ffprobe(file_name.input_file)
                 if ffprobe_results:
                     matched.looked_up.resolution = ffprobe_results.get_resolution()

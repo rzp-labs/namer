@@ -566,7 +566,7 @@ def create_dummy_video(tmp_path: Path, subdir: str = "src", filename: str = "vid
     Create a small dummy video file under tmp_path/subdir.
     """
     src = tmp_path / subdir
-    src.mkdir()
+    src.mkdir(parents=True, exist_ok=True)
     video = src / filename
     video.write_bytes(b"x")
     return video
@@ -594,7 +594,7 @@ def patch_default_ambiguous_match(monkeypatch) -> None:
     Patch namer.metadataapi.match to return a fixed ambiguous set: [A:5, B:6 x3].
     """
 
-    def _fake_match(name_parts, conf, phash=None):  # noqa: ARG001
+    def _fake_match(*_args, **_kwargs):
         def mk(guid: str, dist: int) -> ComparisonResult:
             info = LookedUpFileInfo()
             info.guid = guid

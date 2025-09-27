@@ -190,7 +190,8 @@ def process_file(command: Command) -> Optional[Command]:
             phash = calculate_phash(command.target_movie_file, command.config) if command.config.search_phash else None
             if phash:
                 logger.info(f'Calculated hashes: {phash.to_dict()}')
-                command.parsed_file.hashes = phash
+                if command.parsed_file:
+                    command.parsed_file.hashes = phash
 
             search_results = metadataapi.match(command.parsed_file, command.config, phash=phash)
             # Optional disambiguation routing under feature flag
@@ -212,12 +213,13 @@ def process_file(command: Command) -> Optional[Command]:
                         distance_margin_accept=command.config.phash_distance_margin_accept,
                         majority_accept_fraction=command.config.phash_majority_accept_fraction,
                     )
-                    if decision == Decision.AMBIGUOUS and getattr(command.config, 'ambiguous_dir', None):
+                    ambiguous_dir = getattr(command.config, 'ambiguous_dir', None)
+                    if decision == Decision.AMBIGUOUS and ambiguous_dir:
                         # Route to ambiguous review directory (mirrors failed_dir handling)
                         if command.inplace is False:
-                            command.config.ambiguous_dir.mkdir(parents=True, exist_ok=True)
-                            logger.info('Routing to ambiguous_dir due to ambiguous decision -> {}', command.config.ambiguous_dir)
-                            moved = move_command_files(command, command.config.ambiguous_dir)
+                            ambiguous_dir.mkdir(parents=True, exist_ok=True)
+                            logger.info('Routing to ambiguous_dir due to ambiguous decision -> {}', ambiguous_dir)
+                            moved = move_command_files(command, ambiguous_dir)
                             if moved is not None and search_results is not None and moved.config.write_namer_failed_log:
                                 write_log_file(moved.target_movie_file, search_results, moved.config)
                             return moved
@@ -266,7 +268,8 @@ def process_file(command: Command) -> Optional[Command]:
                 if command.config.send_phash:
                     phash = phash if phash else calculate_phash(command.target_movie_file, command.config)
                     if phash:
-                        command.parsed_file.hashes = phash
+                        if command.parsed_file:
+                            command.parsed_file.hashes = phash
 
                         scene_hash = SceneHash(str(phash.phash), HashType.PHASH, phash.duration)
                         metadataapi.share_hash(new_metadata, scene_hash, command.config)
@@ -292,12 +295,13 @@ def process_file(command: Command) -> Optional[Command]:
                 # Directory creation failure should not mask original intent; move will still raise if invalid
                 pass
             # If disambiguation is enabled and an ambiguous_dir is configured, prefer routing there over failed
-            if getattr(command.config, 'enable_disambiguation', False) and getattr(command.config, 'ambiguous_dir', None):
+            ambiguous_dir = getattr(command.config, 'ambiguous_dir', None) if getattr(command.config, 'enable_disambiguation', False) else None
+            if ambiguous_dir:
                 try:
-                    command.config.ambiguous_dir.mkdir(parents=True, exist_ok=True)  # type: ignore[attr-defined]
+                    ambiguous_dir.mkdir(parents=True, exist_ok=True)
                 except Exception:
                     pass
-                moved = move_command_files(command, command.config.ambiguous_dir)  # type: ignore[arg-type]
+                moved = move_command_files(command, ambiguous_dir)
                 if moved is not None and search_results is not None and moved.config.write_namer_failed_log:
                     write_log_file(moved.target_movie_file, search_results, moved.config)
                 return moved

@@ -462,12 +462,12 @@ class NamerConfig:
     Optional directory to route files to when disambiguation detects ambiguous results.
     Used only when `enable_disambiguation` is True.
     """
+    # dest_dir intentionally omitted by default (see note above)
 
     retry_time: str = '00:00'
     """
     Time to retry failed items every day.
     """
-
     extra_sleep_time: int = 30
     """
     Extra time to sleep in seconds to allow all information to be copied in dir
