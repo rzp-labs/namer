@@ -38,7 +38,7 @@ docker run --rm --entrypoint bash "${IMAGE_REF}" -lc 'command -v gosu' >/dev/nul
 
 # 3) Sanity check: entrypoint exists
 log "Checking entrypoint file exists..."
-docker run --rm --entrypoint bash "${IMAGE_REF}" -lc '[ -f /app/docker-entrypoint-user.sh ]' >/dev/null
+docker run --rm --entrypoint bash "${IMAGE_REF}" -lc '[ -f /usr/local/bin/docker-entrypoint.sh ] || [ -f /app/docker-entrypoint-user.sh ]' >/dev/null
 
 if [[ "$MODE" == "basic" ]]; then
   log "Basic checks passed"
