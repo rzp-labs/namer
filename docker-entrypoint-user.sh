@@ -24,13 +24,23 @@ if getent group "${PGID}" > /dev/null 2>&1; then
     GROUPNAME="$(getent group "${PGID}" | cut -d: -f1)"
     echo "[ENTRYPOINT] Reusing existing group ${GROUPNAME} (GID ${PGID})"
 else
-    echo "[ENTRYPOINT] Creating group with GID ${PGID}"
-    if groupadd -g "${PGID}" -o namergroup 2>/dev/null; then
-        GROUPNAME="namergroup"
+    if getent group namergroup >/dev/null 2>&1; then
+        echo "[ENTRYPOINT] Updating existing group 'namergroup' to GID ${PGID}"
+        if groupmod -g "${PGID}" namergroup 2>/dev/null; then
+            GROUPNAME="namergroup"
+        else
+            echo "[ENTRYPOINT] Warning: failed to update 'namergroup' GID; attempting to resolve group by PGID"
+            GROUPNAME="$(getent group "${PGID}" | cut -d: -f1 || true)"
+        fi
     else
-        # Fallback: resolve name after potential concurrent creation
-        GROUPNAME="$(getent group "${PGID}" | cut -d: -f1 || echo namergroup)"
+        echo "[ENTRYPOINT] Creating group with GID ${PGID}"
+        if groupadd -g "${PGID}" -o namergroup 2>/dev/null; then
+            GROUPNAME="namergroup"
+        else
+            GROUPNAME="$(getent group "${PGID}" | cut -d: -f1 || true)"
+        fi
     fi
+    : "${GROUPNAME:=namergroup}"
 fi
 export GROUPNAME
 
@@ -259,7 +269,8 @@ dpkg -l intel-media-va-driver 2>/dev/null | tail -1 || echo "[ENTRYPOINT] Intel 
 # Display final configuration
 echo "[ENTRYPOINT] Final configuration:"
 echo "[ENTRYPOINT]   User: ${USERNAME} (${PUID})"
-echo "[ENTRYPOINT]   Group: ${GROUPNAME:-$(getent group | awk -F: -v gid="${PGID}" '$3==gid{print $1; exit}')} (${PGID})"
+GROUP_FALLBACK_NAME=$(getent group | awk -F: -v gid="${PGID}" '$3==gid{print $1; exit}')
+echo "[ENTRYPOINT]   Group: ${GROUPNAME:-$GROUP_FALLBACK_NAME} (${PGID})"
 echo "[ENTRYPOINT]   NAMER_GPU_DEVICE=${NAMER_GPU_DEVICE:-none}"
 echo "[ENTRYPOINT]   NAMER_GPU_BACKEND=${NAMER_GPU_BACKEND:-software}"
 echo "[ENTRYPOINT]   LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-unset}"
