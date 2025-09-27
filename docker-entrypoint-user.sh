@@ -18,20 +18,24 @@ echo "[ENTRYPOINT]   PUID=${PUID}"
 echo "[ENTRYPOINT]   PGID=${PGID}"
 echo "[ENTRYPOINT]   UMASK=${UMASK}"
 
-# Create group with specified GID if it doesn't exist
-if ! getent group "${PGID}" > /dev/null 2>&1; then
-    echo "[ENTRYPOINT] Creating group with GID ${PGID}"
-    groupadd -g "${PGID}" -o namergroup
+# Create or reuse group for specified GID and record its name
+GROUPNAME=""
+if getent group "${PGID}" > /dev/null 2>&1; then
+    GROUPNAME="$(getent group "${PGID}" | cut -d: -f1)"
+    echo "[ENTRYPOINT] Reusing existing group ${GROUPNAME} (GID ${PGID})"
 else
-    echo "[ENTRYPOINT] Group with GID ${PGID} already exists"
+    echo "[ENTRYPOINT] Creating group with GID ${PGID}"
+    if groupadd -g "${PGID}" -o namergroup 2>/dev/null; then
+        GROUPNAME="namergroup"
+    else
+        # Fallback: resolve name after potential concurrent creation
+        GROUPNAME="$(getent group "${PGID}" | cut -d: -f1 || echo namergroup)"
+    fi
 fi
+export GROUPNAME
 
 # Create user with specified UID if it doesn't exist
-<<<<<<< HEAD
 if ! getent passwd | cut -d: -f3 | grep -qx "${PUID}"; then
-=======
-if ! getent passwd "${PUID}" > /dev/null 2>&1; then
->>>>>>> a566d7b (chore: implement CodeRabbit suggestions)
     echo "[ENTRYPOINT] Creating user with UID ${PUID}"
     useradd -u "${PUID}" -g "${PGID}" -o -m -s /bin/bash nameruser
 else
@@ -63,6 +67,16 @@ ensure_dir /app/media
 # Resolve username and home for the PUID (supports pre-existing users)
 if entry="$(getent passwd "${PUID}")"; then
     USERNAME="${entry%%:*}"
+    CURRENT_GID="$(echo "$entry" | awk -F: '{print $4}')"
+    # If user exists and is not root, and the current primary GID differs, update it
+    if [[ "${PUID}" != "0" && "${CURRENT_GID}" != "${PGID}" ]]; then
+        echo "[ENTRYPOINT] Updating primary group for ${USERNAME} to GID ${PGID}"
+        if ! usermod -g "${PGID}" "${USERNAME}" 2>/dev/null; then
+            echo "[ENTRYPOINT] Warning: failed to update primary group for ${USERNAME}"
+        else
+            entry="$(getent passwd "${PUID}")"
+        fi
+    fi
     USER_HOME="$(echo "$entry" | awk -F: '{print $6}')"
 else
     USERNAME="nameruser"
@@ -196,14 +210,11 @@ if [[ -d "/dev/dri" ]]; then
     
     # Add the user to video and render groups if they exist (standard approach)
     if getent group video >/dev/null 2>&1; then
-<<<<<<< HEAD
         # Ensure USERNAME is resolved before usermod
         if [[ -z "${USERNAME:-}" ]]; then
             USERNAME="$(getent passwd "${PUID}" | cut -d: -f1)"
             [[ -n "$USERNAME" ]] || { echo "[ENTRYPOINT] ERROR: could not resolve username for PUID ${PUID}"; exit 1; }
         fi
-=======
->>>>>>> a566d7b (chore: implement CodeRabbit suggestions)
         if usermod -a -G video "$USERNAME" 2>/dev/null; then
             echo "[ENTRYPOINT] Added user to video group"
         else
@@ -211,14 +222,11 @@ if [[ -d "/dev/dri" ]]; then
         fi
     fi
     if getent group render >/dev/null 2>&1; then
-<<<<<<< HEAD
         # Ensure USERNAME is resolved before usermod
         if [[ -z "${USERNAME:-}" ]]; then
             USERNAME="$(getent passwd "${PUID}" | cut -d: -f1)"
             [[ -n "$USERNAME" ]] || { echo "[ENTRYPOINT] ERROR: could not resolve username for PUID ${PUID}"; exit 1; }
         fi
-=======
->>>>>>> a566d7b (chore: implement CodeRabbit suggestions)
         if usermod -a -G render "$USERNAME" 2>/dev/null; then
             echo "[ENTRYPOINT] Added user to render group"
         else
@@ -251,7 +259,7 @@ dpkg -l intel-media-va-driver 2>/dev/null | tail -1 || echo "[ENTRYPOINT] Intel 
 # Display final configuration
 echo "[ENTRYPOINT] Final configuration:"
 echo "[ENTRYPOINT]   User: ${USERNAME} (${PUID})"
-echo "[ENTRYPOINT]   Group: $(getent group | awk -F: -v gid="${PGID}" '$3==gid{print $1; exit}') (${PGID})"
+echo "[ENTRYPOINT]   Group: ${GROUPNAME:-$(getent group | awk -F: -v gid="${PGID}" '$3==gid{print $1; exit}')} (${PGID})"
 echo "[ENTRYPOINT]   NAMER_GPU_DEVICE=${NAMER_GPU_DEVICE:-none}"
 echo "[ENTRYPOINT]   NAMER_GPU_BACKEND=${NAMER_GPU_BACKEND:-software}"
 echo "[ENTRYPOINT]   LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-unset}"
