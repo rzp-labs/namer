@@ -538,6 +538,7 @@ class NamerConfig:
     vph: VideoPerceptualHash = StashVideoPerceptualHash()  # type: ignore
     vph_alt: VideoPerceptualHash = VideoPerceptualHash(ffmpeg)
     re_cleanup: List[Pattern]
+    _PATH_FIELDS = {'watch_dir', 'work_dir', 'dest_dir', 'failed_dir'}
 
     def __init__(self):
         if sys.platform != 'win32':
@@ -560,6 +561,11 @@ class NamerConfig:
         val = getattr(self, 'file_logging_directory', None)
         if val is not None:
             self.file_logging_directory = Path(val).expanduser().resolve()
+
+    def __setattr__(self, name, value):
+        if name in self._PATH_FIELDS and value:
+            value = Path(value).expanduser().resolve()
+        object.__setattr__(self, name, value)
 
     def __str__(self):
         config = self.to_dict()
