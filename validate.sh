@@ -15,7 +15,7 @@ for arg in "$@"; do
       ;;
     --help|-h)
       echo "Usage: $0 [--fast]"
-      echo "  --fast   Skip optional/slow steps (docker integration) for quick feedback"
+      echo "  --fast   Skip optional/slow steps (docker integration) and skip videophash, watchdog, and web tests for quick feedback"
       exit 0
       ;;
     *) ;;
@@ -63,8 +63,14 @@ echo ""
 
 # Step 3: Run unit tests
 echo "3️⃣ Running unit tests..."
-echo "   Running pytest with coverage..."
-if poetry run pytest --cov; then
+if [[ "$FAST" -eq 1 ]]; then
+  echo "   Fast mode: skipping videophash, watchdog, and web tests"
+  PYTEST_ARGS=(--cov -k "not videophash and not watchdog and not web")
+else
+  echo "   Running pytest with coverage..."
+  PYTEST_ARGS=(--cov)
+fi
+if poetry run pytest "${PYTEST_ARGS[@]}"; then
     echo "✅ Unit tests passed"
 else
     echo "❌ Unit tests failed. Fix issues before proceeding."
