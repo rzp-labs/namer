@@ -1,8 +1,7 @@
-name: PR Container Smoke
+name: PR Container Smoke (manual)
 
 on:
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: read
