@@ -8,14 +8,14 @@ metadata_provider = stashdb
 enable_disambiguation = False
 
 # Tokens are sourced from environment (STASHDB_TOKEN / TPDB_TOKEN) for security.
-porndb_token = 
-stashdb_token = 
+porndb_token =
+stashdb_token =
 
 # Override the ThePornDB API base address (primarily for testing)
-override_tpdb_address = https://api.theporndb.net
+override_tpdb_address =
 
 # Override the StashDB API endpoint (primarily for advanced deployments)
-stashdb_endpoint = 
+stashdb_endpoint =
 
 # You should likely never edit this, unless you know regex really well and wont ask for help when you mess up.
 # Seriously don't edit it.
@@ -105,8 +105,8 @@ set_file_permissions = 664
 # Setting uid and groupid for new and moved files.
 # Use the id numbers, not names.  Defaults to process uid/gid in non windows systems.
 
-set_uid = 
-set_gid = 
+set_uid =
+set_gid =
 
 # If you want the trailers downloaded set the value relative to the final location of the movie file here.
 # Currently assumes directory per video, and doesn't work in vast majority of cases (cdns with caches busted,
@@ -184,7 +184,7 @@ send_phash = True
 use_alt_phash_tool = False
 
 # Max ffmpeg processes for alternative phash generation, empty for auto select
-max_ffmpeg_workers = 
+max_ffmpeg_workers =
 
 # Use gpu for alternative phash generation
 use_gpu = False
@@ -200,7 +200,7 @@ use_gpu = False
 #   ffmpeg_hwaccel_decoder =                      # Leave empty for auto-detection
 #
 # For Intel UHD Graphics (770, 730, etc.) - Good performance with H.264/H.265:
-#   ffmpeg_hwaccel_backend = qsv  
+#   ffmpeg_hwaccel_backend = qsv
 #   ffmpeg_hwaccel_device = /dev/dri/renderD129   # or auto-detected device
 #   ffmpeg_hwaccel_decoder =                      # Leave empty for auto-detection
 #
@@ -220,7 +220,7 @@ ffmpeg_hwaccel_decoder =
 # Uncomment and modify these lines to override automatic detection:
 # ffmpeg_hwaccel_backend = qsv
 # ffmpeg_hwaccel_device = /dev/dri/renderD128
-# ffmpeg_hwaccel_decoder = 
+# ffmpeg_hwaccel_decoder =
 
 [metadata]
 # Currently metadata pulled from the porndb can be added to mp4 files or .nfo files.
@@ -315,6 +315,9 @@ watch_dir = ./test/watch
 # a log file shows attempted matches and match closeness.
 work_dir = ./test/work
 
+# dir where finalized files get written.
+dest_dir = ./test/dest
+
 # Should processing fail the file or directory is moved here.
 # retries occur every 12 hours.   Files can be manually moved to watch-dir
 # to force reprocessing.
@@ -322,9 +325,6 @@ failed_dir = ./test/failed
 
 # Directory to route files to when disambiguation determines results are ambiguous
 ambiguous_dir = ./test/ambiguous
-
-# dir where finalized files get written.
-dest_dir = ./test/dest
 
 # When to retry failed items, default is a random minute during the 3 am hour in your timezone.
 retry_time =
@@ -355,6 +355,14 @@ debug = False
 
 # Set logger output format
 console_format = <green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level.icon} {level: <8}</level> | {message}
+
+# File logging (optional)
+file_logging_enabled = False
+file_logging_level = INFO
+# Examples: "10 MB", "1 week", "30 days"
+file_logging_rotation = 10 MB
+file_logging_retention = 7 days
+file_logging_directory = ./logs
 
 # Manual mode, successful matches will go to failed directory
 manual_mode = False
