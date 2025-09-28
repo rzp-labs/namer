@@ -437,6 +437,34 @@ def main(arg_list: List[str]):
         level = 'DEBUG' if config.debug else 'INFO'
         logger.add(sys.stdout, format=config.console_format, level=level, diagnose=config.diagnose_errors)
 
+    # Optional file logging
+    try:
+        if getattr(config, 'file_logging_enabled', False):
+            log_dir = getattr(config, 'file_logging_directory', None)
+            if not log_dir:
+                log_dir = Path('./logs').resolve()
+            else:
+                log_dir = Path(log_dir).resolve()
+            log_dir.mkdir(parents=True, exist_ok=True)
+
+            file_level = getattr(config, 'file_logging_level', 'INFO') or 'INFO'
+            rotation = getattr(config, 'file_logging_rotation', '10 MB') or '10 MB'
+            retention = getattr(config, 'file_logging_retention', '7 days') or '7 days'
+            fmt = config.console_format or '<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | {message}'
+
+            logger.add(
+                log_dir / 'namer.log',
+                level=file_level,
+                rotation=rotation,
+                retention=retention,
+                enqueue=True,
+                backtrace=config.diagnose_errors,
+                diagnose=config.diagnose_errors,
+                format=fmt,
+            )
+    except Exception as e:  # pragma: no cover - non-critical logging setup
+        logger.warning(f'Failed to initialize file logging: {e}')
+
     verify_configuration(config, PartialFormatter())
 
     target = args.file
