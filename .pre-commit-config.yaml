@@ -1,0 +1,36 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  # Shell linting for our scripts
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        name: shellcheck
+        files: ^(scripts/|docker-entrypoint-user.sh)
+        types: [shell]
+
+  # Optional Dockerfile linting (non-blocking at first; set `--failure-threshold` to `warning`)
+  - repo: local
+    hooks:
+      - id: hadolint
+        name: hadolint
+        entry: bash -lc 'command -v hadolint >/dev/null 2>&1 && hadolint Dockerfile || echo "hadolint not installed; skipping"'
+        language: system
+        pass_filenames: false
+        files: ^Dockerfile$
+
+  # Run validate fast on pre-push
+  - repo: local
+    hooks:
+      - id: validate-fast
+        name: validate.sh --fast (pre-push)
+        entry: ./validate.sh --fast
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

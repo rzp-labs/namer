@@ -5,6 +5,23 @@
 
 set -e
 
+# Flags
+FAST=0
+for arg in "$@"; do
+  case "$arg" in
+    --fast)
+      FAST=1
+      shift
+      ;;
+    --help|-h)
+      echo "Usage: $0 [--fast]"
+      echo "  --fast   Skip optional/slow steps (docker integration) for quick feedback"
+      exit 0
+      ;;
+    *) ;;
+  esac
+done
+
 echo "🔍 Namer Pre-Push Validation"
 echo "============================="
 echo ""
@@ -19,7 +36,7 @@ echo "📁 Working directory: $(pwd)"
 echo ""
 
 # Step 1: Check Poetry environment
-echo "1️⃣ Validating Poetry environment..."
+echo "1️⃣ Validating Poetry environment...${FAST:+ (fast mode)}"
 if ! command -v poetry &> /dev/null; then
     echo "❌ Poetry not found. Please install Poetry first."
     exit 1
@@ -88,9 +105,13 @@ echo "✅ All build tools available"
 echo ""
 
 # Step 5: Local Docker integration test
-echo "5️⃣ Running Docker integration tests..."
+if [[ "$FAST" -eq 1 ]]; then
+  echo "5️⃣ Skipping Docker integration tests (fast mode)"
+else
+  echo "5️⃣ Running Docker integration tests..."
+fi
 
-if [[ -d "test/integration" ]] && [[ -f "test/integration/test.sh" ]]; then
+if [[ "$FAST" -eq 0 ]] && [[ -d "test/integration" ]] && [[ -f "test/integration/test.sh" ]]; then
     cd test/integration
     
     echo "   Setting up test environment..."
@@ -136,23 +157,30 @@ if [[ -d "test/integration" ]] && [[ -f "test/integration/test.sh" ]]; then
         fi
     else
         echo "❌ Docker test setup failed"
-        cd ../..
         exit 1
     fi
     
     cd ../..
 else
-    echo "⚠️  Docker integration tests not configured (test/integration/test.sh missing)"
-    echo "📝 Note: Integration tests are optional for local development"
+  echo "⚠️  Docker integration tests not configured (test/integration/test.sh missing)"
+  echo "📝 Note: Integration tests are optional for local development"
+  if [[ "$FAST" -eq 1 ]]; then
+    echo "✅ Skipping Docker integration tests (fast mode)"
+  else
     echo "✅ Skipping Docker integration tests"
+  fi
 fi
 # Step 6: Final validation
 echo "6️⃣ Final validation summary..."
 echo ""
 echo "✅ Code linting: PASSED"
-echo "✅ Unit tests: PASSED" 
+echo "✅ Unit tests: PASSED"
 echo "✅ Build tools: AVAILABLE"
-echo "✅ Docker integration: PASSED"
+if [[ "$FAST" -eq 1 ]]; then
+  echo "✅ Docker integration: SKIPPED (fast mode)"
+else
+  echo "✅ Docker integration: PASSED"
+fi
 echo ""
 
 echo "🎉 All validations passed! Ready to push."
