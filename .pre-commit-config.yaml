@@ -4,7 +4,9 @@ repos:
     hooks:
       - id: ruff
         args: ["--fix"]
+        exclude: ^(namer/ffmpeg(_enhanced)?\.py)$
       - id: ruff-format
+        exclude: ^(namer/ffmpeg(_enhanced)?\.py)$
 
   # Shell linting for our scripts
   - repo: https://github.com/shellcheck-py/shellcheck-py

@@ -170,17 +170,43 @@ if [[ -d "/dev/dri" ]] && compgen -G "/dev/dri/*" > /dev/null; then
     done
     
     echo "[ENTRYPOINT] Running Intel GPU detection with debugging enabled..."
-    
+
     # Run GPU detection script
     if DEBUG=true TEST_GPU=true /usr/local/bin/detect-gpu.sh; then
-        # Source the environment variables written by the GPU detection script
+        # Safely import a limited set of variables from the generated env file
         GPU_ENV_FILE="/tmp/gpu-detected-env"
         if [[ -f "$GPU_ENV_FILE" ]]; then
-            # shellcheck source=/dev/null
-            source "$GPU_ENV_FILE"
-            echo "[ENTRYPOINT] GPU detection successful"
-            echo "[ENTRYPOINT] Selected GPU: ${NAMER_GPU_DEVICE:-none}"
-            echo "[ENTRYPOINT] Backend: ${NAMER_GPU_BACKEND:-none}"
+            # Validate file ownership and that it is not group/other-writable
+            owner_uid="$(stat -c '%u' "$GPU_ENV_FILE" 2>/dev/null || echo '')"
+            perms_num="$(stat -c '%a' "$GPU_ENV_FILE" 2>/dev/null || echo '')"
+            current_uid="$(id -u)"
+
+            # Derive group/other write bits from numeric permissions
+            gw=$(( (10#$perms_num / 10) % 10 ))
+            ow=$(( 10#$perms_num % 10 ))
+
+            if { [[ "$owner_uid" = "0" ]] || [[ "$owner_uid" = "$current_uid" ]]; } \
+               && [[ "$gw" != "2" && "$gw" != "6" && "$gw" != "7" ]] \
+               && [[ "$ow" != "2" && "$ow" != "6" && "$ow" != "7" ]]; then
+                # Parse only whitelisted keys (no eval/source)
+                while IFS='=' read -r raw_k raw_v; do
+                    k="$(echo "$raw_k" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+                    v="$(echo "$raw_v" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed 's/^"//;s/"$//' | sed "s/^'//;s/'$//")"
+                    case "$k" in
+                        NAMER_GPU_DEVICE) NAMER_GPU_DEVICE="$v" ;;
+                        NAMER_GPU_BACKEND) NAMER_GPU_BACKEND="$v" ;;
+                        LIBVA_DRIVER_NAME) LIBVA_DRIVER_NAME="$v" ;;
+                        *) : ;; # ignore anything else
+                    esac
+                done < "$GPU_ENV_FILE"
+                echo "[ENTRYPOINT] GPU detection successful"
+                echo "[ENTRYPOINT] Selected GPU: ${NAMER_GPU_DEVICE:-none}"
+                echo "[ENTRYPOINT] Backend: ${NAMER_GPU_BACKEND:-none}"
+            else
+                echo "[ENTRYPOINT] Warning: insecure GPU env file permissions/ownership; ignoring $GPU_ENV_FILE"
+                echo "[ENTRYPOINT] Selected GPU: none"
+                echo "[ENTRYPOINT] Backend: none"
+            fi
         else
             echo "[ENTRYPOINT] GPU detection failed - environment file not created"
             echo "[ENTRYPOINT] Selected GPU: none"
