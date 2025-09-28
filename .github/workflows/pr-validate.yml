@@ -1,0 +1,71 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Lint and Test (Poetry)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        # actions/checkout@v4 pinned to commit SHA
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        # actions/setup-python@v5 pinned to commit SHA
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: |
+          pipx install poetry
+
+      - name: Cache Poetry
+        # actions/cache@v4 pinned to commit SHA
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.cache/pypoetry
+            ~/.cache/pip
+          key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            poetry-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          poetry --version
+          poetry install
+
+      - name: Ruff check
+        run: poetry run ruff check .
+
+      - name: Pytest with coverage
+        run: poetry run pytest --cov --junitxml=pytest-junit.xml --cov-report=xml
+
+      - name: Upload coverage.xml
+        if: always()
+        # actions/upload-artifact@v4 pinned to commit SHA
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: coverage-xml
+          path: coverage.xml
+
+      - name: Upload junit report
+        if: always()
+        # actions/upload-artifact@v4 pinned to commit SHA
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pytest-junit
+          path: pytest-junit.xml
