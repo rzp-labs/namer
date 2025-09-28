@@ -1,0 +1,58 @@
+name: PR Container Smoke
+
+on:
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: pr-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-smoke:
+    name: Build (amd64) and healthcheck container
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (amd64, load locally)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          tags: nehpz/namer:pr-${{ github.sha }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start container
+        run: |
+          docker run -d --name namer \
+            -e NAMER_CONFIG=/config/namer.cfg \
+            -p 6980:6980 \
+            -v "${{ github.workspace }}/config:/config:ro" \
+            nehpz/namer:pr-${{ github.sha }}
+          # Give it a moment to start
+          sleep 15
+
+      - name: Healthcheck
+        run: |
+          curl -sf http://127.0.0.1:6980/api/healthcheck
+
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          docker logs namer || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f namer || true
