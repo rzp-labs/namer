@@ -6,9 +6,9 @@ from typing import Iterable, List, Tuple
 
 
 class Decision(str, Enum):
-    ACCEPT = "accept"
-    AMBIGUOUS = "ambiguous"
-    REJECT = "reject"
+    ACCEPT = 'accept'
+    AMBIGUOUS = 'ambiguous'
+    REJECT = 'reject'
 
 
 @dataclass(frozen=True)
@@ -20,6 +20,7 @@ class Candidate:
     - guid: unique identifier of the candidate (e.g., scene ID)
     - phash_distance: Hamming distance from the query perceptual hash (lower is better)
     """
+
     guid: str
     phash_distance: int
 
@@ -37,7 +38,7 @@ def _majority_fraction(candidates: Iterable[Candidate]) -> Tuple[str, float]:
         counts[c.guid] = counts.get(c.guid, 0) + 1
         total += 1
     if total == 0:
-        return "", 0.0
+        return '', 0.0
     top_guid, top_count = max(counts.items(), key=lambda kv: kv[1])
     return top_guid, top_count / total
 
@@ -70,7 +71,7 @@ def decide(
     Returns (guid, Decision). For non-ACCEPT cases, guid will be "".
     """
     if not candidates:
-        return "", Decision.REJECT
+        return '', Decision.REJECT
 
     ordered = sorted(candidates, key=lambda c: c.phash_distance)
     best = ordered[0]
@@ -85,9 +86,9 @@ def decide(
         top_guid, frac = _majority_fraction(ordered)
         if top_guid == best.guid and frac >= majority_accept_fraction:
             return best.guid, Decision.ACCEPT
-        return "", Decision.AMBIGUOUS
+        return '', Decision.AMBIGUOUS
 
     if ambiguous_min <= best.phash_distance <= ambiguous_max:
-        return "", Decision.AMBIGUOUS
+        return '', Decision.AMBIGUOUS
 
-    return "", Decision.REJECT
+    return '', Decision.REJECT

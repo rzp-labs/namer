@@ -435,7 +435,18 @@ def __metadataapi_response_to_data(json_object: dict, url: str, json_response: s
     return file_infos
 
 
-def __build_url(namer_config: NamerConfig, site: Optional[str] = None, release_date: Optional[str] = None, name: Optional[str] = None, uuid: Optional[str] = None, page: Optional[int] = None, scene_type: Optional[SceneType] = None, phash: Optional[PerceptualHash] = None, add_to_collection: Optional[bool] = None, user: Optional[bool] = None) -> Optional[str]:
+def __build_url(
+    namer_config: NamerConfig,
+    site: Optional[str] = None,
+    release_date: Optional[str] = None,
+    name: Optional[str] = None,
+    uuid: Optional[str] = None,
+    page: Optional[int] = None,
+    scene_type: Optional[SceneType] = None,
+    phash: Optional[PerceptualHash] = None,
+    add_to_collection: Optional[bool] = None,
+    user: Optional[bool] = None,
+) -> Optional[str]:
     query = ''
     if uuid:
         query = uuid
@@ -527,7 +538,7 @@ def get_complete_metadataapi_net_fileinfo(name_parts: Optional[FileInfo], uuid: 
 def _match_legacy_theporndb(file_name_parts: Optional[FileInfo], namer_config: NamerConfig, phash: Optional[PerceptualHash] = None) -> ComparisonResults:
     """
     Legacy ThePornDB matching logic (original REST API implementation).
-    
+
     DEPRECATED: This function is maintained for backward compatibility only.
     New code should use the GraphQL-based ThePornDBProvider instead.
     """
@@ -560,12 +571,12 @@ def match(file_name_parts: Optional[FileInfo], namer_config: NamerConfig, phash:
     """
     Give parsed file name parts, and a provider token, returns a sorted list of possible matches.
     Matches will appear first.
-    
+
     This function routes to the appropriate metadata provider based on configuration.
     """
     # Get the appropriate provider based on configuration
     provider = get_metadata_provider(namer_config)
-    
+
     # Use provider-specific matching logic
     return provider.match(file_name_parts, namer_config, phash)
 
@@ -574,6 +585,7 @@ def toggle_collected(metadata: LookedUpFileInfo, config: NamerConfig):
     """Toggle collection status for a scene using the configured provider."""
     if metadata.uuid and config.metadata_provider.lower() == 'theporndb':
         from namer.metadata_providers.theporndb_provider import ThePornDBProvider
+
         provider = ThePornDBProvider()
         scene_id = metadata.uuid.rsplit('/', 1)[-1]
         provider._mark_collected(scene_id, config)
@@ -583,6 +595,7 @@ def share_hash(metadata: LookedUpFileInfo, scene_hash: SceneHash, config: NamerC
     """Share a hash for a scene using the configured provider."""
     if metadata.uuid and config.metadata_provider.lower() == 'theporndb':
         from namer.metadata_providers.theporndb_provider import ThePornDBProvider
+
         provider = ThePornDBProvider()
         scene_id = metadata.uuid.rsplit('/', 1)[-1]
         provider._share_hash(scene_id, scene_hash, config)

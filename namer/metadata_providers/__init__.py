@@ -10,11 +10,4 @@ from .factory import ProviderFactory, get_metadata_provider
 from .theporndb_provider import ThePornDBProvider
 from .stashdb_provider import StashDBProvider
 
-__all__ = [
-    'MetadataProvider', 
-    'BaseMetadataProvider',
-    'ProviderFactory', 
-    'get_metadata_provider',
-    'ThePornDBProvider',
-    'StashDBProvider'
-]
+__all__ = ['MetadataProvider', 'BaseMetadataProvider', 'ProviderFactory', 'get_metadata_provider', 'ThePornDBProvider', 'StashDBProvider']

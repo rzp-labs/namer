@@ -591,18 +591,22 @@ class NamerConfig:
             token = 'None is Set, Go to https://theporndb.net/register to get one!'
             if self.porndb_token:
                 token = '*' * len(self.porndb_token)
-            info.update({
-                'porndb_token': token,
-                'override_tpdb_address': self.override_tpdb_address,
-            })
+            info.update(
+                {
+                    'porndb_token': token,
+                    'override_tpdb_address': self.override_tpdb_address,
+                }
+            )
         elif provider == 'stashdb':
             token = 'None is Set, Get token from StashDB settings!'
             if self.stashdb_token:
                 token = '*' * len(self.stashdb_token)
-            info.update({
-                'stashdb_token': token,
-                'stashdb_endpoint': self.stashdb_endpoint,
-            })
+            info.update(
+                {
+                    'stashdb_token': token,
+                    'stashdb_endpoint': self.stashdb_endpoint,
+                }
+            )
         else:
             info.update({'provider_config': f'Unknown provider: {self.metadata_provider}'})
 

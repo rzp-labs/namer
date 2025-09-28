@@ -123,21 +123,15 @@ def __verify_dir(config: NamerConfig, name: str, other_dirs: List[str]) -> bool:
             # Allow non-existent ambiguous_dir (it will be created at runtime),
             # but still forbid nesting within other watchdog directories.
             if is_nested:
-                logger.error(
-                    f'Configured directory {name}: "{dir_name}" must not be inside another watchdog directory'
-                )
+                logger.error(f'Configured directory {name}: "{dir_name}" must not be inside another watchdog directory')
                 return False
             if exists and not dir_name.is_dir():
-                logger.error(
-                    f'Configured directory {name}: "{dir_name}" exists but is not a directory'
-                )
+                logger.error(f'Configured directory {name}: "{dir_name}" exists but is not a directory')
                 return False
         else:
             # For all other watchdog dirs, require existing directory and no nesting
             if (not dir_name.is_dir()) or is_nested:
-                logger.error(
-                    f'Configured directory {name}: "{dir_name}" is not a directory or is inside another watchdog directory'
-                )
+                logger.error(f'Configured directory {name}: "{dir_name}" is not a directory or is inside another watchdog directory')
                 return False
 
         # work_dir should be empty only if it exists
@@ -150,9 +144,7 @@ def __verify_dir(config: NamerConfig, name: str, other_dirs: List[str]) -> bool:
 
         # Warn about permissions only when the path exists
         if exists and not os.access(dir_name, os.W_OK):
-            logger.warning(
-                f'Configured directory {name}: "{dir_name}" might have write permission problem'
-            )
+            logger.warning(f'Configured directory {name}: "{dir_name}" might have write permission problem')
 
     return True
 
@@ -187,13 +179,13 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
     Verify metadata provider configuration settings.
     """
     success = True
-    
+
     # Validate provider selection
     supported_providers = ['theporndb', 'stashdb']
     if config.metadata_provider.lower() not in supported_providers:
         logger.error(f'Unsupported metadata provider: "{config.metadata_provider}". Supported: {supported_providers}')
         success = False
-    
+
     # Only validate provider-specific settings if directories are configured (indicates real usage vs test)
     if hasattr(config, 'watch_dir') or hasattr(config, 'dest_dir') or hasattr(config, 'work_dir'):
         # Validate provider-specific settings for real configurations
@@ -209,7 +201,7 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
             # Endpoint is built-in; override is optional and primarily used by advanced deployments
             if not config.stashdb_endpoint or config.stashdb_endpoint.strip() == '':
                 logger.info('Using default StashDB endpoint; stashdb_endpoint not set')
-            
+
             if not config.stashdb_token or config.stashdb_token.strip() == '':
                 logger.warning('StashDB provider works better with an API token (stashdb_token)')
     else:
@@ -218,7 +210,7 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
             logger.warning('ThePornDB provider would require a porndb_token in production')
         elif config.metadata_provider.lower() == 'stashdb' and (not config.stashdb_endpoint or config.stashdb_endpoint.strip() == ''):
             logger.warning('StashDB provider would require stashdb_endpoint in production')
-    
+
     return success
 
 

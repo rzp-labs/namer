@@ -45,11 +45,11 @@ from namer.videophash.videophashstash import StashVideoPerceptualHash
 
 class QSVCodecMapper:
     """Maps video codecs to their corresponding QSV decoders."""
-    
+
     # Mapping of codec names to QSV decoder names
     CODEC_TO_QSV_DECODER = {
         'h264': 'h264_qsv',
-        'hevc': 'hevc_qsv', 
+        'hevc': 'hevc_qsv',
         'h265': 'hevc_qsv',  # alias for hevc
         'av1': 'av1_qsv',
         'vp9': 'vp9_qsv',
@@ -59,14 +59,14 @@ class QSVCodecMapper:
         'vc1': 'vc1_qsv',
         'mjpeg': 'mjpeg_qsv',
     }
-    
+
     @classmethod
     def get_qsv_decoder(cls, codec_name: str) -> Optional[str]:
         """Get the appropriate QSV decoder for a given codec."""
         if not codec_name:
             return None
         return cls.CODEC_TO_QSV_DECODER.get(codec_name.lower())
-    
+
     @classmethod
     def is_qsv_supported(cls, codec_name: str) -> bool:
         """Check if a codec has QSV support."""
@@ -163,11 +163,12 @@ class FFProbeResults:
 class FFMpeg:
     """
     FFmpeg interface with hardware acceleration support.
-    
+
     ⚠️  DUAL-FILE MAINTENANCE WARNING:
     Any changes to this class MUST also be applied to ffmpeg_enhanced.py!
     Container builds use ffmpeg_enhanced.py as the production version.
     """
+
     __local_dir: Optional[Path] = None
     __ffmpeg_cmd: str = 'ffmpeg'
     __ffprobe_cmd: str = 'ffprobe'
@@ -266,23 +267,23 @@ class FFMpeg:
             probe_result = self.ffprobe(file)
             if not probe_result:
                 return None
-                
+
             video_stream = probe_result.get_default_video_stream()
             if not video_stream:
                 return None
-                
+
             codec_name = video_stream.codec_name
             qsv_decoder = QSVCodecMapper.get_qsv_decoder(codec_name)
-            
+
             if qsv_decoder:
-                logger.debug(f"Auto-detected QSV decoder for {file}: {codec_name} -> {qsv_decoder}")
+                logger.debug(f'Auto-detected QSV decoder for {file}: {codec_name} -> {qsv_decoder}')
                 return qsv_decoder
             else:
-                logger.debug(f"No QSV decoder available for codec: {codec_name}")
+                logger.debug(f'No QSV decoder available for codec: {codec_name}')
                 return None
-                
+
         except Exception as ex:
-            logger.debug(f"Failed to auto-detect QSV decoder for {file}: {ex}")
+            logger.debug(f'Failed to auto-detect QSV decoder for {file}: {ex}')
             return None
 
     def _get_gpu_settings_from_env(self) -> Tuple[Optional[str], Optional[str]]:
@@ -291,13 +292,13 @@ class FFMpeg:
         Returns (device_path, backend) tuple.
         """
         device = os.environ.get('NAMER_GPU_DEVICE')
-        backend = os.environ.get('NAMER_GPU_BACKEND') 
-        
+        backend = os.environ.get('NAMER_GPU_BACKEND')
+
         if device and backend:
-            logger.debug(f"Using GPU settings from environment: device={device}, backend={backend}")
+            logger.debug(f'Using GPU settings from environment: device={device}, backend={backend}')
             return device, backend
         else:
-            logger.debug("No GPU settings found in environment variables")
+            logger.debug('No GPU settings found in environment variables')
             return None, None
 
     def get_audio_stream_for_lang(self, file: Path, language: str) -> int:
@@ -393,9 +394,7 @@ class FFMpeg:
             mp4_file.unlink()
         return success
 
-    def extract_screenshot(self, file: Path, screenshot_time: float, screenshot_width: int = -1, use_gpu: bool = False,
-                           hwaccel_backend: Optional[str] = None, hwaccel_device: Optional[str] = None,
-                           hwaccel_decoder: Optional[str] = None) -> Image.Image:
+    def extract_screenshot(self, file: Path, screenshot_time: float, screenshot_width: int = -1, use_gpu: bool = False, hwaccel_backend: Optional[str] = None, hwaccel_device: Optional[str] = None, hwaccel_decoder: Optional[str] = None) -> Image.Image:
         """
         Extract a single frame as an image with enhanced QSV support and automatic decoder selection.
 
@@ -406,9 +405,10 @@ class FFMpeg:
 
         Enhanced robust fallback order:
         1. If QSV is available: auto-detect decoder based on codec, try QSV decode+scale
-        2. If backend == 'vaapi': try VAAPI (hwupload -> scale_vaapi -> hwdownload -> format)  
+        2. If backend == 'vaapi': try VAAPI (hwupload -> scale_vaapi -> hwdownload -> format)
         3. Software fallback with multiple retry strategies
         """
+
         def _run_pipeline(stream_builder, global_args_list):
             return (
                 stream_builder
@@ -420,15 +420,15 @@ class FFMpeg:
 
         # Normalize inputs and get environment-based GPU settings
         env_device, env_backend = self._get_gpu_settings_from_env()
-        
+
         # Use environment settings if available, otherwise fall back to parameters
         final_backend = env_backend or hwaccel_backend
         final_device = env_device or hwaccel_device
-        
+
         # Override use_gpu based on environment
         if env_backend:
             use_gpu = True
-            
+
         backend = (final_backend or '').lower() if final_backend else None
         width = screenshot_width if screenshot_width and screenshot_width > 0 else -1
 
@@ -438,12 +438,12 @@ class FFMpeg:
                 # Auto-detect the best decoder for this video's codec
                 auto_decoder = self._auto_detect_qsv_decoder(file) if not hwaccel_decoder else None
                 selected_decoder = hwaccel_decoder or auto_decoder
-                
+
                 if selected_decoder:
-                    logger.debug(f"Using QSV decoder: {selected_decoder} for {file}")
+                    logger.debug(f'Using QSV decoder: {selected_decoder} for {file}')
                 else:
-                    logger.debug(f"No QSV decoder specified or auto-detected for {file}, trying generic QSV")
-                
+                    logger.debug(f'No QSV decoder specified or auto-detected for {file}, trying generic QSV')
+
                 input_args = {'hwaccel': 'qsv'}
                 if selected_decoder:
                     input_args['vcodec'] = selected_decoder
@@ -459,32 +459,20 @@ class FFMpeg:
                 if width and width > 0:
                     # QSV decode -> QSV scale -> download -> format conversion optimized for AV1/high-bit-depth
                     filtered = (
-                        stream
-                        .filter('scale_qsv', w=width, h=-1)
+                        stream.filter('scale_qsv', w=width, h=-1)
                         .filter('hwdownload')
                         .filter('format', 'nv12')  # Use NV12 as intermediate - better for QSV output
                         .filter('format', 'rgb24')  # Convert to RGB24 for reliable APNG encoding
                     )
-                    out, _ = (
-                        filtered
-                        .output('pipe:', vframes=1, format='apng')
-                        .global_args(*global_args)
-                        .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
-                    )
+                    out, _ = filtered.output('pipe:', vframes=1, format='apng').global_args(*global_args).run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                 else:
                     # QSV decode -> download -> format conversion optimized for AV1/high-bit-depth
                     filtered = (
-                        stream
-                        .filter('hwdownload')
+                        stream.filter('hwdownload')
                         .filter('format', 'nv12')  # Use NV12 as intermediate - native QSV output format
                         .filter('format', 'rgb24')  # Convert to RGB24 for reliable APNG encoding
                     )
-                    out, _ = (
-                        filtered
-                        .output('pipe:', vframes=1, format='apng')
-                        .global_args(*global_args)
-                        .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
-                    )
+                    out, _ = filtered.output('pipe:', vframes=1, format='apng').global_args(*global_args).run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
 
                 logger.debug(f"QSV decode successful for {file} using decoder: {selected_decoder or 'generic'}")
                 return Image.open(BytesIO(out))
@@ -504,57 +492,44 @@ class FFMpeg:
                     # Try to include stderr if present on ffmpeg Error
                     try:
                         import ffmpeg as _ff
+
                         if isinstance(ex, _ff._run.Error) and getattr(ex, 'stderr', None):
                             err_msg = ex.stderr.decode('utf-8', errors='ignore')
                             err_msg_short = err_msg.strip().split('\n')[-5:]
-                            logger.warning('QSV pipeline (device={}, decoder={}) failed for {}. Falling back to VAAPI/software. Details: {}',
-                                           key_device, key_decoder, file, '\n'.join(err_msg_short))
+                            logger.warning('QSV pipeline (device={}, decoder={}) failed for {}. Falling back to VAAPI/software. Details: {}', key_device, key_decoder, file, '\n'.join(err_msg_short))
                         else:
-                            logger.warning('QSV pipeline (device={}, decoder={}) failed for {}, falling back to VAAPI/software: {}',
-                                           key_device, key_decoder, file, ex)
+                            logger.warning('QSV pipeline (device={}, decoder={}) failed for {}, falling back to VAAPI/software: {}', key_device, key_decoder, file, ex)
                     except Exception:
-                        logger.warning('QSV pipeline (device={}, decoder={}) failed for {}, falling back to VAAPI/software: {}',
-                                       key_device, key_decoder, file, ex)
+                        logger.warning('QSV pipeline (device={}, decoder={}) failed for {}, falling back to VAAPI/software: {}', key_device, key_decoder, file, ex)
                 else:
-                    logger.debug('QSV pipeline (device={}, decoder={}) failed for {} (repeat), falling back to VAAPI/software: {}',
-                                 key_device, key_decoder, file, ex)
-                
+                    logger.debug('QSV pipeline (device={}, decoder={}) failed for {} (repeat), falling back to VAAPI/software: {}', key_device, key_decoder, file, ex)
+
                 # ⚠️  Special handling for AV1 QSV decoder failures - try without specific decoder
                 if selected_decoder == 'av1_qsv' and not hwaccel_decoder:
                     try:
-                        logger.debug(f"Retrying QSV without av1_qsv decoder for {file}")
+                        logger.debug(f'Retrying QSV without av1_qsv decoder for {file}')
                         input_args_generic = {'hwaccel': 'qsv'}
                         global_args = []
                         if final_device:
                             global_args.extend(['-qsv_device', final_device])
-                        
+
                         stream_generic = ffmpeg.input(file, ss=screenshot_time, **input_args_generic)
-                        
+
                         if width and width > 0:
                             filtered = (
-                                stream_generic
-                                .filter('scale_qsv', w=width, h=-1)
-                                .filter('hwdownload')
-                                .filter('format', 'rgb24')  # Consistent format
+                                stream_generic.filter('scale_qsv', w=width, h=-1).filter('hwdownload').filter('format', 'rgb24')  # Consistent format
                             )
                         else:
                             filtered = (
-                                stream_generic
-                                .filter('hwdownload')
-                                .filter('format', 'rgb24')  # Consistent format
+                                stream_generic.filter('hwdownload').filter('format', 'rgb24')  # Consistent format
                             )
-                        
-                        out_generic, _ = (
-                            filtered
-                            .output('pipe:', vframes=1, format='apng')
-                            .global_args(*global_args)
-                            .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
-                        )
-                        
-                        logger.debug(f"QSV decode successful for {file} using generic QSV (av1_qsv fallback)")
+
+                        out_generic, _ = filtered.output('pipe:', vframes=1, format='apng').global_args(*global_args).run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
+
+                        logger.debug(f'QSV decode successful for {file} using generic QSV (av1_qsv fallback)')
                         return Image.open(BytesIO(out_generic))
                     except Exception as ex_generic:
-                        logger.debug(f"Generic QSV fallback also failed for {file}: {ex_generic}")
+                        logger.debug(f'Generic QSV fallback also failed for {file}: {ex_generic}')
 
         # 2) Attempt VAAPI fallback (if QSV failed or if VAAPI was explicitly requested)
         if use_gpu and (backend == 'vaapi' or backend == 'qsv'):  # Also try VAAPI if QSV failed
@@ -570,12 +545,7 @@ class FFMpeg:
                     if width and width > 0:
                         filt_local = filt_local.filter('scale_vaapi', width, -2)
                     filt_local = filt_local.filter('hwdownload').filter('format', 'rgb24')  # Use rgb24 for consistency with QSV/SW
-                    out_bytes, _err = (
-                        filt_local
-                        .output('pipe:', vframes=1, format='image2', vcodec='png', update=1)
-                        .global_args(*ga)
-                        .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
-                    )
+                    out_bytes, _err = filt_local.output('pipe:', vframes=1, format='image2', vcodec='png', update=1).global_args(*ga).run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                     return out_bytes
 
                 # Build candidate list: env device -> configured -> all render nodes
@@ -604,7 +574,7 @@ class FFMpeg:
                             if dev:
                                 with FFMpeg.__vaapi_lock:
                                     FFMpeg.__vaapi_device_cached = dev
-                            logger.debug(f"VAAPI decode successful for {file} using device: {dev}")
+                            logger.debug(f'VAAPI decode successful for {file} using device: {dev}')
                             return Image.open(BytesIO(out))
                     except Exception as ex2:
                         last_ex = ex2
@@ -615,7 +585,7 @@ class FFMpeg:
 
             except Exception as ex:
                 key_backend = 'vaapi'
-                key_device = final_device or 'none'  
+                key_device = final_device or 'none'
                 key = (key_backend, key_device, str(file))
                 first_time = False
                 with FFMpeg.__gpu_warned_lock:
@@ -634,11 +604,10 @@ class FFMpeg:
             stream_sw = ffmpeg.input(file, ss=screenshot_time)
             if width and width > 0:
                 stream_sw = stream_sw.filter('scale', width, -2)
-            
+
             # Apply consistent color format processing to match hardware paths
             stream_sw = (
-                stream_sw
-                .filter('format', 'rgb24')  # Use RGB24 for consistent APNG encoding (matches QSV path)
+                stream_sw.filter('format', 'rgb24')  # Use RGB24 for consistent APNG encoding (matches QSV path)
             )
             out, _err = _run_pipeline(stream_sw, [])
             try:
@@ -649,6 +618,7 @@ class FFMpeg:
         except Exception as ex:
             try:
                 import ffmpeg as _ff
+
                 if isinstance(ex, _ff._run.Error) and getattr(ex, 'stderr', None):
                     err_msg = ex.stderr.decode('utf-8', errors='ignore')
                     err_tail = '\n'.join(err_msg.strip().split('\n')[-5:])
@@ -664,11 +634,7 @@ class FFMpeg:
                     stream_sw2 = stream_sw2.filter('scale', width, -2)
                 # Apply consistent format processing
                 stream_sw2 = stream_sw2.filter('format', 'rgb24')
-                out2, _err2 = (
-                    stream_sw2
-                    .output('pipe:', vframes=1, format='image2', vcodec='png', update=1)
-                    .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
-                )
+                out2, _err2 = stream_sw2.output('pipe:', vframes=1, format='image2', vcodec='png', update=1).run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                 try:
                     return Image.open(BytesIO(out2))
                 except Exception as pil_ex2:
@@ -677,6 +643,7 @@ class FFMpeg:
             except Exception as ex2:
                 try:
                     import ffmpeg as _ff
+
                     if isinstance(ex2, _ff._run.Error) and getattr(ex2, 'stderr', None):
                         err_msg2 = ex2.stderr.decode('utf-8', errors='ignore')
                         err_tail2 = '\n'.join(err_msg2.strip().split('\n')[-5:])
@@ -692,11 +659,7 @@ class FFMpeg:
                     stream_sw3 = stream_sw3.filter('scale', width, -2)
                 # Apply consistent format processing
                 stream_sw3 = stream_sw3.filter('format', 'rgb24')
-                out3, _err3 = (
-                    stream_sw3
-                    .output('pipe:', vframes=1, ss=screenshot_time, format='apng')
-                    .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
-                )
+                out3, _err3 = stream_sw3.output('pipe:', vframes=1, ss=screenshot_time, format='apng').run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                 return Image.open(BytesIO(out3))
             except Exception:
                 try:
@@ -705,11 +668,7 @@ class FFMpeg:
                         stream_sw4 = stream_sw4.filter('scale', width, -2)
                     # Apply consistent format processing
                     stream_sw4 = stream_sw4.filter('format', 'rgb24')
-                    out4, _err4 = (
-                        stream_sw4
-                        .output('pipe:', vframes=1, ss=screenshot_time, format='image2', vcodec='png')
-                        .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
-                    )
+                    out4, _err4 = stream_sw4.output('pipe:', vframes=1, ss=screenshot_time, format='image2', vcodec='png').run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                     return Image.open(BytesIO(out4))
                 except Exception:
                     pass
@@ -722,11 +681,7 @@ class FFMpeg:
                         stream_sw5 = stream_sw5.filter('scale', width, -2)
                     # Apply consistent format processing
                     stream_sw5 = stream_sw5.filter('format', 'rgb24')
-                    out5, _err5 = (
-                        stream_sw5
-                        .output('pipe:', vframes=1, ss=t2, format='image2', vcodec='png')
-                        .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
-                    )
+                    out5, _err5 = stream_sw5.output('pipe:', vframes=1, ss=t2, format='image2', vcodec='png').run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                     return Image.open(BytesIO(out5))
                 except Exception:
                     continue

@@ -51,7 +51,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
                 self.assertEqual(res.oshash, expected_oshash)
                 self.assertEqual(res.duration, expected_duration)
 
-    @unittest.skipIf(True, "StashVideoPerceptualHash requires external binary not available in test environment")
+    @unittest.skipIf(True, 'StashVideoPerceptualHash requires external binary not available in test environment')
     def test_get_stash_phash(self):
         """
         Test phash calculation.
@@ -71,8 +71,6 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
                 self.assertEqual(res.phash, expected_phash)
                 self.assertEqual(res.oshash, expected_oshash)
                 self.assertEqual(res.duration, expected_duration)
-
-
 
 
 if __name__ == '__main__':
