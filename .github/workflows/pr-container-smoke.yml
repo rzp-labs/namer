@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 concurrency:
   group: pr-smoke-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -16,15 +19,18 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        # actions/checkout@v4 pinned to commit SHA
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
         with:
           fetch-depth: 1
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        # docker/setup-buildx-action@v3 pinned to commit SHA
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435
 
       - name: Build image (amd64, load locally)
-        uses: docker/build-push-action@v6
+        # docker/build-push-action@v6 pinned to commit SHA
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
         with:
           context: .
           platforms: linux/amd64
