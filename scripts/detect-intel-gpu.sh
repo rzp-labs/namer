@@ -20,8 +20,10 @@ get_pci_info() {
     card_device="${card_device/131/3}"
     
     if [[ -e "/sys/class/drm/${card_device}/device/vendor" && -e "/sys/class/drm/${card_device}/device/device" ]]; then
-        local vendor=$(cat "/sys/class/drm/${card_device}/device/vendor" 2>/dev/null || echo "unknown")
-        local device=$(cat "/sys/class/drm/${card_device}/device/device" 2>/dev/null || echo "unknown")
+        local vendor
+        vendor=$(cat "/sys/class/drm/${card_device}/device/vendor" 2>/dev/null || echo "unknown")
+        local device
+        device=$(cat "/sys/class/drm/${card_device}/device/device" 2>/dev/null || echo "unknown")
         echo "${vendor}:${device}"
     else
         echo "unknown:unknown"

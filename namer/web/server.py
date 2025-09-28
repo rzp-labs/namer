@@ -200,10 +200,7 @@ def default(obj):
         return float(obj)
 
     elif isinstance(obj, (numpy.complex64, numpy.complex128)):
-        return {
-            'real': obj.real,
-            'imag': obj.imag
-        }
+        return {'real': obj.real, 'imag': obj.imag}
 
     elif isinstance(obj, (numpy.ndarray,)):
         return obj.tolist()

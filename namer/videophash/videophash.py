@@ -23,9 +23,7 @@ class VideoPerceptualHash:
     def __init__(self, ffmpeg: FFMpeg):
         self.__ffmpeg = ffmpeg
 
-    def get_hashes(self, file: Path, max_workers: Optional[int] = None, use_gpu: bool = False,
-                   hwaccel_backend: Optional[str] = None, hwaccel_device: Optional[str] = None,
-                   hwaccel_decoder: Optional[str] = None) -> Optional[PerceptualHash]:
+    def get_hashes(self, file: Path, max_workers: Optional[int] = None, use_gpu: bool = False, hwaccel_backend: Optional[str] = None, hwaccel_device: Optional[str] = None, hwaccel_decoder: Optional[str] = None) -> Optional[PerceptualHash]:
         data = None
 
         probe = self.__ffmpeg.ffprobe(file)
@@ -41,21 +39,17 @@ class VideoPerceptualHash:
 
         return data
 
-    def get_phash(self, file: Path, duration: float, max_workers: Optional[int], use_gpu: bool,
-                  hwaccel_backend: Optional[str], hwaccel_device: Optional[str], hwaccel_decoder: Optional[str]) -> Optional[imagehash.ImageHash]:
+    def get_phash(self, file: Path, duration: float, max_workers: Optional[int], use_gpu: bool, hwaccel_backend: Optional[str], hwaccel_device: Optional[str], hwaccel_decoder: Optional[str]) -> Optional[imagehash.ImageHash]:
         stat = file.stat()
         return self._get_phash(file, duration, max_workers, use_gpu, hwaccel_backend, hwaccel_device, hwaccel_decoder, stat.st_size, stat.st_mtime)
 
     @lru_cache(maxsize=1024)  # noqa: B019
-    def _get_phash(self, file: Path, duration: float, max_workers: Optional[int], use_gpu: bool,
-                   hwaccel_backend: Optional[str], hwaccel_device: Optional[str], hwaccel_decoder: Optional[str],
-                   file_size: int, file_update: float) -> Optional[imagehash.ImageHash]:
+    def _get_phash(self, file: Path, duration: float, max_workers: Optional[int], use_gpu: bool, hwaccel_backend: Optional[str], hwaccel_device: Optional[str], hwaccel_decoder: Optional[str], file_size: int, file_update: float) -> Optional[imagehash.ImageHash]:
         logger.info(f'Calculating phash for file "{file}"')
         phash = self.__calculate_phash(file, duration, max_workers, use_gpu, hwaccel_backend, hwaccel_device, hwaccel_decoder)
         return phash
 
-    def __calculate_phash(self, file: Path, duration: float, max_workers: Optional[int], use_gpu: bool,
-                          hwaccel_backend: Optional[str], hwaccel_device: Optional[str], hwaccel_decoder: Optional[str]) -> Optional[imagehash.ImageHash]:
+    def __calculate_phash(self, file: Path, duration: float, max_workers: Optional[int], use_gpu: bool, hwaccel_backend: Optional[str], hwaccel_device: Optional[str], hwaccel_decoder: Optional[str]) -> Optional[imagehash.ImageHash]:
         phash = None
 
         thumbnail_image = self.__generate_image_thumbnail(file, duration, max_workers, use_gpu, hwaccel_backend, hwaccel_device, hwaccel_decoder)
@@ -64,8 +58,7 @@ class VideoPerceptualHash:
 
         return phash
 
-    def __generate_image_thumbnail(self, file: Path, duration: float, max_workers: Optional[int], use_gpu: bool,
-                                   hwaccel_backend: Optional[str], hwaccel_device: Optional[str], hwaccel_decoder: Optional[str]) -> Optional[Image.Image]:
+    def __generate_image_thumbnail(self, file: Path, duration: float, max_workers: Optional[int], use_gpu: bool, hwaccel_backend: Optional[str], hwaccel_device: Optional[str], hwaccel_decoder: Optional[str]) -> Optional[Image.Image]:
         thumbnail_image = None
 
         thumbnail_list = self.__generate_thumbnails(file, duration, max_workers, use_gpu, hwaccel_backend, hwaccel_device, hwaccel_decoder)
@@ -84,8 +77,7 @@ class VideoPerceptualHash:
         file_hash = oshash.oshash(str(file))
         return file_hash
 
-    def __generate_thumbnails(self, file: Path, duration: float, max_workers: Optional[int], use_gpu: bool,
-                              hwaccel_backend: Optional[str], hwaccel_device: Optional[str], hwaccel_decoder: Optional[str]) -> List[Image.Image]:
+    def __generate_thumbnails(self, file: Path, duration: float, max_workers: Optional[int], use_gpu: bool, hwaccel_backend: Optional[str], hwaccel_device: Optional[str], hwaccel_decoder: Optional[str]) -> List[Image.Image]:
         duration = int(Decimal(duration * 100).quantize(0, ROUND_HALF_UP)) / 100
 
         chunk_count = self.__columns * self.__rows

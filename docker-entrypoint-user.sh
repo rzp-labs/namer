@@ -4,6 +4,7 @@
 # This script properly handles PUID/PGID environment variables to fix file ownership issues
 #
 set -Eeuo pipefail
+IFS=$' \t\n'
 
 echo "[ENTRYPOINT] Starting namer container with Intel GPU hardware acceleration..."
 echo "[ENTRYPOINT] Container OS: $(lsb_release -d -s 2>/dev/null || echo 'Unknown')"
@@ -12,6 +13,21 @@ echo "[ENTRYPOINT] Container OS: $(lsb_release -d -s 2>/dev/null || echo 'Unknow
 PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
 UMASK="${UMASK:-0002}"
+
+# Validate that PUID/PGID are numeric and non-root unless explicitly allowed
+if ! [[ "$PUID" =~ ^[0-9]+$ ]]; then
+    echo "[ENTRYPOINT] Warning: non-numeric PUID='$PUID'; defaulting to 1000"
+    PUID=1000
+fi
+if ! [[ "$PGID" =~ ^[0-9]+$ ]]; then
+    echo "[ENTRYPOINT] Warning: non-numeric PGID='$PGID'; defaulting to 1000"
+    PGID=1000
+fi
+if [[ "${NAMER_ALLOW_ROOT:-0}" != "1" ]] && { [[ "$PUID" = "0" ]] || [[ "$PGID" = "0" ]]; }; then
+    echo "[ENTRYPOINT] Warning: root UID/GID requested but not allowed; defaulting to 1000:1000"
+    PUID=1000
+    PGID=1000
+fi
 
 echo "[ENTRYPOINT] User configuration:"
 echo "[ENTRYPOINT]   PUID=${PUID}"
@@ -98,12 +114,40 @@ mkdir -p "${USER_HOME}/.local/bin" \
          "${USER_HOME}/.local/share" \
          "${USER_HOME}/.cache" \
          "${USER_HOME}/.config"
+# Define safe directory prefixes for ownership fixes
+SAFE_PREFIXES=(/config /watch /work /dest /failed /ambiguous /app)
+
+is_absolute_path() {
+    case "$1" in
+        /*) return 0 ;;
+        *)  return 1 ;;
+    esac
+}
+
+has_safe_prefix() {
+    local p="$1"
+    for pref in "${SAFE_PREFIXES[@]}"; do
+        case "$p" in
+            "${pref}"/*|"${pref}") return 0 ;;
+        esac
+    done
+    return 1
+}
+
+is_symlink() {
+    [[ -L "$1" ]]
+}
+
 # Fix ownership of application directories
 echo "[ENTRYPOINT] Setting ownership of directories to ${PUID}:${PGID}"
 ownership="${PUID}:${PGID}"
 for dir in /config /app "${USER_HOME}"; do
     if [[ -w "$dir" && -d "$dir" ]]; then
-        chown -R "$ownership" -- "$dir" || true
+        if [[ "${NAMER_ALLOW_ROOT:-0}" = "1" || "$ownership" != "0:0" ]]; then
+            chown -R "$ownership" -- "$dir" || true
+        else
+            echo "[ENTRYPOINT] Skipping chown for $dir with 0:0 (not allowed)"
+        fi
     else
         echo "[ENTRYPOINT] Warning: skipping chown for $dir (not writable or not a directory)"
     fi
@@ -111,10 +155,27 @@ done
 # Also fix ownership of common volume mounts and any env-configured directories
 chown_dir_if_possible() {
     local d="$1"
-    if [[ -n "$d" && -d "$d" ]]; then
+    [[ -n "$d" ]] || return 0
+    if ! is_absolute_path "$d"; then
+        echo "[ENTRYPOINT] Warning: refusing to chown non-absolute path: $d"
+        return 0
+    fi
+    if is_symlink "$d"; then
+        echo "[ENTRYPOINT] Warning: refusing to chown symlink: $d"
+        return 0
+    fi
+    if ! has_safe_prefix "$d"; then
+        echo "[ENTRYPOINT] Warning: refusing to chown path outside safe prefixes: $d"
+        return 0
+    fi
+    if [[ -d "$d" ]]; then
         if [[ -w "$d" ]]; then
             echo "[ENTRYPOINT] Ensuring ownership for: $d"
-            chown -R "$ownership" -- "$d" || true
+            if [[ "${NAMER_ALLOW_ROOT:-0}" = "1" || "$ownership" != "0:0" ]]; then
+                chown -R "$ownership" -- "$d" || true
+            else
+                echo "[ENTRYPOINT] Skipping chown for $d with 0:0 (not allowed)"
+            fi
         else
             echo "[ENTRYPOINT] Warning: cannot chown $d (read-only mount?)"
         fi
@@ -170,17 +231,48 @@ if [[ -d "/dev/dri" ]] && compgen -G "/dev/dri/*" > /dev/null; then
     done
     
     echo "[ENTRYPOINT] Running Intel GPU detection with debugging enabled..."
-    
+
     # Run GPU detection script
     if DEBUG=true TEST_GPU=true /usr/local/bin/detect-gpu.sh; then
-        # Source the environment variables written by the GPU detection script
+        # Safely import a limited set of variables from the generated env file
         GPU_ENV_FILE="/tmp/gpu-detected-env"
-        if [[ -f "$GPU_ENV_FILE" ]]; then
-            # shellcheck source=/dev/null
-            source "$GPU_ENV_FILE"
-            echo "[ENTRYPOINT] GPU detection successful"
-            echo "[ENTRYPOINT] Selected GPU: ${NAMER_GPU_DEVICE:-none}"
-            echo "[ENTRYPOINT] Backend: ${NAMER_GPU_BACKEND:-none}"
+        if [[ -f "$GPU_ENV_FILE" && ! -L "$GPU_ENV_FILE" && -r "$GPU_ENV_FILE" ]]; then
+            # Validate file ownership and that it is not group/other-writable
+            owner_uid="$(stat -c '%u' "$GPU_ENV_FILE" 2>/dev/null || echo '')"
+            perms_num="$(stat -c '%a' "$GPU_ENV_FILE" 2>/dev/null || echo '')"
+            current_uid="$(id -u)"
+
+            # Derive group/other write bits from numeric permissions
+            if [[ "$perms_num" =~ ^[0-7]{3}$ ]]; then
+                gw=$(( (10#$perms_num / 10) % 10 ))
+                ow=$(( 10#$perms_num % 10 ))
+            else
+                gw=7
+                ow=7
+            fi
+
+            if { [[ "$owner_uid" = "0" ]] || [[ "$owner_uid" = "$current_uid" ]]; } \
+               && [[ "$gw" != "2" && "$gw" != "6" && "$gw" != "7" ]] \
+               && [[ "$ow" != "2" && "$ow" != "6" && "$ow" != "7" ]]; then
+                # Parse only whitelisted keys (no eval/source)
+                while IFS='=' read -r raw_k raw_v; do
+                    k="$(echo "$raw_k" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+                    v="$(echo "$raw_v" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed 's/^"//;s/"$//' | sed "s/^'//;s/'$//")"
+                    case "$k" in
+                        NAMER_GPU_DEVICE) NAMER_GPU_DEVICE="$v" ;;
+                        NAMER_GPU_BACKEND) NAMER_GPU_BACKEND="$v" ;;
+                        LIBVA_DRIVER_NAME) LIBVA_DRIVER_NAME="$v" ;;
+                        *) : ;; # ignore anything else
+                    esac
+                done < "$GPU_ENV_FILE"
+                echo "[ENTRYPOINT] GPU detection successful"
+                echo "[ENTRYPOINT] Selected GPU: ${NAMER_GPU_DEVICE:-none}"
+                echo "[ENTRYPOINT] Backend: ${NAMER_GPU_BACKEND:-none}"
+            else
+                echo "[ENTRYPOINT] Warning: insecure GPU env file permissions/ownership; ignoring $GPU_ENV_FILE"
+                echo "[ENTRYPOINT] Selected GPU: none"
+                echo "[ENTRYPOINT] Backend: none"
+            fi
         else
             echo "[ENTRYPOINT] GPU detection failed - environment file not created"
             echo "[ENTRYPOINT] Selected GPU: none"

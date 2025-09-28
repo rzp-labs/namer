@@ -10,7 +10,8 @@ SCRIPT_DIR = ./scripts
 
 .PHONY: all help build build-fast build-full build-dev \
         build-amd64 build-arm64 build-multiarch ensure-builder \
-        test test-basic test-integration validate clean clean-deep config
+        test test-basic test-integration validate clean clean-deep config \
+        setup-dev
 
 help: ## Show available targets
 	@echo "🏗️  Namer Build System"
@@ -119,10 +120,14 @@ release-prep: validate build-full test-integration ## Full release preparation
 
 # Docker operations (using native commands)
 push: ## Push built image to registry
-	@echo "📤 Pushing $(IMAGE_NAME):$(VERSION)..."
 	@docker push $(IMAGE_NAME):$(VERSION)
 	@docker push $(IMAGE_NAME):latest
 
 pull: ## Pull image from registry
-	@echo "📥 Pulling $(IMAGE_NAME):$(VERSION)..."
+	@echo "Pulling $(IMAGE_NAME):$(VERSION)..."
 	@docker pull $(IMAGE_NAME):$(VERSION)
+
+# Developer setup
+setup-dev: ## Install local hooks (pre-commit + pre-push) for fast checks and validation
+	@chmod +x scripts/install-hooks.sh || true
+	@./scripts/install-hooks.sh

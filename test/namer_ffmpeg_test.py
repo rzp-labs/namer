@@ -17,6 +17,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
     """
     Always test first.
     """
+
     def __init__(self, method_name='runTest'):
         super().__init__(method_name)
 

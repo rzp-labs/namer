@@ -173,7 +173,9 @@ class FakeTPDB(ParrotWebServer):
         self.add_evil_angel('/movies?parse=EvilAngel%20-%202022-01-03%20-%20Carmela%20Clutch%20Fabulous%20Anal%203-Way%21&limit=25')
         # Image for UI Test:
         self.add_evil_angel('/scenes?parse=EvilAngel.-.2022-01-03.-.Carmela.Clutch.Fabulous.Anal.3-Way%21.mp4&limit=25')
-        self.add_poster('/qWAUIAUpBsoqKUwozc4NOTR1tPI=/1000x1500/smart/filters:sharpen():upscale():watermark(https://cdn.metadataapi.net/sites/3f/9f/51/cf3828d65425bca2890d53ef242d8cf/logo/evil-angel_dark[1].png,-10,-10,25,50)/https://cdn.metadataapi.net/scene/f4/ab/3e/a91d31d6dee223f4f30a57bfd83b151/background/bg-evil-angel-carmela-clutch-fabulous-anal-3-way.webp?')
+        self.add_poster(
+            '/qWAUIAUpBsoqKUwozc4NOTR1tPI=/1000x1500/smart/filters:sharpen():upscale():watermark(https://cdn.metadataapi.net/sites/3f/9f/51/cf3828d65425bca2890d53ef242d8cf/logo/evil-angel_dark[1].png,-10,-10,25,50)/https://cdn.metadataapi.net/scene/f4/ab/3e/a91d31d6dee223f4f30a57bfd83b151/background/bg-evil-angel-carmela-clutch-fabulous-anal-3-way.webp?'
+        )
         # DorcelClub
         # Search Results
         self.add_dorcel_club('/scenes?parse=dorcelclub.2021-12-23.Aya%20Benetti%20Megane%20Lopez%20And%20Bella%20Tina&limit=25')
@@ -206,21 +208,21 @@ class FakeTPDB(ParrotWebServer):
 
         self.add_json_response('{"data":{"favicon":null,"id":1309,"logo":null,"name":"Gamma Enterprises","network_id":null,"parent_id":null,"poster":null,"short_name":"gammaenterprises","url":"N/A"}}', '/sites/1309?')
         self.add_json_response('{"data":{"id":1,"name":"Admin"}}', '/auth/user?')
-    
+
     def setup_graphql_endpoint(self):
         """Set up GraphQL endpoint that handles POST requests."""
         from flask import request as flask_request
-        
+
         def handle_graphql_request():
             """Handle GraphQL POST request and return appropriate response."""
             try:
                 import orjson
-                
+
                 # Parse the GraphQL request
                 request_data = orjson.loads(flask_request.get_data())
                 query = request_data.get('query', '')
                 variables = request_data.get('variables', {})
-                
+
                 # Route based on query type
                 if 'searchScenes' in query:
                     return self._handle_search_scenes(variables)
@@ -235,23 +237,21 @@ class FakeTPDB(ParrotWebServer):
                 elif 'shareSceneHash' in query:
                     return self._handle_share_hash(variables)
                 else:
-                    return orjson.dumps({"data": None}).decode('utf-8')
-                    
+                    return orjson.dumps({'data': None}).decode('utf-8')
+
             except Exception as e:
-                return orjson.dumps({
-                    "errors": [{"message": f"GraphQL error: {str(e)}"}]
-                }).decode('utf-8')
-        
+                return orjson.dumps({'errors': [{'message': f'GraphQL error: {str(e)}'}]}).decode('utf-8')
+
         # Set up the GraphQL endpoint - handle both with and without query params
         super().set_response('/graphql', handle_graphql_request)
         super().set_response('/graphql?', handle_graphql_request)
-    
+
     def _handle_search_scenes(self, variables):
         """Handle searchScenes GraphQL query (legacy)."""
         import orjson
-        
+
         query_string = variables.get('query', '').lower()
-        
+
         # Determine which scene data to return based on query
         if 'evilangel' in query_string and 'carmela clutch' in query_string:
             # ea.full.json has the scene data directly in 'data' field
@@ -261,32 +261,20 @@ class FakeTPDB(ParrotWebServer):
             scene_data = self._scenes['dc.json']['data'][0]
         elif 'brazzersexxtra' in query_string and 'marykate moss' in query_string:
             # ssb2.json has REST API structure with 'data' array
-            scene_data = self._scenes['ssb2.json']['data'][0]  
+            scene_data = self._scenes['ssb2.json']['data'][0]
         else:
             # Return empty results for unknown queries
-            return orjson.dumps({
-                "data": {
-                    "searchScenes": {
-                        "data": []
-                    }
-                }
-            }).decode('utf-8')
-        
+            return orjson.dumps({'data': {'searchScenes': {'data': []}}}).decode('utf-8')
+
         # Wrap single scene in GraphQL searchScenes response format
-        return orjson.dumps({
-            "data": {
-                "searchScenes": {
-                    "data": [scene_data]
-                }
-            }
-        }).decode('utf-8')
-        
+        return orjson.dumps({'data': {'searchScenes': {'data': [scene_data]}}}).decode('utf-8')
+
     def _handle_search_scene(self, variables):
         """Handle searchScene GraphQL query (singular, current schema)."""
         import orjson
-        
+
         term_string = variables.get('term', '').lower()
-        
+
         # Determine which scene data to return based on term
         if 'evilangel' in term_string and 'carmela clutch' in term_string:
             # ea.full.json has the scene data directly in 'data' field
@@ -296,28 +284,20 @@ class FakeTPDB(ParrotWebServer):
             scene_data = self._scenes['dc.json']['data'][0]
         elif 'brazzersexxtra' in term_string and 'marykate moss' in term_string:
             # ssb2.json has REST API structure with 'data' array
-            scene_data = self._scenes['ssb2.json']['data'][0]  
+            scene_data = self._scenes['ssb2.json']['data'][0]
         else:
             # Return empty results for unknown queries
-            return orjson.dumps({
-                "data": {
-                    "searchScene": []
-                }
-            }).decode('utf-8')
-        
+            return orjson.dumps({'data': {'searchScene': []}}).decode('utf-8')
+
         # Return array of scenes for searchScene (current schema)
-        return orjson.dumps({
-            "data": {
-                "searchScene": [scene_data]
-            }
-        }).decode('utf-8')
-    
+        return orjson.dumps({'data': {'searchScene': [scene_data]}}).decode('utf-8')
+
     def _handle_find_scene(self, variables):
         """Handle findScene GraphQL query."""
         import orjson
-        
+
         scene_id = variables.get('id', '')
-        
+
         # Map scene IDs to the appropriate test data
         scene_data = None
         if scene_id == '1678283':
@@ -329,61 +309,43 @@ class FakeTPDB(ParrotWebServer):
         elif scene_id == '1836175':
             # ssb2.json has REST API structure with 'data' array
             scene_data = self._scenes['ssb2.json']['data'][0]
-        
+
         if scene_data:
             # Add isCollected field for complete scene info
             scene_data = scene_data.copy()  # Create copy to avoid modifying original
             scene_data['isCollected'] = False
-            
-        return orjson.dumps({
-            "data": {
-                "findScene": scene_data
-            }
-        }).decode('utf-8')
-    
+
+        return orjson.dumps({'data': {'findScene': scene_data}}).decode('utf-8')
+
     def _handle_user_info(self):
         """Handle user info GraphQL query."""
         import orjson
-        
-        return orjson.dumps({
-            "data": {
-                "me": {
-                    "id": "1",
-                    "name": "testuser",  # Use 'name' to match legacy format expectation
-                    "email": "test@example.com",
-                    "isAdmin": True,
-                    "collectedScenes": {
-                        "totalCount": 0
+
+        return orjson.dumps(
+            {
+                'data': {
+                    'me': {
+                        'id': '1',
+                        'name': 'testuser',  # Use 'name' to match legacy format expectation
+                        'email': 'test@example.com',
+                        'isAdmin': True,
+                        'collectedScenes': {'totalCount': 0},
                     }
                 }
             }
-        }).decode('utf-8')
-    
+        ).decode('utf-8')
+
     def _handle_mark_collected(self, variables):
         """Handle markSceneCollected GraphQL mutation."""
         import orjson
-        
-        return orjson.dumps({
-            "data": {
-                "markSceneCollected": {
-                    "success": True,
-                    "message": "Scene marked as collected"
-                }
-            }
-        }).decode('utf-8')
-    
+
+        return orjson.dumps({'data': {'markSceneCollected': {'success': True, 'message': 'Scene marked as collected'}}}).decode('utf-8')
+
     def _handle_share_hash(self, variables):
         """Handle shareSceneHash GraphQL mutation."""
         import orjson
-        
-        return orjson.dumps({
-            "data": {
-                "shareSceneHash": {
-                    "success": True,
-                    "message": "Hash shared successfully"
-                }
-            }
-        }).decode('utf-8')
+
+        return orjson.dumps({'data': {'shareSceneHash': {'success': True, 'message': 'Hash shared successfully'}}}).decode('utf-8')
 
 
 @contextlib.contextmanager
@@ -395,7 +357,7 @@ def environment(config: NamerConfig = None):  # type: ignore
         temp_dir = Path(tmp_dir).resolve()
 
         config.enabled_tagging = True
-        config.metadata_provider = "theporndb"
+        config.metadata_provider = 'theporndb'
         config.enabled_poster = True
         config.override_tpdb_address = fake_tpdb.get_url()
         config.watch_dir = temp_dir / 'watch'
@@ -434,7 +396,7 @@ def environment_stashdb(config: NamerConfig = None):  # type: ignore
 
         # Point endpoint to fake server's /graphql and set a dummy token
         base = fake_stash.get_url()
-        config.stashdb_endpoint = f"{base}/graphql"
+        config.stashdb_endpoint = f'{base}/graphql'
         config.stashdb_token = 'notarealtoken'
 
         # Standard directories
@@ -561,14 +523,15 @@ def new_ea(target_dir: Optional[Path] = None, relative: str = '', use_dir: bool 
 
 # --- Disambiguation test helpers ---
 
-def create_dummy_video(tmp_path: Path, subdir: str = "src", filename: str = "video.mp4") -> Path:
+
+def create_dummy_video(tmp_path: Path, subdir: str = 'src', filename: str = 'video.mp4') -> Path:
     """
     Create a small dummy video file under tmp_path/subdir.
     """
     src = tmp_path / subdir
     src.mkdir(parents=True, exist_ok=True)
     video = src / filename
-    video.write_bytes(b"x")
+    video.write_bytes(b'x')
     return video
 
 
@@ -578,7 +541,7 @@ def setup_disambiguation_config(tmp_path: Path, enable_flag: bool) -> tuple[Name
     Returns (config, ambiguous_dir).
     """
     cfg = sample_config()
-    ambiguous_dir = tmp_path / "ambiguous"
+    ambiguous_dir = tmp_path / 'ambiguous'
     ambiguous_dir.mkdir()
 
     cfg.enable_disambiguation = enable_flag
@@ -599,7 +562,7 @@ def patch_default_ambiguous_match(monkeypatch) -> None:
             info = LookedUpFileInfo()
             info.guid = guid
             return ComparisonResult(
-                name="n",
+                name='n',
                 name_match=95.0,
                 site_match=True,
                 date_match=True,
@@ -609,10 +572,10 @@ def patch_default_ambiguous_match(monkeypatch) -> None:
                 phash_duration=True,
             )
 
-        results = [mk("A", 5), mk("B", 6), mk("B", 6), mk("B", 6)]
+        results = [mk('A', 5), mk('B', 6), mk('B', 6), mk('B', 6)]
         return ComparisonResults(results, None)
 
-    monkeypatch.setattr("namer.metadataapi.match", _fake_match)
+    monkeypatch.setattr('namer.metadataapi.match', _fake_match)
 
 
 def new_dorcel(target_dir: Optional[Path] = None, relative: str = '', use_dir: bool = True, post_stem: str = '', match: bool = True, mp4_file_name: str = 'Site.22.01.01.painful.pun.XXX.720p.xpost.mp4'):

@@ -142,26 +142,26 @@ def get_search_results(query: str, search_type: SearchType, file: str, config: N
     """
     provider = get_metadata_provider(config)
     all_results = []
-    
+
     # Search different content types based on search_type
     if search_type == SearchType.ANY or search_type == SearchType.SCENES:
         scene_results = provider.search(query, SceneType.SCENE, config, page)
         all_results.extend(scene_results)
-    
+
     if search_type == SearchType.ANY or search_type == SearchType.MOVIES:
         movie_results = provider.search(query, SceneType.MOVIE, config, page)
         all_results.extend(movie_results)
-    
+
     if search_type == SearchType.ANY or search_type == SearchType.JAV:
         jav_results = provider.search(query, SceneType.JAV, config, page)
         all_results.extend(jav_results)
-    
+
     # Convert LookedUpFileInfo objects to web UI format
     files = []
     for scene_data in all_results:
         # Parse the file name for comparison
         name_parts = parse_file_name(query, config)
-        
+
         # Create a basic comparison result for the web UI
         scene = {
             'name_parts': name_parts,
@@ -183,7 +183,7 @@ def get_search_results(query: str, search_type: SearchType, file: str, config: N
             'phash_duration': None,
         }
         files.append(scene)
-    
+
     return {
         'file': file,
         'files': files,
@@ -203,11 +203,11 @@ def get_phash_results(file: str, search_type: SearchType, config: NamerConfig) -
         return {'file': file, 'files': []}
 
     provider = get_metadata_provider(config)
-    
+
     # Use the provider's match function with phash for better results
     name_parts = parse_file_name(file, config)
     comparison_results = provider.match(name_parts, config, phash)
-    
+
     # Convert ComparisonResults to web UI format
     files = []
     for result in comparison_results.results:
@@ -230,7 +230,7 @@ def get_phash_results(file: str, search_type: SearchType, config: NamerConfig) -
             'phash_duration': result.phash_duration,
         }
         files.append(scene)
-    
+
     return {
         'file': file,
         'files': files,
