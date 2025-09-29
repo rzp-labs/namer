@@ -122,12 +122,16 @@ release-prep: validate build-full test-integration ## Full release preparation
 push: ## Push built image to registry
 	@docker push $(IMAGE_NAME):$(VERSION)
 	@docker push $(IMAGE_NAME):latest
-
 pull: ## Pull image from registry
 	@echo "Pulling $(IMAGE_NAME):$(VERSION)..."
 	@docker pull $(IMAGE_NAME):$(VERSION)
 
 # Developer setup
-setup-dev: ## Install local hooks (pre-commit + pre-push) for fast checks and validation
+setup-dev: ## Bootstrap Poetry + deps, then install local hooks (pre-commit + pre-push)
+	@echo "Checking Poetry availability..."
+	@command -v poetry >/dev/null 2>&1 || (command -v pipx >/dev/null 2>&1 && pipx install poetry || (echo "Poetry not found. Install via pipx (brew install pipx && pipx ensurepath) or pip (pip install --user poetry)" && exit 1))
+	@poetry --version
+	@echo "Installing project dependencies with Poetry..."
+	@poetry install
 	@chmod +x scripts/install-hooks.sh || true
 	@./scripts/install-hooks.sh

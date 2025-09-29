@@ -106,17 +106,34 @@ RUN rm -rf /work/namer/__pycache__/ || true \
 # Build dependencies (node, optional submodule), then fetch videohashes binary, then build package
 RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps )"
 
-# Fetch prebuilt videohashes binary to bundle into the wheel (no submodule required)
+# Fetch or build videohashes to bundle into the wheel
+# - amd64: download pinned release asset (videohashes-linux-amd64)
+# - arm64: build from local sources (videohashes/linux-arm64 target) and copy
+ARG PHASH_VERSION=2025.09.09
 RUN set -eux; \
     cd /work; \
     mkdir -p namer/tools; \
     ARCH=$(dpkg --print-architecture); \
     case "$ARCH" in \
-      amd64|arm64) ASSET="videohashes-${ARCH}-linux" ;; \
+      amd64) \
+        DOWNLOAD_NAME="videohashes-linux-amd64"; \
+        TARGET_NAME="videohashes-amd64-linux"; \
+        curl -fsSL -o "namer/tools/${TARGET_NAME}" "https://github.com/peolic/videohashes/releases/download/${PHASH_VERSION}/${DOWNLOAD_NAME}"; \
+        chmod +x "namer/tools/${TARGET_NAME}"; \
+        ;; \
+      arm64) \
+        # Build from source tarball for the pinned tag (no repo submodule needed)
+        TMPDIR=$(mktemp -d); \
+        curl -fsSL -o "$TMPDIR/videohashes.tar.gz" "https://github.com/peolic/videohashes/tarball/${PHASH_VERSION}"; \
+        mkdir -p "$TMPDIR/src"; \
+        tar -xzf "$TMPDIR/videohashes.tar.gz" -C "$TMPDIR/src" --strip-components=1; \
+        make -C "$TMPDIR/src" linux-arm64; \
+        cp "$TMPDIR/src/dist/videohashes-arm64-linux" ./namer/tools/; \
+        chmod +x ./namer/tools/videohashes-arm64-linux; \
+        rm -rf "$TMPDIR"; \
+        ;; \
       *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;; \
     esac; \
-    curl -fsSL -o "namer/tools/${ASSET}" "https://github.com/peolic/videohashes/releases/latest/download/${ASSET}"; \
-    chmod +x "namer/tools/${ASSET}"; \
     ls -l namer/tools
 
 RUN bash -lc "( cd /work/ && poetry run poe build_namer )"
