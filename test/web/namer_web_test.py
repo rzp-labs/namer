@@ -1,4 +1,11 @@
 import contextlib
+
+try:
+    import pytest  # type: ignore
+
+    pytestmark = pytest.mark.slow
+except Exception:
+    pass
 import os
 import unittest
 import warnings

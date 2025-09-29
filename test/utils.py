@@ -81,6 +81,8 @@ def sample_config() -> NamerConfig:
         config_str = resources.read_text('namer', 'namer.cfg.default')
     config.read_string(config_str)
     namer_config = from_config(config, NamerConfig())
+    # Use internal FFmpeg-based phash to avoid external binary in CI
+    namer_config.use_alt_phash_tool = True
     namer_config.extra_sleep_time = 0
     namer_config.console_format = '<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <4}</level> | {message}'
     namer_config.config_updater = config
