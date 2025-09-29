@@ -106,10 +106,17 @@ RUN rm -rf /work/namer/__pycache__/ || true \
 # Build dependencies (node, optional submodule), then fetch videohashes binary, then build package
 RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps )"
 
+# Ensure CA certificates present for TLS validation
+RUN apt-get update -y && apt-get install -y --no-install-recommends ca-certificates \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 # Fetch or build videohashes to bundle into the wheel
 # - amd64: download pinned release asset (videohashes-linux-amd64)
 # - arm64: build from local sources (videohashes/linux-arm64 target) and copy
 ARG PHASH_VERSION=2025.09.09
+# SHA256 for amd64 asset at the pinned tag (videohashes-linux-amd64)
+ARG PHASH_AMD64_SHA256=dbcc09bd45e260f09dd385e329b041e359fff3bfe66be767070918d519e6f476
 RUN set -eux; \
     cd /work; \
     mkdir -p namer/tools; \
@@ -118,24 +125,32 @@ RUN set -eux; \
       amd64) \
         DOWNLOAD_NAME="videohashes-linux-amd64"; \
         TARGET_NAME="videohashes-amd64-linux"; \
-        curl -fsSL -o "namer/tools/${TARGET_NAME}" "https://github.com/peolic/videohashes/releases/download/${PHASH_VERSION}/${DOWNLOAD_NAME}"; \
+        curl --fail --silent --show-error --location \
+             --proto '=https' --proto-redir '=https' \
+             -o "namer/tools/${TARGET_NAME}" \
+             "https://github.com/peolic/videohashes/releases/download/${PHASH_VERSION}/${DOWNLOAD_NAME}"; \
+        echo "${PHASH_AMD64_SHA256}  namer/tools/${TARGET_NAME}" | sha256sum -c -; \
         chmod +x "namer/tools/${TARGET_NAME}"; \
         ;; \
       arm64) \
         # Build from source tarball for the pinned tag (no repo submodule needed)
         TMPDIR=$(mktemp -d); \
-        curl -fsSL -o "$TMPDIR/videohashes.tar.gz" "https://github.com/peolic/videohashes/tarball/${PHASH_VERSION}"; \
+        curl --fail --silent --show-error --location \
+             --proto '=https' --proto-redir '=https' \
+             -o "$TMPDIR/videohashes.tar.gz" \
+             "https://github.com/peolic/videohashes/tarball/${PHASH_VERSION}"; \
         mkdir -p "$TMPDIR/src"; \
         tar -xzf "$TMPDIR/videohashes.tar.gz" -C "$TMPDIR/src" --strip-components=1; \
         make -C "$TMPDIR/src" linux-arm64; \
         cp "$TMPDIR/src/dist/videohashes-arm64-linux" ./namer/tools/; \
         chmod +x ./namer/tools/videohashes-arm64-linux; \
+        # Sanity check the produced binary looks like an aarch64 ELF
+        file ./namer/tools/videohashes-arm64-linux | grep -E 'ELF 64-bit.*aarch64' >/dev/null; \
         rm -rf "$TMPDIR"; \
         ;; \
       *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;; \
     esac; \
     ls -l namer/tools
-
 RUN bash -lc "( cd /work/ && poetry run poe build_namer )"
 
 FROM base
