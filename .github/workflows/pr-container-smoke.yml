@@ -50,7 +50,8 @@ jobs:
 
       - name: Healthcheck
         run: |
-          curl -sf http://127.0.0.1:6980/api/healthcheck
+          # Localhost-only health check; HTTPS is not applicable for 127.0.0.1
+          curl --fail --silent --show-error http://127.0.0.1:6980/api/healthcheck
 
       - name: Dump logs on failure
         if: failure()
