@@ -147,7 +147,6 @@ RUN set -eux; \
 ARG BUILD_DATE
 ARG GIT_HASH  
 ARG PROJECT_VERSION
-
 ENV PYTHONUNBUFFERED=1
 ENV NAMER_CONFIG=/config/namer.cfg
 ENV BUILD_DATE=$BUILD_DATE
@@ -156,7 +155,6 @@ ENV PROJECT_VERSION=$PROJECT_VERSION
 ENV LIBVA_DRIVER_NAME=iHD
 
 EXPOSE 6980
-HEALTHCHECK --interval=1m --timeout=30s CMD curl -sf "$(namer url)/api/healthcheck" >/dev/null || exit 1
 
 # Enhanced entrypoint with Intel GPU support and user switching
 COPY docker-entrypoint-user.sh /usr/local/bin/docker-entrypoint.sh
