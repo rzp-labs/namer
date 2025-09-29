@@ -1,11 +1,10 @@
 [project]
 name = "namer"
-version = "1.20.0"
+version = "1.21.0"
 description = "A namer of video files based on metadata from the porndb."
 readme = "readme.rst"
 authors = [
-    { name = "4c0d3r", email = "4c0d3r@protonmail.com" },
-    { name = "DirtyRacer", email = "DirtyRacer@ya.ru" }
+    { name = "nehpz", email = "admin@rzp.one" },
 ]
 dynamic = ["dependencies"]
 requires-python = ">=3.11,<3.15"
