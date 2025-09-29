@@ -103,7 +103,23 @@ RUN rm -rf /work/namer/__pycache__/ || true \
     && rm -rf /work/test/__pycache__/ || true \
     && poetry lock \
     && poetry install
-RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps && poetry run poe build_namer )"
+# Build dependencies (node, optional submodule), then fetch videohashes binary, then build package
+RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps )"
+
+# Fetch prebuilt videohashes binary to bundle into the wheel (no submodule required)
+RUN set -eux; \
+    cd /work; \
+    mkdir -p namer/tools; \
+    ARCH=$(dpkg --print-architecture); \
+    case "$ARCH" in \
+      amd64|arm64) ASSET="videohashes-${ARCH}-linux" ;; \
+      *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL -o "namer/tools/${ASSET}" "https://github.com/peolic/videohashes/releases/latest/download/${ASSET}"; \
+    chmod +x "namer/tools/${ASSET}"; \
+    ls -l namer/tools
+
+RUN bash -lc "( cd /work/ && poetry run poe build_namer )"
 
 FROM base
 
