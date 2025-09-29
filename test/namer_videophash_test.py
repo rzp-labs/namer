@@ -2,6 +2,14 @@
 Test namer_videophash.py
 """
 
+# Mark this module as slow so CI can skip with -m "not slow"
+try:
+    import pytest  # type: ignore
+
+    pytestmark = pytest.mark.slow
+except Exception:
+    pass
+
 import shutil
 import tempfile
 import unittest

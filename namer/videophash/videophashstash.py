@@ -1,4 +1,6 @@
 import platform
+import tempfile
+import os
 import subprocess
 from functools import lru_cache
 from pathlib import Path
@@ -30,7 +32,21 @@ class StashVideoPerceptualHash:
 
     def __init__(self):
         if not self.__phash_path.is_dir():
-            self.__phash_path.mkdir(exist_ok=True, parents=True)
+            try:
+                self.__phash_path.mkdir(exist_ok=True, parents=True)
+            except PermissionError:
+                # Fall back to a user-writable location when site-packages is read-only
+                # 1) Prefer a user-specific tmp dir to avoid collisions with restrictive parents
+                uid = os.getuid() if hasattr(os, 'getuid') else 0
+                tmp_fallback = Path(tempfile.gettempdir()) / f'namer-{uid}' / 'tools'
+                try:
+                    tmp_fallback.mkdir(exist_ok=True, parents=True)
+                    self.__phash_path = tmp_fallback
+                except PermissionError:
+                    # 2) Final fallback: user's cache directory
+                    home_cache = Path.home() / '.cache' / 'namer' / 'tools'
+                    home_cache.mkdir(exist_ok=True, parents=True)
+                    self.__phash_path = home_cache
 
         system = platform.system().lower()
         arch = platform.machine().lower()

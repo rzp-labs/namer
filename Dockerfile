@@ -67,15 +67,15 @@ RUN set -eux; \
   rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 RUN pipx install poetry
-# Install Node.js (v20) from NodeSource with GPG verification, then pin PNPM 10
+# Install Node.js (v22) from NodeSource with GPG verification, then pin PNPM 10
 RUN set -eux; \
     ARCH=$(dpkg --print-architecture); \
-    # Add NodeSource GPG key and repository for Node 20
+    # Add NodeSource GPG key and repository for Node 22
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg; \
-    echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list; \
+    echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" > /etc/apt/sources.list.d/nodesource.list; \
     apt-get update; \
     apt-get install -y --no-install-recommends nodejs; \
-    # Verify node version is >= 18.12 (Node 20 expected)
+    # Verify node version is >= 22
     node -v; \
     # Install pnpm with scripts disabled to avoid executing arbitrary lifecycle scripts
     npm i -g pnpm@10.0.0 --ignore-scripts; \
@@ -147,7 +147,6 @@ RUN set -eux; \
 ARG BUILD_DATE
 ARG GIT_HASH  
 ARG PROJECT_VERSION
-
 ENV PYTHONUNBUFFERED=1
 ENV NAMER_CONFIG=/config/namer.cfg
 ENV BUILD_DATE=$BUILD_DATE
@@ -156,7 +155,6 @@ ENV PROJECT_VERSION=$PROJECT_VERSION
 ENV LIBVA_DRIVER_NAME=iHD
 
 EXPOSE 6980
-HEALTHCHECK --interval=1m --timeout=30s CMD curl -sf "$(namer url)/api/healthcheck" >/dev/null || exit 1
 
 # Enhanced entrypoint with Intel GPU support and user switching
 COPY docker-entrypoint-user.sh /usr/local/bin/docker-entrypoint.sh

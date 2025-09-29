@@ -32,6 +32,7 @@ from namer.name_formatter import PartialFormatter
 from namer.mutagen import update_mp4_file
 from namer.videophash import PerceptualHash, return_perceptual_hash
 from namer.disambiguation import Candidate, decide, Decision
+from namer.logging_utils import setup_file_logging
 
 DESCRIPTION = """
     Namer, the porndb local file renamer. It can be a command line tool to rename mp4/mkv/avi/mov/flv files and to embed tags in mp4s,
@@ -436,6 +437,9 @@ def main(arg_list: List[str]):
     if args.verbose:
         level = 'DEBUG' if config.debug else 'INFO'
         logger.add(sys.stdout, format=config.console_format, level=level, diagnose=config.diagnose_errors)
+
+    # Optional file logging via shared helper
+    setup_file_logging(config)
 
     verify_configuration(config, PartialFormatter())
 

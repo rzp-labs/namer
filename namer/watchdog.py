@@ -27,6 +27,7 @@ from namer.metadataapi import get_user_info
 from namer.name_formatter import PartialFormatter
 from namer.namer import process_file
 from namer.web.server import NamerWebServer
+from namer.logging_utils import setup_file_logging
 
 
 def __is_file_in_use_windows(file: Path):
@@ -358,5 +359,8 @@ def create_watcher(namer_watchdog_config: NamerConfig) -> MovieWatcher:
 def main(config: NamerConfig):
     level = 'DEBUG' if config.debug else 'INFO'
     logger.add(sys.stdout, format=config.console_format, level=level, diagnose=config.diagnose_errors)
+
+    # Optional file logging via shared helper
+    setup_file_logging(config)
 
     create_watcher(config).run()

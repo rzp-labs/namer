@@ -436,6 +436,12 @@ field_info: Dict[str, Tuple[str, Optional[Callable[[Optional[str]], Any]], Optio
     'webhook_url': ('webhook', None, None),
     'debug': ('watchdog', to_bool, from_bool),
     'console_format': ('watchdog', None, None),
+    # File logging configuration
+    'file_logging_enabled': ('watchdog', to_bool, from_bool),
+    'file_logging_level': ('watchdog', None, None),
+    'file_logging_rotation': ('watchdog', None, None),
+    'file_logging_retention': ('watchdog', None, None),
+    'file_logging_directory': ('watchdog', to_path, from_path),
     'manual_mode': ('watchdog', to_bool, from_bool),
     'diagnose_errors': ('watchdog', to_bool, from_bool),
 }
