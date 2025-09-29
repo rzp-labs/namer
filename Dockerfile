@@ -58,7 +58,7 @@ ARG TARGETARCH
 RUN set -eux; \
   if [ "${TARGETARCH}" = "amd64" ]; then \
     ARCH=$(dpkg --print-architecture); \
-    curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-linux.gpg; \
+    curl -fsSL --proto '=https' --proto-redir '=https' https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-linux.gpg; \
     echo "deb [arch=${ARCH} signed-by=/usr/share/keyrings/google-linux.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list; \
     apt-get update; \
     apt-get install -y --no-install-recommends google-chrome-stable; \
@@ -72,7 +72,7 @@ RUN pipx install poetry
 RUN set -eux; \
     ARCH=$(dpkg --print-architecture); \
     # Add NodeSource GPG key and repository for Node 22
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg; \
+    curl -fsSL --proto '=https' --proto-redir '=https' https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg; \
     echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" > /etc/apt/sources.list.d/nodesource.list; \
     apt-get update; \
     apt-get install -y --no-install-recommends nodejs; \
