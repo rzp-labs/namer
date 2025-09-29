@@ -21,6 +21,7 @@ jobs:
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
         with:
           fetch-depth: 1
+          submodules: true
 
       - name: Set up Python
         # actions/setup-python@v5 pinned to commit SHA
@@ -113,6 +114,15 @@ jobs:
             nehpz/namer:pr-${{ github.sha }}
           # Give it a moment to start
           sleep 15
+
+      - name: Wait for service
+        run: |
+          for i in {1..60}; do
+            if curl -sf http://127.0.0.1:6980/api/healthcheck >/dev/null; then
+              echo "Service is up"; exit 0; fi
+            sleep 1
+          done
+          echo "Service did not become healthy in time"; exit 1
 
       - name: Healthcheck
         run: |
