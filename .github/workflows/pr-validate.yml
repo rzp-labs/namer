@@ -109,6 +109,7 @@ jobs:
         run: |
           docker run -d --name namer \
             -e NAMER_CONFIG=/config/namer.cfg \
+            -e STASHDB_TOKEN=dummy-ci-token \
             -p 6980:6980 \
             -v "${{ github.workspace }}/config:/config:ro" \
             nehpz/namer:pr-${{ github.sha }}

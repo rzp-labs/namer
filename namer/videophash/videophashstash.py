@@ -1,4 +1,5 @@
 import platform
+import tempfile
 import subprocess
 from functools import lru_cache
 from pathlib import Path
@@ -30,7 +31,13 @@ class StashVideoPerceptualHash:
 
     def __init__(self):
         if not self.__phash_path.is_dir():
-            self.__phash_path.mkdir(exist_ok=True, parents=True)
+            try:
+                self.__phash_path.mkdir(exist_ok=True, parents=True)
+            except PermissionError:
+                # Fall back to a writable temp-based tools directory when site-packages is read-only
+                fallback = Path(tempfile.gettempdir()) / 'namer' / 'tools'
+                fallback.mkdir(exist_ok=True, parents=True)
+                self.__phash_path = fallback
 
         system = platform.system().lower()
         arch = platform.machine().lower()
