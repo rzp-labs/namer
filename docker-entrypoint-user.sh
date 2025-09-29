@@ -14,6 +14,11 @@ PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
 UMASK="${UMASK:-0002}"
 
+# Initialize GPU-related environment variables to safe defaults early (avoid set -u issues)
+NAMER_GPU_DEVICE="${NAMER_GPU_DEVICE:-}"
+NAMER_GPU_BACKEND="${NAMER_GPU_BACKEND:-}"
+LIBVA_DRIVER_NAME="${LIBVA_DRIVER_NAME:-iHD}"
+
 # Validate that PUID/PGID are numeric and non-root unless explicitly allowed
 if ! [[ "$PUID" =~ ^[0-9]+$ ]]; then
     echo "[ENTRYPOINT] Warning: non-numeric PUID='$PUID'; defaulting to 1000"
@@ -270,6 +275,9 @@ if [[ -d "/dev/dri" ]] && compgen -G "/dev/dri/*" > /dev/null; then
                 echo "[ENTRYPOINT] Backend: ${NAMER_GPU_BACKEND:-none}"
             else
                 echo "[ENTRYPOINT] Warning: insecure GPU env file permissions/ownership; ignoring $GPU_ENV_FILE"
+                # Clear potentially unsafe values to avoid set -u issues later
+                NAMER_GPU_DEVICE=""
+                NAMER_GPU_BACKEND=""
                 echo "[ENTRYPOINT] Selected GPU: none"
                 echo "[ENTRYPOINT] Backend: none"
             fi
@@ -280,9 +288,9 @@ if [[ -d "/dev/dri" ]] && compgen -G "/dev/dri/*" > /dev/null; then
         fi
         
         # Identify the type of Intel GPU detected
-        if [[ "${NAMER_GPU_DEVICE}" == *"renderD128"* ]]; then
+        if [[ "${NAMER_GPU_DEVICE:-}" == *"renderD128"* ]]; then
             echo "[ENTRYPOINT] Primary Intel GPU (renderD128) detected - optimal performance enabled!"
-        elif [[ -n "${NAMER_GPU_DEVICE}" ]]; then
+        elif [[ -n "${NAMER_GPU_DEVICE:-}" ]]; then
             echo "[ENTRYPOINT] Intel GPU detected - hardware acceleration enabled!"
         fi
     else
