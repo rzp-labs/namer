@@ -21,6 +21,7 @@ RUN apt-get update \
        curl \
        wget \
        gnupg2 \
+       ca-certificates \
        vainfo \
        bc \
        gosu \
@@ -106,11 +107,6 @@ RUN rm -rf /work/namer/__pycache__/ || true \
 # Build dependencies (node, optional submodule), then fetch videohashes binary, then build package
 RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps )"
 
-# Ensure CA certificates present for TLS validation
-RUN apt-get update -y && apt-get install -y --no-install-recommends ca-certificates \
-    && update-ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
 # Fetch or build videohashes to bundle into the wheel
 # - amd64: download pinned release asset (videohashes-linux-amd64)
 # - arm64: build from local sources (videohashes/linux-arm64 target) and copy
@@ -134,11 +130,15 @@ RUN set -eux; \
         ;; \
       arm64) \
         # Build from source tarball for the pinned tag (no repo submodule needed)
+        # Note: GitHub generates tarballs dynamically, so SHA256 verification is not feasible.
+        # Security is ensured by: 1) HTTPS with CA cert validation, 2) pinned version tag
         TMPDIR=$(mktemp -d); \
         curl --fail --silent --show-error --location \
              --proto '=https' --proto-redir '=https' \
              -o "$TMPDIR/videohashes.tar.gz" \
              "https://github.com/peolic/videohashes/tarball/${PHASH_VERSION}"; \
+        # Verify the tarball was downloaded and is not empty
+        test -s "$TMPDIR/videohashes.tar.gz" || exit 1; \
         mkdir -p "$TMPDIR/src"; \
         tar -xzf "$TMPDIR/videohashes.tar.gz" -C "$TMPDIR/src" --strip-components=1; \
         make -C "$TMPDIR/src" linux-arm64; \
