@@ -113,6 +113,8 @@ RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps )"
 ARG PHASH_VERSION=2025.09.09
 # SHA256 for amd64 asset at the pinned tag (videohashes-linux-amd64)
 ARG PHASH_AMD64_SHA256=dbcc09bd45e260f09dd385e329b041e359fff3bfe66be767070918d519e6f476
+# SHA256 for arm64 source tarball at the pinned tag
+ARG PHASH_ARM64_TAR_SHA256=9fa44b290bc32b8173a2efe08f27d4272406b7583de0a6daa72258e42afc2b3f
 RUN set -eux; \
     cd /work; \
     mkdir -p namer/tools; \
@@ -130,15 +132,12 @@ RUN set -eux; \
         ;; \
       arm64) \
         # Build from source tarball for the pinned tag (no repo submodule needed)
-        # Note: GitHub generates tarballs dynamically, so SHA256 verification is not feasible.
-        # Security is ensured by: 1) HTTPS with CA cert validation, 2) pinned version tag
         TMPDIR=$(mktemp -d); \
         curl --fail --silent --show-error --location \
              --proto '=https' --proto-redir '=https' \
              -o "$TMPDIR/videohashes.tar.gz" \
              "https://github.com/peolic/videohashes/tarball/${PHASH_VERSION}"; \
-        # Verify the tarball was downloaded and is not empty
-        test -s "$TMPDIR/videohashes.tar.gz" || exit 1; \
+        echo "${PHASH_ARM64_TAR_SHA256}  $TMPDIR/videohashes.tar.gz" | sha256sum -c -; \
         mkdir -p "$TMPDIR/src"; \
         tar -xzf "$TMPDIR/videohashes.tar.gz" -C "$TMPDIR/src" --strip-components=1; \
         make -C "$TMPDIR/src" linux-arm64; \

@@ -128,10 +128,11 @@ pull: ## Pull image from registry
 
 # Developer setup
 setup-dev: ## Bootstrap Poetry + deps, then install local hooks (pre-commit + pre-push)
-	@echo "Checking Poetry availability..."
-	@command -v poetry >/dev/null 2>&1 || (command -v pipx >/dev/null 2>&1 && pipx install poetry || (echo "Poetry not found. Install via pipx (brew install pipx && pipx ensurepath) or pip (pip install --user poetry)" && exit 1))
-	@poetry --version
-	@echo "Installing project dependencies with Poetry..."
-	@poetry install
-	@chmod +x scripts/install-hooks.sh || true
-	@./scripts/install-hooks.sh
+	@set -e; \
+	echo "Checking Poetry availability..."; \
+	command -v poetry >/dev/null 2>&1 || (command -v pipx >/dev/null 2>&1 && pipx install poetry || (echo "Poetry not found. Install via pipx (brew install pipx && pipx ensurepath) or pip (pip install --user poetry)" && exit 1)); \
+	poetry --version; \
+	echo "Installing project dependencies with Poetry..."; \
+	poetry install; \
+	chmod +x scripts/install-hooks.sh || true; \
+	./scripts/install-hooks.sh
