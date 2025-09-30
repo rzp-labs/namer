@@ -78,6 +78,16 @@ export class Helpers {
 
   static request (url, data, success = null) {
     const progressBar = $('#progressBar')
+    const payload = data ?? {}
+
+    const headers = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json'
+    }
+
+    if (window.namerCsrfToken) {
+      headers['X-CSRF-Token'] = window.namerCsrfToken
+    }
 
     $.ajax({
       xhr: function () {
@@ -95,10 +105,17 @@ export class Helpers {
       },
       url,
       type: 'POST',
-      data: JSON.stringify(data, null, 0),
+      data: JSON.stringify(payload, null, 0),
+      headers,
       contentType: 'application/json',
       dataType: 'json',
-      success
+      success,
+      complete: function (xhr) {
+        const newToken = xhr.getResponseHeader('X-CSRF-Token') || xhr.getResponseHeader('X-CSRFToken')
+        if (newToken && typeof window.namerUpdateCsrfToken === 'function') {
+          window.namerUpdateCsrfToken(newToken)
+        }
+      }
     })
   }
 

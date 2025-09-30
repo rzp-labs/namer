@@ -19,6 +19,9 @@
         <meta name="user_id" content="{{ user.id }}">
         <meta name="user_name" content="{{ user.name }}">
     {% endif %}
+    {% if csrf_token is defined %}
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% endif %}
 </head>
 <body>
 <div class="container-lg">
@@ -32,6 +35,27 @@
     </div>
 </div>
 {% block external %}{% endblock %}
+<script>
+    (function () {
+        function setToken(token) {
+            if (!token) {
+                return;
+            }
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            if (!meta) {
+                meta = document.createElement('meta');
+                meta.setAttribute('name', 'csrf-token');
+                document.head.appendChild(meta);
+            }
+            meta.setAttribute('content', token);
+            window.namerCsrfToken = token;
+        }
+
+        window.namerUpdateCsrfToken = setToken;
+        var existing = document.querySelector('meta[name="csrf-token"]');
+        window.namerCsrfToken = existing ? existing.getAttribute('content') : null;
+    })();
+</script>
 <script src="{{ url_for('static', filename='assets/bundle.min.js') }}"></script>
 </body>
 </html>
