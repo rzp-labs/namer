@@ -18,17 +18,17 @@ importers:
         specifier: ^1.13.1
         version: 1.13.1
       datatables.net:
-        specifier: ^2.3.3
-        version: 2.3.3
+        specifier: ^2.3.4
+        version: 2.3.4
       datatables.net-bs5:
-        specifier: ^2.3.3
-        version: 2.3.3
+        specifier: ^2.3.4
+        version: 2.3.4
       datatables.net-buttons:
-        specifier: ^3.2.4
-        version: 3.2.4
+        specifier: ^3.2.5
+        version: 3.2.5
       datatables.net-buttons-bs5:
-        specifier: ^3.2.4
-        version: 3.2.4
+        specifier: ^3.2.5
+        version: 3.2.5
       datatables.net-colreorder:
         specifier: ^2.1.1
         version: 2.1.1
@@ -66,6 +66,12 @@ importers:
       '@eslint/js':
         specifier: ^9.34.0
         version: 9.34.0
+      ajv:
+        specifier: ^8.17.1
+        version: 8.17.1
+      ajv-keywords:
+        specifier: ^5.1.0
+        version: 5.1.0(ajv@8.17.1)
       babel-loader:
         specifier: ^10.0.0
         version: 10.0.0(@babel/core@7.28.3)(webpack@5.101.3)
@@ -79,17 +85,17 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2(webpack@5.101.3)
       eslint:
-        specifier: ^9.34.0
-        version: 9.34.0(jiti@1.21.7)
+        specifier: ^9.36.0
+        version: 9.36.0(jiti@1.21.7)
       eslint-config-standard:
         specifier: ^17.1.0
-        version: 17.1.0(eslint-plugin-import@2.31.0(eslint@9.34.0(jiti@1.21.7)))(eslint-plugin-n@16.6.2(eslint@9.34.0(jiti@1.21.7)))(eslint-plugin-promise@6.6.0(eslint@9.34.0(jiti@1.21.7)))(eslint@9.34.0(jiti@1.21.7))
+        version: 17.1.0(eslint-plugin-import@2.31.0(eslint@9.36.0(jiti@1.21.7)))(eslint-plugin-n@16.6.2(eslint@9.36.0(jiti@1.21.7)))(eslint-plugin-promise@6.6.0(eslint@9.36.0(jiti@1.21.7)))(eslint@9.36.0(jiti@1.21.7))
       file-loader:
         specifier: ^6.2.0
         version: 6.2.0(webpack@5.101.3)
       globals:
-        specifier: ^16.3.0
-        version: 16.3.0
+        specifier: ^16.4.0
+        version: 16.4.0
       html-minimizer-webpack-plugin:
         specifier: ^5.0.3
         version: 5.0.3(webpack@5.101.3)
@@ -97,8 +103,8 @@ importers:
         specifier: ^9.1.7
         version: 9.1.7
       lint-staged:
-        specifier: ^16.1.5
-        version: 16.1.5
+        specifier: ^16.2.0
+        version: 16.2.3
       mini-css-extract-plugin:
         specifier: ^2.9.4
         version: 2.9.4(webpack@5.101.3)
@@ -904,6 +910,12 @@ packages:
     peerDependencies:
       eslint: ^6.0.0 || ^7.0.0 || >=8.0.0
 
+  '@eslint-community/eslint-utils@4.9.0':
+    resolution: {integrity: sha512-ayVFHdtZ+hsq1t2Dy24wCmGXGe4q9Gu3smhLYALJrr473ZH27MsnSL+LKUlimp4BWJqMDMLmPpx/Q9R3OAlL4g==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    peerDependencies:
+      eslint: ^6.0.0 || ^7.0.0 || >=8.0.0
+
   '@eslint-community/regexpp@4.12.1':
     resolution: {integrity: sha512-CCZCDJuduB9OUkFkY2IgppNZMi2lBQgD2qzwXkEia16cge2pijY/aXi96CJMquDMn3nJdlPV1A5KrJEXwfLNzQ==}
     engines: {node: ^12.0.0 || ^14.0.0 || >=16.0.0}
@@ -926,6 +938,10 @@ packages:
 
   '@eslint/js@9.34.0':
     resolution: {integrity: sha512-EoyvqQnBNsV1CWaEJ559rxXL4c8V92gxirbawSmVUOWXlsRxxQXl6LmCpdUblgxgSkDIqKnhzba2SjRTI/A5Rw==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@eslint/js@9.36.0':
+    resolution: {integrity: sha512-uhCbYtYynH30iZErszX78U+nR3pJU3RHGQ57NXy5QupD4SBVwDeU8TNBy+MjMngc1UyIW9noKqsRqfjQTBU2dw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@eslint/object-schema@2.1.6':
@@ -1389,10 +1405,6 @@ packages:
     resolution: {integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==}
     engines: {node: '>=10'}
 
-  chalk@5.6.0:
-    resolution: {integrity: sha512-46QrSQFyVSEyYAgQ22hQ+zDa60YHA4fBstHmtSApj1Y5vKtG27fWowW03jCk5KcbXEWPZUIR894aARCA/G1kfQ==}
-    engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
-
   chokidar@4.0.3:
     resolution: {integrity: sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA==}
     engines: {node: '>= 14.16.0'}
@@ -1417,9 +1429,9 @@ packages:
     resolution: {integrity: sha512-aCj4O5wKyszjMmDT4tZj93kxyydN/K5zPWSCe6/0AV/AA1pqe5ZBIw0a2ZfPQV7lL5/yb5HsUreJ6UFAF1tEQw==}
     engines: {node: '>=18'}
 
-  cli-truncate@4.0.0:
-    resolution: {integrity: sha512-nPdaFdQ0h/GEigbPClz11D0v/ZJEwxmeVZGeMo3Z5StPtUTkA9o1lD6QwoirYiSDzbcwn2XcjwmCp68W1IS4TA==}
-    engines: {node: '>=18'}
+  cli-truncate@5.1.0:
+    resolution: {integrity: sha512-7JDGG+4Zp0CsknDCedl0DYdaeOhc46QNpXi3NLQblkZpXXgA6LncLDUUyvrjSvZeF3VRQa+KiMGomazQrC1V8g==}
+    engines: {node: '>=20'}
 
   clone-deep@4.0.1:
     resolution: {integrity: sha512-neHB9xuzh/wk0dIHweyAXv2aPGZIVk3pLMe+/RNzINf17fe0OG96QroktYAUm7SM1PBnzTabaLboqqxDyMU+SQ==}
@@ -1450,8 +1462,8 @@ packages:
     resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
     engines: {node: '>=18'}
 
-  commander@14.0.0:
-    resolution: {integrity: sha512-2uM9rYjPvyq39NwLRqaiLtWHyDC1FvryJDa2ATTVims5YAS4PupsEQsDvP14FqhFr0P49CYDugi59xaxJlTXRA==}
+  commander@14.0.1:
+    resolution: {integrity: sha512-2JkV3gUZUVrbNA+1sjBOYLsMZ5cEEl8GTFP2a4AVz5hvasAMCQ1D2l2le/cX+pV4N6ZU17zjUahLpIXRrnWL8A==}
     engines: {node: '>=20'}
 
   commander@2.20.3:
@@ -1603,14 +1615,14 @@ packages:
     resolution: {integrity: sha512-BS8PfmtDGnrgYdOonGZQdLZslWIeCGFP9tpan0hi1Co2Zr2NKADsvGYA8XxuG/4UWgJ6Cjtv+YJnB6MM69QGlQ==}
     engines: {node: '>= 0.4'}
 
-  datatables.net-bs5@2.3.3:
-    resolution: {integrity: sha512-IPtC57k3KyZaLzIYTHies23Cm2zqaKfD6lkxy/aOAUUAtsg35l53VqNY9y84AEySYG3YLghMHVBvl2ckUhvm0A==}
+  datatables.net-bs5@2.3.4:
+    resolution: {integrity: sha512-OSoPWhNfiU71VjNP604uTmFRxiX32U7SCW0KRZ2X6z3ZYbIwjjoWcMEjjPWOH3uOqaI0OTDBgOgOs5G28VaJog==}
 
-  datatables.net-buttons-bs5@3.2.4:
-    resolution: {integrity: sha512-yX8Ia32P1D9L02XWjisA6a9fFp0LgmzpIcvf/4ty+QG5/qj1tOOqWgsXsxxIY2Uj918WmLJS6VaJabRAMoAqHA==}
+  datatables.net-buttons-bs5@3.2.5:
+    resolution: {integrity: sha512-3eT/Sd90x7imq9MRcKP9X3j70qg/u+OvtZSNWJEihRf1Mb/Sr8NexQw/Bag/ui6GJHa5dhUeFrOgBSKtEW70iA==}
 
-  datatables.net-buttons@3.2.4:
-    resolution: {integrity: sha512-anA39/R0kpHA2DOwqEHy/ZMXD5vf4tWmyNO0BnO0kJG7AFNvGTUCWBnBifXYg3G64U6JYpYY+MuTFKIB1/ZMTQ==}
+  datatables.net-buttons@3.2.5:
+    resolution: {integrity: sha512-OSTl7evbfe0SMee11lyzu5iv/z8Yp05eh3s1QBte/FNqHcoXN8hlAVSSGpYgk5pj8zwHPYIu6fHeMEue4ARUNg==}
 
   datatables.net-colreorder-bs5@2.1.1:
     resolution: {integrity: sha512-vyXYFAYEat6ItPrSqlPPOfa5cLwBDxuPlg8jFezvLyW1Bk/uTWEzfA7mQuCfZJNQgBzuM6R27M9DyNWJO0/ngw==}
@@ -1630,8 +1642,8 @@ packages:
   datatables.net-responsive@3.0.6:
     resolution: {integrity: sha512-GHVgU7k7/ST7F/z1/0ieaJiNghrO1mgH8PbikAaL9MH1pw+GMcCuL5sFaFzIyMRzZz7tnrmVnjrkNX+W01VzhA==}
 
-  datatables.net@2.3.3:
-    resolution: {integrity: sha512-SWL3za6nheY6gdoiLgCc++tYmxbwrmv2bjrEiII9rXBWXXSbOZct6pjR3FueMVRM5jmt7pQcXiGovfuFDnutQg==}
+  datatables.net@2.3.4:
+    resolution: {integrity: sha512-fKuRlrBIdpAl2uIFgl9enKecHB41QmFd/2nN9LBbOvItV/JalAxLcyqdZXex7wX4ZXjnJQEnv6xeS9veOpKzSw==}
 
   debug@3.2.7:
     resolution: {integrity: sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==}
@@ -1846,8 +1858,8 @@ packages:
     resolution: {integrity: sha512-Uhdk5sfqcee/9H/rCOJikYz67o0a2Tw2hGRPOG2Y1R2dg7brRe1uG0yaNQDHu+TO/uQPF/5eCapvYSmHUjt7JQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  eslint@9.34.0:
-    resolution: {integrity: sha512-RNCHRX5EwdrESy3Jc9o8ie8Bog+PeYvvSR8sDGoZxNFTvZ4dlxUB3WzQ3bQMztFrSRODGrLLj8g6OFuGY/aiQg==}
+  eslint@9.36.0:
+    resolution: {integrity: sha512-hB4FIzXovouYzwzECDcUkJ4OcfOEkXTv2zRY6B9bkwjx/cprAq0uvm1nl7zvQ0/TsUk0zQiN4uPfJpB9m+rPMQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     hasBin: true
     peerDependencies:
@@ -2000,8 +2012,8 @@ packages:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
     engines: {node: '>=18'}
 
-  globals@16.3.0:
-    resolution: {integrity: sha512-bqWEnJ1Nt3neqx2q5SFfGS8r/ahumIakg3HcwtNlrVlwXIeNumWn/c7Pn/wKzGhf6SaW6H6uWXLqC30STCMchQ==}
+  globals@16.4.0:
+    resolution: {integrity: sha512-ob/2LcVVaVGCYN+r14cnwnoDPUufjiYgSqRhiFD0Q1iI4Odora5RE8Iv1D24hAz5oMophRGkGz+yuvQmmUMnMw==}
     engines: {node: '>=18'}
 
   globalthis@1.0.4:
@@ -2142,10 +2154,6 @@ packages:
   is-finalizationregistry@1.1.1:
     resolution: {integrity: sha512-1pC6N8qWJbWoPtEjgcL2xyhQOP491EQjeUo3qTKcmV8YSDDJrOepfG8pcC7h/QgnQHYSv0mJ3Z/ZWxmatVrysg==}
     engines: {node: '>= 0.4'}
-
-  is-fullwidth-code-point@4.0.0:
-    resolution: {integrity: sha512-O4L094N2/dZ7xqVdrXhh9r1KODPJpFms8B5sGdJLPy664AgvXsreZUyCQQNItZRDlYug4xStLjNp/sz3HvBowQ==}
-    engines: {node: '>=12'}
 
   is-fullwidth-code-point@5.0.0:
     resolution: {integrity: sha512-OVa3u9kkBbw7b8Xw5F9P+D/T9X+Z4+JruYVNapTjPYZYUznQ5YfWeFkOj606XYYW8yugTfC8Pj0hYqvi4ryAhA==}
@@ -2315,13 +2323,13 @@ packages:
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
 
-  lint-staged@16.1.5:
-    resolution: {integrity: sha512-uAeQQwByI6dfV7wpt/gVqg+jAPaSp8WwOA8kKC/dv1qw14oGpnpAisY65ibGHUGDUv0rYaZ8CAJZ/1U8hUvC2A==}
+  lint-staged@16.2.3:
+    resolution: {integrity: sha512-1OnJEESB9zZqsp61XHH2fvpS1es3hRCxMplF/AJUDa8Ho8VrscYDIuxGrj3m8KPXbcWZ8fT9XTMUhEQmOVKpKw==}
     engines: {node: '>=20.17'}
     hasBin: true
 
-  listr2@9.0.2:
-    resolution: {integrity: sha512-VVd7cS6W+vLJu2wmq4QmfVj14Iep7cz4r/OWNk36Aq5ZOY7G8/BfCrQFexcwB1OIxB3yERiePfE/REBjEFulag==}
+  listr2@9.0.4:
+    resolution: {integrity: sha512-1wd/kpAdKRLwv7/3OKC8zZ5U8e/fajCfWMxacUvB79S5nLrYGPtUI/8chMQhn3LQjsRVErTb9i1ECAwW0ZIHnQ==}
     engines: {node: '>=20.0.0'}
 
   loader-runner@4.3.0:
@@ -2409,8 +2417,8 @@ packages:
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
-  nano-spawn@1.0.2:
-    resolution: {integrity: sha512-21t+ozMQDAL/UGgQVBbZ/xXvNO10++ZPuTmKRO8k9V3AClVRht49ahtDjfY8l1q6nSHOrE5ASfthzH3ol6R/hg==}
+  nano-spawn@1.0.3:
+    resolution: {integrity: sha512-jtpsQDetTnvS2Ts1fiRdci5rx0VYws5jGyC+4IYOTnIQ/wwdf6JdomlHBwqC3bJYOvaKu0C2GSZ1A60anrYpaA==}
     engines: {node: '>=20.17'}
 
   nanoid@3.3.11:
@@ -3100,10 +3108,6 @@ packages:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
 
-  slice-ansi@5.0.0:
-    resolution: {integrity: sha512-FC+lgizVPfie0kkhqUScwRu1O/lF6NOgJmlCgK+/LYxDCTk8sGelYaHDhFcDN+Sn3Cv+3VSa4Byeo+IMCzpMgQ==}
-    engines: {node: '>=12'}
-
   slice-ansi@7.1.0:
     resolution: {integrity: sha512-bSiSngZ/jWeX93BqeIAbImyTbEihizcwNjFoRUIY/T1wWQsfsm2Vw1agPKylXvQTU7iASGdHhyqRlqQzfz+Htg==}
     engines: {node: '>=18'}
@@ -3130,6 +3134,10 @@ packages:
   string-width@7.2.0:
     resolution: {integrity: sha512-tsaTIkKW9b4N+AEj+SVA+WhJzV7/zMhcSu78mLKWSk7cXMOSHsBKFWUs0fWwq8QyK3MgJBQRX6Gbi4kYbdvGkQ==}
     engines: {node: '>=18'}
+
+  string-width@8.1.0:
+    resolution: {integrity: sha512-Kxl3KJGb/gxkaUMOjRsQ8IrXiGW75O4E3RPjFIINOVH8AMl2SQ/yWdTzWwF3FevIX9LcMAjJW+GRwAlAbTSXdg==}
+    engines: {node: '>=20'}
 
   string.prototype.trim@1.2.10:
     resolution: {integrity: sha512-Rs66F0P/1kedk5lyYyH9uBzuiI/kNRmwJAR9quK6VOtIpZ2G+hMZd+HQbbv25MgCA6gEffoMZYxlTod4WcdrKA==}
@@ -4301,9 +4309,14 @@ snapshots:
 
   '@discoveryjs/json-ext@0.6.3': {}
 
-  '@eslint-community/eslint-utils@4.7.0(eslint@9.34.0(jiti@1.21.7))':
+  '@eslint-community/eslint-utils@4.7.0(eslint@9.36.0(jiti@1.21.7))':
     dependencies:
-      eslint: 9.34.0(jiti@1.21.7)
+      eslint: 9.36.0(jiti@1.21.7)
+      eslint-visitor-keys: 3.4.3
+
+  '@eslint-community/eslint-utils@4.9.0(eslint@9.36.0(jiti@1.21.7))':
+    dependencies:
+      eslint: 9.36.0(jiti@1.21.7)
       eslint-visitor-keys: 3.4.3
 
   '@eslint-community/regexpp@4.12.1': {}
@@ -4337,6 +4350,8 @@ snapshots:
       - supports-color
 
   '@eslint/js@9.34.0': {}
+
+  '@eslint/js@9.36.0': {}
 
   '@eslint/object-schema@2.1.6': {}
 
@@ -4834,8 +4849,6 @@ snapshots:
       ansi-styles: 4.3.0
       supports-color: 7.2.0
 
-  chalk@5.6.0: {}
-
   chokidar@4.0.3:
     dependencies:
       readdirp: 4.1.2
@@ -4854,10 +4867,10 @@ snapshots:
     dependencies:
       restore-cursor: 5.1.0
 
-  cli-truncate@4.0.0:
+  cli-truncate@5.1.0:
     dependencies:
-      slice-ansi: 5.0.0
-      string-width: 7.2.0
+      slice-ansi: 7.1.0
+      string-width: 8.1.0
 
   clone-deep@4.0.1:
     dependencies:
@@ -4881,7 +4894,7 @@ snapshots:
 
   commander@12.1.0: {}
 
-  commander@14.0.0: {}
+  commander@14.0.1: {}
 
   commander@2.20.3: {}
 
@@ -5050,56 +5063,56 @@ snapshots:
       es-errors: 1.3.0
       is-data-view: 1.0.2
 
-  datatables.net-bs5@2.3.3:
+  datatables.net-bs5@2.3.4:
     dependencies:
-      datatables.net: 2.3.3
+      datatables.net: 2.3.4
       jquery: 3.7.1
 
-  datatables.net-buttons-bs5@3.2.4:
+  datatables.net-buttons-bs5@3.2.5:
     dependencies:
-      datatables.net-bs5: 2.3.3
-      datatables.net-buttons: 3.2.4
+      datatables.net-bs5: 2.3.4
+      datatables.net-buttons: 3.2.5
       jquery: 3.7.1
 
-  datatables.net-buttons@3.2.4:
+  datatables.net-buttons@3.2.5:
     dependencies:
-      datatables.net: 2.3.3
+      datatables.net: 2.3.4
       jquery: 3.7.1
 
   datatables.net-colreorder-bs5@2.1.1:
     dependencies:
-      datatables.net-bs5: 2.3.3
+      datatables.net-bs5: 2.3.4
       datatables.net-colreorder: 2.1.1
       jquery: 3.7.1
 
   datatables.net-colreorder@2.1.1:
     dependencies:
-      datatables.net: 2.3.3
+      datatables.net: 2.3.4
       jquery: 3.7.1
 
   datatables.net-fixedheader-bs5@4.0.3:
     dependencies:
-      datatables.net-bs5: 2.3.3
+      datatables.net-bs5: 2.3.4
       datatables.net-fixedheader: 4.0.3
       jquery: 3.7.1
 
   datatables.net-fixedheader@4.0.3:
     dependencies:
-      datatables.net: 2.3.3
+      datatables.net: 2.3.4
       jquery: 3.7.1
 
   datatables.net-responsive-bs5@3.0.6:
     dependencies:
-      datatables.net-bs5: 2.3.3
+      datatables.net-bs5: 2.3.4
       datatables.net-responsive: 3.0.6
       jquery: 3.7.1
 
   datatables.net-responsive@3.0.6:
     dependencies:
-      datatables.net: 2.3.3
+      datatables.net: 2.3.4
       jquery: 3.7.1
 
-  datatables.net@2.3.3:
+  datatables.net@2.3.4:
     dependencies:
       jquery: 3.7.1
 
@@ -5272,17 +5285,17 @@ snapshots:
 
   escape-string-regexp@4.0.0: {}
 
-  eslint-compat-utils@0.5.1(eslint@9.34.0(jiti@1.21.7)):
+  eslint-compat-utils@0.5.1(eslint@9.36.0(jiti@1.21.7)):
     dependencies:
-      eslint: 9.34.0(jiti@1.21.7)
+      eslint: 9.36.0(jiti@1.21.7)
       semver: 7.7.2
 
-  eslint-config-standard@17.1.0(eslint-plugin-import@2.31.0(eslint@9.34.0(jiti@1.21.7)))(eslint-plugin-n@16.6.2(eslint@9.34.0(jiti@1.21.7)))(eslint-plugin-promise@6.6.0(eslint@9.34.0(jiti@1.21.7)))(eslint@9.34.0(jiti@1.21.7)):
+  eslint-config-standard@17.1.0(eslint-plugin-import@2.31.0(eslint@9.36.0(jiti@1.21.7)))(eslint-plugin-n@16.6.2(eslint@9.36.0(jiti@1.21.7)))(eslint-plugin-promise@6.6.0(eslint@9.36.0(jiti@1.21.7)))(eslint@9.36.0(jiti@1.21.7)):
     dependencies:
-      eslint: 9.34.0(jiti@1.21.7)
-      eslint-plugin-import: 2.31.0(eslint@9.34.0(jiti@1.21.7))
-      eslint-plugin-n: 16.6.2(eslint@9.34.0(jiti@1.21.7))
-      eslint-plugin-promise: 6.6.0(eslint@9.34.0(jiti@1.21.7))
+      eslint: 9.36.0(jiti@1.21.7)
+      eslint-plugin-import: 2.31.0(eslint@9.36.0(jiti@1.21.7))
+      eslint-plugin-n: 16.6.2(eslint@9.36.0(jiti@1.21.7))
+      eslint-plugin-promise: 6.6.0(eslint@9.36.0(jiti@1.21.7))
 
   eslint-import-resolver-node@0.3.9:
     dependencies:
@@ -5292,23 +5305,23 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.12.1(eslint-import-resolver-node@0.3.9)(eslint@9.34.0(jiti@1.21.7)):
+  eslint-module-utils@2.12.1(eslint-import-resolver-node@0.3.9)(eslint@9.36.0(jiti@1.21.7)):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
-      eslint: 9.34.0(jiti@1.21.7)
+      eslint: 9.36.0(jiti@1.21.7)
       eslint-import-resolver-node: 0.3.9
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-es-x@7.8.0(eslint@9.34.0(jiti@1.21.7)):
+  eslint-plugin-es-x@7.8.0(eslint@9.36.0(jiti@1.21.7)):
     dependencies:
-      '@eslint-community/eslint-utils': 4.7.0(eslint@9.34.0(jiti@1.21.7))
+      '@eslint-community/eslint-utils': 4.7.0(eslint@9.36.0(jiti@1.21.7))
       '@eslint-community/regexpp': 4.12.1
-      eslint: 9.34.0(jiti@1.21.7)
-      eslint-compat-utils: 0.5.1(eslint@9.34.0(jiti@1.21.7))
+      eslint: 9.36.0(jiti@1.21.7)
+      eslint-compat-utils: 0.5.1(eslint@9.36.0(jiti@1.21.7))
 
-  eslint-plugin-import@2.31.0(eslint@9.34.0(jiti@1.21.7)):
+  eslint-plugin-import@2.31.0(eslint@9.36.0(jiti@1.21.7)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9
@@ -5317,9 +5330,9 @@ snapshots:
       array.prototype.flatmap: 1.3.3
       debug: 3.2.7
       doctrine: 2.1.0
-      eslint: 9.34.0(jiti@1.21.7)
+      eslint: 9.36.0(jiti@1.21.7)
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.12.1(eslint-import-resolver-node@0.3.9)(eslint@9.34.0(jiti@1.21.7))
+      eslint-module-utils: 2.12.1(eslint-import-resolver-node@0.3.9)(eslint@9.36.0(jiti@1.21.7))
       hasown: 2.0.2
       is-core-module: 2.16.1
       is-glob: 4.0.3
@@ -5335,12 +5348,12 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  eslint-plugin-n@16.6.2(eslint@9.34.0(jiti@1.21.7)):
+  eslint-plugin-n@16.6.2(eslint@9.36.0(jiti@1.21.7)):
     dependencies:
-      '@eslint-community/eslint-utils': 4.7.0(eslint@9.34.0(jiti@1.21.7))
+      '@eslint-community/eslint-utils': 4.7.0(eslint@9.36.0(jiti@1.21.7))
       builtins: 5.1.0
-      eslint: 9.34.0(jiti@1.21.7)
-      eslint-plugin-es-x: 7.8.0(eslint@9.34.0(jiti@1.21.7))
+      eslint: 9.36.0(jiti@1.21.7)
+      eslint-plugin-es-x: 7.8.0(eslint@9.36.0(jiti@1.21.7))
       get-tsconfig: 4.10.1
       globals: 13.24.0
       ignore: 5.3.2
@@ -5350,9 +5363,9 @@ snapshots:
       resolve: 1.22.10
       semver: 7.7.2
 
-  eslint-plugin-promise@6.6.0(eslint@9.34.0(jiti@1.21.7)):
+  eslint-plugin-promise@6.6.0(eslint@9.36.0(jiti@1.21.7)):
     dependencies:
-      eslint: 9.34.0(jiti@1.21.7)
+      eslint: 9.36.0(jiti@1.21.7)
 
   eslint-scope@5.1.1:
     dependencies:
@@ -5368,15 +5381,15 @@ snapshots:
 
   eslint-visitor-keys@4.2.1: {}
 
-  eslint@9.34.0(jiti@1.21.7):
+  eslint@9.36.0(jiti@1.21.7):
     dependencies:
-      '@eslint-community/eslint-utils': 4.7.0(eslint@9.34.0(jiti@1.21.7))
+      '@eslint-community/eslint-utils': 4.9.0(eslint@9.36.0(jiti@1.21.7))
       '@eslint-community/regexpp': 4.12.1
       '@eslint/config-array': 0.21.0
       '@eslint/config-helpers': 0.3.1
       '@eslint/core': 0.15.2
       '@eslint/eslintrc': 3.3.1
-      '@eslint/js': 9.34.0
+      '@eslint/js': 9.36.0
       '@eslint/plugin-kit': 0.3.5
       '@humanfs/node': 0.16.6
       '@humanwhocodes/module-importer': 1.0.1
@@ -5544,7 +5557,7 @@ snapshots:
 
   globals@14.0.0: {}
 
-  globals@16.3.0: {}
+  globals@16.4.0: {}
 
   globalthis@1.0.4:
     dependencies:
@@ -5677,8 +5690,6 @@ snapshots:
   is-finalizationregistry@1.1.1:
     dependencies:
       call-bound: 1.0.4
-
-  is-fullwidth-code-point@4.0.0: {}
 
   is-fullwidth-code-point@5.0.0:
     dependencies:
@@ -5841,24 +5852,19 @@ snapshots:
 
   lines-and-columns@1.2.4: {}
 
-  lint-staged@16.1.5:
+  lint-staged@16.2.3:
     dependencies:
-      chalk: 5.6.0
-      commander: 14.0.0
-      debug: 4.4.1
-      lilconfig: 3.1.3
-      listr2: 9.0.2
+      commander: 14.0.1
+      listr2: 9.0.4
       micromatch: 4.0.8
-      nano-spawn: 1.0.2
+      nano-spawn: 1.0.3
       pidtree: 0.6.0
       string-argv: 0.3.2
       yaml: 2.8.1
-    transitivePeerDependencies:
-      - supports-color
 
-  listr2@9.0.2:
+  listr2@9.0.4:
     dependencies:
-      cli-truncate: 4.0.0
+      cli-truncate: 5.1.0
       colorette: 2.0.20
       eventemitter3: 5.0.1
       log-update: 6.1.0
@@ -5942,7 +5948,7 @@ snapshots:
 
   ms@2.1.3: {}
 
-  nano-spawn@1.0.2: {}
+  nano-spawn@1.0.3: {}
 
   nanoid@3.3.11: {}
 
@@ -6691,11 +6697,6 @@ snapshots:
 
   signal-exit@4.1.0: {}
 
-  slice-ansi@5.0.0:
-    dependencies:
-      ansi-styles: 6.2.1
-      is-fullwidth-code-point: 4.0.0
-
   slice-ansi@7.1.0:
     dependencies:
       ansi-styles: 6.2.1
@@ -6720,6 +6721,11 @@ snapshots:
   string-width@7.2.0:
     dependencies:
       emoji-regex: 10.5.0
+      get-east-asian-width: 1.3.0
+      strip-ansi: 7.1.0
+
+  string-width@8.1.0:
+    dependencies:
       get-east-asian-width: 1.3.0
       strip-ansi: 7.1.0
 
