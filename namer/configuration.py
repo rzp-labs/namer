@@ -553,7 +553,7 @@ class NamerConfig:
 
         self.re_cleanup = [re.compile(rf'\b{regex}\b', re.IGNORECASE) for regex in database.re_cleanup]
 
-        if not getattr(self, 'web_secret_key', ''):
+        if not self.web_secret_key:
             self.web_secret_key = secrets.token_urlsafe(32)
 
         # Resolve configured directories if present (only when non-empty)

@@ -334,6 +334,8 @@ web = False
 host = 127.0.0.1
 port = 6980
 web_root =
+# IMPORTANT: In production, set this to a strong unique value or leave empty to auto-generate at runtime.
+# The key secures Flask sessions and CSRF protection.
 web_secret_key = secret_key
 
 # Allow to delete files in web interface
