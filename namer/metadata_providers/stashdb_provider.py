@@ -7,7 +7,7 @@ metadata for adult content, mapping results to namer's data structures.
 
 from pathlib import Path
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import orjson
 from loguru import logger
@@ -18,7 +18,7 @@ from namer.configuration import NamerConfig
 from namer.fileinfo import FileInfo
 from namer.http import Http, RequestType
 from namer.metadata_providers.provider import BaseMetadataProvider
-from namer.videophash import PerceptualHash
+from namer.videophash import PerceptualHash, imagehash
 
 
 class StashDBProvider(BaseMetadataProvider):
@@ -73,21 +73,23 @@ class StashDBProvider(BaseMetadataProvider):
                         results.clear()  # Clear any name-based search results
                         # Only add the first result to avoid conflict logic in get_match()
                         scene_info = phash_results[0]
-                        comparison_result = ComparisonResult(
-                            name=scene_info.name or '',
-                            name_match=100.0,  # Force high name match for unique phash
-                            date_match=True,  # Force date match for unique phash
-                            site_match=True,  # Force site match for unique phash
-                            name_parts=file_name_parts,
-                            looked_up=scene_info,
-                            phash_distance=0,  # Perfect phash match
-                            phash_duration=True,
-                        )
+                        comparison_result = self._build_phash_comparison(scene_info, file_name_parts, phash)
+                        comparison_result.name_match = 100.0  # Force high name match for unique phash
+                        comparison_result.date_match = True  # Force date match for unique phash
+                        comparison_result.site_match = True  # Force site match for unique phash
+                        comparison_result.phash_distance = comparison_result.phash_distance or 0
+                        comparison_result.phash_duration = True if comparison_result.phash_duration is None else comparison_result.phash_duration
                         results.append(comparison_result)
                     elif len(unique_scene_ids) > 1:
-                        # Multiple unique scenes - log failure and reject
-                        logger.error(f'Multiple scene IDs exist for this phash: {len(unique_scene_ids)} unique scenes found ({unique_scene_ids})')
-                        # Don't add any phash results to avoid ambiguity
+                        logger.warning(
+                            'Multiple scene IDs exist for this phash: %d unique scenes found (%s); handing off to disambiguation',
+                            len(unique_scene_ids),
+                            unique_scene_ids,
+                        )
+                        results.clear()
+                        for scene_info in phash_results:
+                            comparison_result = self._build_phash_comparison(scene_info, file_name_parts, phash)
+                            results.append(comparison_result)
                     # If no unique scene IDs (shouldn't happen), fall through to name search
             except Exception as e:
                 logger.debug(f'Phash search failed: {e}')
@@ -96,6 +98,52 @@ class StashDBProvider(BaseMetadataProvider):
         results = sorted(results, key=self._calculate_match_weight, reverse=True)
 
         return ComparisonResults(results, file_name_parts)
+
+    def _build_phash_comparison(self, scene_info: LookedUpFileInfo, file_name_parts: Optional[FileInfo], phash: Optional[PerceptualHash]) -> ComparisonResult:
+        name_match = 0.0
+        date_match = False
+        site_match = False
+
+        if file_name_parts:
+            name_match = self._calculate_name_match(file_name_parts.name, scene_info.name)
+            date_match = self._compare_dates(file_name_parts.date, scene_info.date)
+            site_match = self._compare_sites(file_name_parts.site, scene_info.site)
+
+        phash_distance, phash_duration = self._compute_phash_metrics(scene_info, phash)
+
+        return ComparisonResult(
+            name=scene_info.name or '',
+            name_match=name_match,
+            date_match=date_match,
+            site_match=site_match,
+            name_parts=file_name_parts,
+            looked_up=scene_info,
+            phash_distance=phash_distance,
+            phash_duration=phash_duration,
+        )
+
+    def _compute_phash_metrics(self, scene_info: LookedUpFileInfo, phash: Optional[PerceptualHash]) -> Tuple[Optional[int], Optional[bool]]:
+        if not phash:
+            return None, None
+
+        candidates: List[Tuple[int, bool]] = []
+
+        for scene_hash in scene_info.hashes or []:
+            if scene_hash.type != HashType.PHASH or not scene_hash.hash:
+                continue
+            try:
+                scene_hash_value = imagehash.hex_to_hash(scene_hash.hash)
+            except ValueError:
+                continue
+            distance = phash.phash - scene_hash_value
+            duration_match = scene_hash.duration == phash.duration if scene_hash.duration else True
+            candidates.append((distance, duration_match))
+
+        if candidates:
+            distance, duration_match = min(candidates, key=lambda item: item[0])
+            return distance, duration_match
+
+        return None, None
 
     def get_complete_info(self, file_name_parts: Optional[FileInfo], uuid: str, config: NamerConfig) -> Optional[LookedUpFileInfo]:
         """
