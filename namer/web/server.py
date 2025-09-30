@@ -11,9 +11,10 @@ from typing import Any, List, Optional, Union
 
 import numpy
 import orjson
-from flask import Blueprint, Flask
+from flask import Blueprint, Flask, jsonify, render_template, request
 from flask.json.provider import _default, JSONProvider
 from flask_compress import Compress
+from flask_wtf.csrf import CSRFError, CSRFProtect, generate_csrf
 from loguru import logger
 from waitress import create_server
 from waitress.server import BaseWSGIServer, MultiSocketServer
@@ -46,18 +47,31 @@ class GenericWebServer:
         'font/woff2': '.woff2',
     }
 
-    def __init__(self, host: str, port: int, webroot: Optional[str], blueprints: List[Blueprint], static_path: Optional[str] = 'public', quiet=True):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        webroot: Optional[str],
+        blueprints: List[Blueprint],
+        static_path: Optional[str] = 'public',
+        quiet: bool = True,
+        *,
+        enable_csrf: bool = False,
+        secret_key: Optional[str] = None,
+    ):
         self.__host = host
         self.__port = port
         self.__path = webroot if webroot else '/'
         self.__app = Flask(__name__, static_url_path=self.__path, static_folder=static_path, template_folder='templates')
         self.__blueprints = blueprints
+        self.__csrf: Optional[CSRFProtect] = None
 
         if quiet:
             logging.getLogger('waitress').disabled = True
             logging.getLogger('waitress.queue').disabled = True
 
         self.__add_mime_types()
+        self.__configure_security(enable_csrf, secret_key)
         self.__register_blueprints()
         self.__make_server()
         self.__register_custom_processors()
@@ -73,6 +87,37 @@ class GenericWebServer:
             blueprint_path = self.__path + blueprint.url_prefix if blueprint.url_prefix else self.__path
             self.__app.register_blueprint(blueprint, url_prefix=blueprint_path)
 
+    def __configure_security(self, enable_csrf: bool, secret_key: Optional[str]) -> None:
+        if secret_key:
+            self.__app.config['SECRET_KEY'] = secret_key
+
+        if enable_csrf:
+            self.__app.config.setdefault('WTF_CSRF_ENABLED', True)
+            self.__app.config.setdefault('WTF_CSRF_HEADERS', ['X-CSRFToken', 'X-CSRF-Token'])
+            self.__app.config.setdefault('WTF_CSRF_TIME_LIMIT', None)
+            self.__csrf = CSRFProtect()
+            self.__csrf.init_app(self.__app)
+            self.__register_csrf_error_handler()
+            self.__register_csrf_after_request()
+
+    def __register_csrf_error_handler(self) -> None:
+        @self.__app.errorhandler(CSRFError)
+        def handle_csrf_error(error: CSRFError):
+            if request.accept_mimetypes.best == 'application/json' or request.is_json:
+                response = jsonify({'message': error.description})
+                response.status_code = 400
+                return response
+
+            return render_template('partials/error_csrf.html', reason=error.description), 400
+
+    def __register_csrf_after_request(self) -> None:
+        @self.__app.after_request
+        def inject_csrf_token(response):
+            token = generate_csrf()
+            response.headers['X-CSRF-Token'] = token
+            response.headers['X-CSRFToken'] = token
+            return response
+
     def __add_mime_types(self):
         self.__app.json.mimetype = 'application/json; charset=utf-8'  # type: ignore
 
@@ -86,6 +131,9 @@ class GenericWebServer:
             'bool_to_icon': self.bool_to_icon,
         }
         self.__app.jinja_env.globals.update(**functions)
+
+        if self.__csrf:
+            self.__app.jinja_env.globals['csrf_token'] = generate_csrf
 
         filters = {
             'timestamp_to_datetime': self.timestamp_to_datetime,
@@ -178,7 +226,14 @@ class NamerWebServer(GenericWebServer):
             api.get_routes(self.__namer_config, self.__command_queue),
         ]
 
-        super().__init__(self.__namer_config.host, self.__namer_config.port, webroot, blueprints)
+        super().__init__(
+            self.__namer_config.host,
+            self.__namer_config.port,
+            webroot,
+            blueprints,
+            enable_csrf=True,
+            secret_key=self.__namer_config.web_secret_key,
+        )
 
 
 class CustomJSONProvider(JSONProvider):

@@ -4,6 +4,7 @@ Namer Configuration readers/verifier
 
 import os
 import re
+import secrets
 import sys
 import tempfile
 from dataclasses import dataclass, field
@@ -478,6 +479,11 @@ class NamerConfig:
     Sleep time between queue size check
     """
 
+    web_secret_key: str = ''
+    """
+    Secret key used for Flask session and CSRF protection. If empty, a random value will be generated at runtime.
+    """
+
     # Note: watch_dir/work_dir/failed_dir/dest_dir are intentionally not defined
     # as dataclass fields by default. They are optional settings that may be
     # provided via config file. Tests expect these to be absent on defaults.
@@ -546,6 +552,9 @@ class NamerConfig:
             self.set_gid = os.getgid()
 
         self.re_cleanup = [re.compile(rf'\b{regex}\b', re.IGNORECASE) for regex in database.re_cleanup]
+
+        if not self.web_secret_key:
+            self.web_secret_key = secrets.token_urlsafe(32)
 
         # Resolve configured directories if present (only when non-empty)
         for _attr in ('watch_dir', 'work_dir', 'dest_dir', 'failed_dir'):

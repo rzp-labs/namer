@@ -331,15 +331,12 @@ retry_time =
 
 # Run webserver while running watchdog.
 web = False
-
-# port to run on
+host = 127.0.0.1
 port = 6980
-
-# target host
-host = 0.0.0.0
-
-# webroot (root url to place pages), useful for reverse proxies
 web_root =
+# IMPORTANT: In production, set this to a strong unique value or leave empty to auto-generate at runtime.
+# The key secures Flask sessions and CSRF protection.
+web_secret_key = secret_key
 
 # Allow to delete files in web interface
 allow_delete_files = False
