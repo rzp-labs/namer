@@ -13,7 +13,7 @@ from pathlib import Path
 from platform import system
 from queue import Queue
 from threading import Thread
-from typing import Optional
+from typing import Optional, cast
 
 import schedule
 from loguru import logger
@@ -82,20 +82,34 @@ def handle(command: Command):
     process_file(command)
 
 
+def _require_config_path(config: NamerConfig, attr: str) -> Path:
+    value = getattr(config, attr, None)
+    if value is None:
+        raise AttributeError(f'NamerConfig is missing required "{attr}" configuration path')
+    return cast(Path, value)
+
+
 def retry_failed(namer_config: NamerConfig):
     """
     Moves the contents from the failed dir to the watch dir to attempt reprocessing.
     """
+    try:
+        failed_dir = _require_config_path(namer_config, 'failed_dir')
+        watch_dir = _require_config_path(namer_config, 'watch_dir')
+    except AttributeError as error:
+        logger.error(error)
+        return
+
     logger.info('Retry failed items:')
 
     # remove all old namer log files
-    for log_file in namer_config.failed_dir.rglob('**/*_namer.json.gz'):
+    for log_file in failed_dir.rglob('**/*_namer.json.gz'):
         log_file.unlink()
 
     # move all files back to watch dir.
-    for file in gather_target_files_from_dir(namer_config.failed_dir, namer_config):
+    for file in gather_target_files_from_dir(failed_dir, namer_config):
         target = file.target_directory.name if file.parsed_dir_name and file.target_directory else file.target_movie_file.name
-        shutil.move(namer_config.failed_dir / target, namer_config.watch_dir / target)
+        shutil.move(failed_dir / target, watch_dir / target)
 
 
 def is_fs_case_sensitive():
@@ -114,12 +128,16 @@ class MovieEventHandler(PatternMatchingEventHandler):
 
     __namer_config: NamerConfig
     __command_queue: Queue
+    __watch_dir: Path
+    __work_dir: Path
 
     def __init__(self, namer_config: NamerConfig, enqueue_work_fn, command_queue: Queue):
         super().__init__(patterns=['*.*'], case_sensitive=is_fs_case_sensitive(), ignore_directories=True, ignore_patterns=None)
         self.__namer_config = namer_config
         self.__enqueue_work_fn = enqueue_work_fn
         self.__command_queue = command_queue
+        self.__watch_dir = _require_config_path(namer_config, 'watch_dir')
+        self.__work_dir = _require_config_path(namer_config, 'work_dir')
 
     def on_any_event(self, event: FileSystemEvent):
         file_path = None
@@ -129,12 +147,18 @@ class MovieEventHandler(PatternMatchingEventHandler):
             file_path = event.src_path
 
         if file_path:
+            if isinstance(file_path, bytes):
+                file_path = file_path.decode()
+            if not isinstance(file_path, str):
+                logger.error('unexpected file path type %s', type(file_path))
+                return
+
             path = Path(file_path).resolve()
-            if not path.is_relative_to(self.__namer_config.watch_dir):
+            if not path.is_relative_to(self.__watch_dir):
                 logger.error('file should be in watch dir {}', path)
                 return
 
-            relative_path = str(path.relative_to(self.__namer_config.watch_dir))
+            relative_path = str(path.relative_to(self.__watch_dir))
             if not self.__namer_config.ignored_dir_regex.search(relative_path) and is_interesting_movie(path, self.__namer_config) and done_copying(path):
                 logger.info('watchdog process called for {}', relative_path)
 
@@ -150,8 +174,8 @@ class MovieEventHandler(PatternMatchingEventHandler):
 
     @logger.catch
     def prepare_file_for_processing(self, path: Path):
-        command = make_command_relative_to(input_dir=path, relative_to=self.__namer_config.watch_dir, config=self.__namer_config)
-        working_command = move_command_files(command, self.__namer_config.work_dir)
+        command = make_command_relative_to(input_dir=path, relative_to=self.__watch_dir, config=self.__namer_config)
+        working_command = move_command_files(command, self.__work_dir)
         if working_command is not None:
             self.__enqueue_work_fn(working_command)
 
@@ -195,7 +219,7 @@ class MovieWatcher:
         self.__started = False
         self.__stopped = False
         self.__namer_config = namer_config
-        self.__src_path = namer_config.watch_dir
+        self.__src_path = _require_config_path(namer_config, 'watch_dir')
         self.__event_observer = PollingObserver()
         self.__webserver: Optional[NamerWebServer] = None
         self.__command_queue: Queue = Queue(maxsize=self.__namer_config.queue_limit)
@@ -259,7 +283,8 @@ class MovieWatcher:
         """
         config = self.__namer_config
         provider_name = config.metadata_provider.upper()
-        logger.info('Start {} metadata watcher.... watching: {}', provider_name, config.watch_dir)
+        watch_dir = _require_config_path(config, 'watch_dir')
+        logger.info('Start {} metadata watcher.... watching: {}', provider_name, watch_dir)
 
         if os.environ.get('PROJECT_VERSION'):
             project_version = os.environ.get('PROJECT_VERSION')
@@ -279,13 +304,14 @@ class MovieWatcher:
 
         # touch all existing movie files.
         with suppress(FileNotFoundError):
-            for file in self.__namer_config.watch_dir.rglob('**/*.*'):
+            watch_dir = _require_config_path(self.__namer_config, 'watch_dir')
+            for file in watch_dir.rglob('**/*.*'):
                 file = file.resolve()
-                if not file.is_relative_to(self.__namer_config.watch_dir):
+                if not file.is_relative_to(watch_dir):
                     logger.error('file should be in watch dir {}', file)
                     return
 
-                relative_path = str(file.relative_to(self.__namer_config.watch_dir))
+                relative_path = str(file.relative_to(watch_dir))
                 if not self.__namer_config.ignored_dir_regex.search(relative_path) and is_interesting_movie(file, self.__namer_config) and done_copying(file):
                     self.__event_handler.prepare_file_for_processing(file)
 

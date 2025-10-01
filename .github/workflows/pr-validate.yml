@@ -100,9 +100,90 @@ jobs:
             ruff-report.txt
             pytest.log
 
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    needs: validate
+    continue-on-error: true
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Cache Poetry
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.cache/pypoetry
+            ~/.cache/pip
+          key: poetry-${{ runner.os }}-py311-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            poetry-${{ runner.os }}-
+
       - name: Install dependencies
         run: |
           poetry install
+          poetry run pip install mypy bandit
+
+      - name: Install shell tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck shfmt
+          curl -sSfL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 -o hadolint
+          echo "1f6a7d08963c069bb2b0a315b0dff78eaefdd8af2fa2a343b390d05f86519fec  hadolint" | sha256sum -c -
+          chmod +x hadolint
+          sudo mv hadolint /usr/local/bin/hadolint
+
+      - name: mypy (configuration module only)
+        shell: bash
+        run: |
+          set -o pipefail
+          poetry run mypy namer/configuration.py | tee mypy.log
+
+      - name: mypy (core packages)
+        shell: bash
+        run: |
+          set -o pipefail
+          poetry run mypy namer/watchdog.py namer/metadata_providers | tee -a mypy.log
+
+      - name: bandit scan
+        shell: bash
+        run: |
+          set -o pipefail
+          poetry run bandit -q -r namer -x namer/web,tests -f json -o bandit.json
+          poetry run bandit -q -r namer -x namer/web,tests -f txt | tee bandit.txt
+
+      - name: shfmt check
+        shell: bash
+        run: |
+          set -o pipefail
+          if [ -z "$(find scripts -name '*.sh' -print -quit)" ]; then
+            echo "No shell scripts found" | tee shfmt.log
+            exit 0
+          fi
+          find scripts -name '*.sh' -print0 | xargs -0 -r -n1 shfmt -d | tee shfmt.log
+
+      - name: shellcheck scripts
+        shell: bash
+        run: |
+          set -o pipefail
+          if [ -z "$(find scripts -name '*.sh' -print -quit)" ]; then
+            echo "No shell scripts found" | tee shellcheck.log
+            exit 0
+          fi
+          find scripts -name '*.sh' -print0 | xargs -0 -r shellcheck | tee shellcheck.log
+
+      - name: Hadolint Dockerfile
         shell: bash
         run: |
           set -o pipefail
