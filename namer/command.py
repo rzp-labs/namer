@@ -82,9 +82,9 @@ def move_command_files(target: Optional[Command], new_target: Path, is_auto: boo
     # Ensure destination directory exists
     try:
         Path(new_target).mkdir(parents=True, exist_ok=True)
-    except Exception:
+    except Exception as mkdir_error:
         # Best-effort; shutil.move will surface any real filesystem errors
-        pass
+        logger.debug('Unable to pre-create destination %s: %s', new_target, mkdir_error)
 
     if target.target_directory and target.input_file == target.target_directory:
         working_dir = Path(new_target) / target.target_directory.name
@@ -120,12 +120,12 @@ def write_log_file(movie_file: Optional[Path], match_attempts: Optional[Comparis
                     # Some providers/test doubles may not provide these fields
                     try:
                         del result.looked_up.original_query
-                    except Exception:
-                        pass
+                    except AttributeError as attr_err:
+                        logger.debug('No original_query on lookup result for %s: %s', movie_file, attr_err)
                     try:
                         del result.looked_up.original_response
-                    except Exception:
-                        pass
+                    except AttributeError as attr_err:
+                        logger.debug('No original_response on lookup result for %s: %s', movie_file, attr_err)
 
             json_out = jsonpickle.encode(match_attempts, separators=(',', ':'))
             if json_out:
