@@ -17,7 +17,7 @@ from typing import List, Optional
 import orjson
 from loguru import logger
 
-from namer.command import Command
+from namer.command import Command, ensure_directory
 from namer.comparison_results import ComparisonResult, ComparisonResults, HashType, LookedUpFileInfo, SceneHash
 from namer.configuration import ImageDownloadType, NamerConfig
 from namer.configuration_utils import default_config, verify_configuration
@@ -290,18 +290,11 @@ def process_file(command: Command) -> Optional[Command]:
                 return target
         elif command.inplace is False:
             # Ensure failed_dir exists before moving files
-            try:
-                command.config.failed_dir.mkdir(parents=True, exist_ok=True)
-            except Exception as mkdir_error:
-                # Directory creation failure should not mask original intent; move will still raise if invalid
-                logger.debug('Unable to create failed directory %s: %s', command.config.failed_dir, mkdir_error)
+            ensure_directory(command.config.failed_dir, 'Unable to create failed directory {}: {}')
             # If disambiguation is enabled and an ambiguous_dir is configured, prefer routing there over failed
             ambiguous_dir = getattr(command.config, 'ambiguous_dir', None) if getattr(command.config, 'enable_disambiguation', False) else None
             if ambiguous_dir:
-                try:
-                    ambiguous_dir.mkdir(parents=True, exist_ok=True)
-                except Exception as mkdir_error:
-                    logger.debug('Unable to create ambiguous directory %s: %s', ambiguous_dir, mkdir_error)
+                ensure_directory(ambiguous_dir, 'Unable to create ambiguous directory {}: {}')
                 moved = move_command_files(command, ambiguous_dir)
                 if moved is not None and search_results is not None and moved.config.write_namer_failed_log:
                     write_log_file(moved.target_movie_file, search_results, moved.config)
