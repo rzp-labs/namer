@@ -75,16 +75,20 @@ class Command:
         return str(self.target_movie_file.resolve())
 
 
+def ensure_directory(path: Path, debug_template: str) -> None:
+    target = Path(path)
+    try:
+        target.mkdir(parents=True, exist_ok=True)
+    except Exception as mkdir_error:
+        logger.debug(debug_template, target, mkdir_error)
+
+
 def move_command_files(target: Optional[Command], new_target: Path, is_auto: bool = True) -> Optional[Command]:
     if not target:
         return None
 
     # Ensure destination directory exists
-    try:
-        Path(new_target).mkdir(parents=True, exist_ok=True)
-    except Exception as mkdir_error:
-        # Best-effort; shutil.move will surface any real filesystem errors
-        logger.debug('Unable to pre-create destination %s: %s', new_target, mkdir_error)
+    ensure_directory(new_target, 'Unable to pre-create destination {}: {}')
 
     if target.target_directory and target.input_file == target.target_directory:
         working_dir = Path(new_target) / target.target_directory.name

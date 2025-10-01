@@ -7,7 +7,8 @@ or used in renaming the video file.
 from pathlib import Path
 
 from typing import Any, Optional, List
-from defusedxml.minidom import Document, Element, parseString
+from defusedxml.minidom import parseString
+from xml.dom.minidom import Document, Element
 
 from namer.configuration import NamerConfig
 from namer.command import set_permissions
