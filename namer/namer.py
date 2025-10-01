@@ -9,9 +9,9 @@ import argparse
 import sys
 from dataclasses import dataclass
 import pathlib
+import secrets
 import string
 from pathlib import Path
-from random import choices
 from typing import List, Optional
 
 import orjson
@@ -121,8 +121,8 @@ def tag_in_place(video: Optional[Path], config: NamerConfig, new_metadata: Looke
         poster = None
         if config.enabled_tagging and video.suffix.lower() == '.mp4':
             if config.enabled_poster:
-                random = ''.join(choices(population=string.ascii_uppercase + string.digits, k=10))
-                poster = metadataapi.get_image(new_metadata.poster_url, random, video, config) if new_metadata.poster_url else None
+                random_suffix = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+                poster = metadataapi.get_image(new_metadata.poster_url, random_suffix, video, config) if new_metadata.poster_url else None
 
             logger.info('Updating file metadata (atoms): {}', video)
             update_mp4_file(video, new_metadata, poster, ffprobe_results, config)
@@ -292,16 +292,16 @@ def process_file(command: Command) -> Optional[Command]:
             # Ensure failed_dir exists before moving files
             try:
                 command.config.failed_dir.mkdir(parents=True, exist_ok=True)
-            except Exception:
+            except Exception as mkdir_error:
                 # Directory creation failure should not mask original intent; move will still raise if invalid
-                pass
+                logger.debug('Unable to create failed directory %s: %s', command.config.failed_dir, mkdir_error)
             # If disambiguation is enabled and an ambiguous_dir is configured, prefer routing there over failed
             ambiguous_dir = getattr(command.config, 'ambiguous_dir', None) if getattr(command.config, 'enable_disambiguation', False) else None
             if ambiguous_dir:
                 try:
                     ambiguous_dir.mkdir(parents=True, exist_ok=True)
-                except Exception:
-                    pass
+                except Exception as mkdir_error:
+                    logger.debug('Unable to create ambiguous directory %s: %s', ambiguous_dir, mkdir_error)
                 moved = move_command_files(command, ambiguous_dir)
                 if moved is not None and search_results is not None and moved.config.write_namer_failed_log:
                     write_log_file(moved.target_movie_file, search_results, moved.config)

@@ -1,7 +1,7 @@
 import platform
 import tempfile
 import os
-import subprocess
+import subprocess  # nosec B404: fixed binary path, shell disabled
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -85,22 +85,32 @@ class StashVideoPerceptualHash:
                 '--video', str(file)
             ])
 
-        with subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True) as process:
-            stdout, stderr = process.communicate()
-            stdout, stderr = stdout.strip(), stderr.strip()
+        try:
+            completed = subprocess.run(  # nosec B603: fixed executable path without user input
+                args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+                shell=False,
+            )
+        except Exception as error:  # pragma: no cover - defensive logging
+            logger.error('Failed to execute videohash binary %s: %s', args[0], error)
+            return output
 
-            success = process.returncode == 0
-            if success:
-                data = None
-                try:
-                    data = orjson.loads(stdout)
-                except JSONDecodeError:
-                    logger.error(stdout)
-                    pass
+        stdout = completed.stdout.strip()
+        stderr = completed.stderr.strip()
 
-                if data:
-                    output = return_perceptual_hash(data['duration'], data['phash'], data['oshash'])
-            else:
-                logger.error(stderr)
+        if completed.returncode == 0:
+            data = None
+            try:
+                data = orjson.loads(stdout)
+            except JSONDecodeError:
+                logger.error(stdout)
+
+            if data:
+                output = return_perceptual_hash(data['duration'], data['phash'], data['oshash'])
+        else:
+            logger.error('videohash execution failed (%s): %s', completed.returncode, stderr)
 
         return output
