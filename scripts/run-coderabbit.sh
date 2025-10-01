@@ -31,7 +31,7 @@ Environment variables:
   CODERABBIT_BASE         Override base branch (default: main)
   CODERABBIT_PRECOMMIT    Set to 1 to enable pre-commit runs (default: 0)
   CODERABBIT_VALIDATE     Set to 0 to skip validate runs (default: 1)
-  CODERABBIT_EXTRA_ARGS   Extra arguments appended to `coderabbit review`
+  CODERABBIT_EXTRA_ARGS   Extra arguments appended to `coderabbit review` (supports shell-style quoting)
 EOF
   exit 2
 fi
@@ -65,8 +65,10 @@ case "$MODE" in
 esac
 
 if [[ -n "${CODERABBIT_EXTRA_ARGS:-}" ]]; then
-  # shellcheck disable=SC2206
-  EXTRA_ARGS=(${CODERABBIT_EXTRA_ARGS})
+  if ! eval 'EXTRA_ARGS=('"${CODERABBIT_EXTRA_ARGS}"')'; then
+    log "Failed to parse CODERABBIT_EXTRA_ARGS"
+    exit 2
+  fi
   ARGS+=("${EXTRA_ARGS[@]}")
 fi
 
