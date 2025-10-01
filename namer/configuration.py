@@ -474,6 +474,11 @@ class NamerConfig:
     Extra time to sleep in seconds to allow all information to be copied in dir
     """
 
+    queue_limit: int = 0
+    """
+    Maximum number of pending items allowed in the watchdog command queue. 0 disables the limit.
+    """
+
     queue_sleep_time: int = 5
     """
     Sleep time between queue size check
@@ -487,6 +492,26 @@ class NamerConfig:
     # Note: watch_dir/work_dir/failed_dir/dest_dir are intentionally not defined
     # as dataclass fields by default. They are optional settings that may be
     # provided via config file. Tests expect these to be absent on defaults.
+
+    web: bool = False
+    """
+    Enable the embedded web interface when the watchdog runs.
+    """
+
+    port: int = 6980
+    """
+    Listening port for the embedded web interface.
+    """
+
+    host: str = '127.0.0.1'
+    """
+    Host/IP binding for the web interface.
+    """
+
+    web_root: str = ''
+    """
+    Optional URL prefix for the web interface (e.g., when running behind a proxy).
+    """
 
     allow_delete_files: bool = False
     """
@@ -543,7 +568,7 @@ class NamerConfig:
     ffmpeg: FFMpeg = FFMpeg()
     vph: VideoPerceptualHash = StashVideoPerceptualHash()  # type: ignore
     vph_alt: VideoPerceptualHash = VideoPerceptualHash(ffmpeg)
-    re_cleanup: List[Pattern]
+    re_cleanup: List[Pattern] = field(init=False, default_factory=list)
     _PATH_FIELDS: ClassVar[Set[str]] = {'watch_dir', 'work_dir', 'dest_dir', 'failed_dir'}
 
     def __init__(self):

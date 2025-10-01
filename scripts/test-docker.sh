@@ -1,13 +1,32 @@
 #!/bin/bash
 # Basic/integration test runner used by Makefile
 # Usage: test-docker.sh <image_name> <version> <basic|integration>
+# Environment variables:
+#   REGISTRY    Optional registry prefix (defaults to ghcr.io when image name lacks registry)
 set -Eeuo pipefail
 
 IMAGE_NAME="${1:-nehpz/namer}"
 VERSION="${2:-latest}"
 MODE="${3:-basic}"
+REGISTRY="${REGISTRY:-ghcr.io}"
 
-IMAGE_REF="${IMAGE_NAME}:${VERSION}"
+prefix_image_with_registry() {
+  local image="$1"
+  local registry="$2"
+
+  if [[ "$image" == */* ]]; then
+    local first_segment="${image%%/*}"
+    if [[ "$first_segment" == *.* || "$first_segment" == *:* ]]; then
+      echo "$image"
+      return
+    fi
+  fi
+
+  echo "${registry}/${image}"
+}
+
+IMAGE_WITH_REGISTRY="$(prefix_image_with_registry "$IMAGE_NAME" "$REGISTRY")"
+IMAGE_REF="${IMAGE_WITH_REGISTRY}:${VERSION}"
 
 log() { echo "[test-docker] $*"; }
 
