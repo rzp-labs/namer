@@ -171,22 +171,27 @@ class LookedUpFileInfo:
     """
     the width of video in pixels.
     """
+
     video_codec: Optional[str] = None
     """
     the codec of video.
     """
+
     audio_codec: Optional[str] = None
     """
     the codec of audio.
     """
+
     external_id: Optional[str] = None
     """
     Should the source site provide it, the id for the site.
     """
+
     is_collected: bool = False
     """
     Indicates if the current user has marked this video as part of their collection.
     """
+
     _found_via_phash: bool = False
     """
     Internal flag indicating whether this result originated from a perceptual hash lookup.
@@ -197,7 +202,6 @@ class LookedUpFileInfo:
         self.tags = []
         self.hashes = []
         self.original_parsed_filename = FileInfo()
-        self._found_via_phash = False
 
     def as_dict(self, config: NamerConfig):
         """
@@ -302,6 +306,11 @@ class LookedUpFileInfo:
 
     def found_via_phash(self) -> bool:
         return self._found_via_phash
+
+    def set_found_via_phash(self, value: bool) -> None:
+        if not isinstance(value, bool):
+            raise TypeError('set_found_via_phash expects a bool value')
+        self._found_via_phash = value
 
 
 @dataclass(init=True, repr=False, eq=True, order=False, unsafe_hash=True, frozen=False)
