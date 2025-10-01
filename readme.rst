@@ -184,6 +184,33 @@ Development
   # Html Coverage report:
   poetry run coverage html
 
+CodeRabbit CLI workflow
+-----------------------
+
+The repository ships with optional integration for CodeRabbit's CLI to catch review issues before opening a pull request.
+
+Environment variables (defined in ``.env.example``):
+
+* ``CODERABBIT_PRECOMMIT`` – set to ``1`` to enable CodeRabbit in the pre-commit hook. The default ``0`` keeps it off to preserve rate limits during rapid iteration.
+* ``CODERABBIT_VALIDATE`` – defaults to ``1`` so ``./validate.sh`` runs CodeRabbit after lint/tests. Set to ``0`` only when you intentionally want to skip the AI review.
+* ``CODERABBIT_BASE`` – branch used as the comparison base (``main`` by default). Adjust if your fork uses a different default branch.
+* ``CODERABBIT_EXTRA_ARGS`` – optional space-delimited flags passed through to ``coderabbit review`` (for example ``--config docs/coderabbit.yaml``).
+
+Key commands:
+
+.. code-block:: sh
+
+   # Opt-in staged review
+   CODERABBIT_PRECOMMIT=1 pre-commit run --all-files
+
+   # Pre-push validation (invoked automatically by the hook)
+   ./validate.sh --fast
+
+   # Manual full branch review before opening a PR
+   make review
+
+The helper script ``scripts/run-coderabbit.sh`` centralises these modes so contributors can reuse the same configuration from hooks, ``validate.sh``, and ad-hoc runs.
+
   # Local python install
   pip install ./dist/namer-<version>.tar.gz
 

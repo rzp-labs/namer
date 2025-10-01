@@ -20,6 +20,12 @@ repos:
   # Optional Dockerfile linting (non-blocking at first; set `--failure-threshold` to `warning`)
   - repo: local
     hooks:
+      - id: coderabbit-pre-commit
+        name: CodeRabbit CLI (pre-commit, optional)
+        entry: ./scripts/run-coderabbit.sh pre-commit
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
       - id: hadolint
         name: hadolint
         entry: bash -lc 'command -v hadolint >/dev/null 2>&1 && hadolint Dockerfile || echo "hadolint not installed; skipping"'

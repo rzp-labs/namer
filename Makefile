@@ -11,7 +11,7 @@ SCRIPT_DIR = ./scripts
 .PHONY: all help build build-fast build-full build-dev \
         build-amd64 build-arm64 build-multiarch ensure-builder \
         test test-basic test-integration validate clean clean-deep config \
-        setup-dev
+        setup-dev review
 
 help: ## Show available targets
 	@echo "🏗️  Namer Build System"
@@ -117,6 +117,9 @@ dev-cycle: build-fast test-basic ## Quick development cycle
 
 release-prep: validate build-full test-integration ## Full release preparation
 	@echo "🎉 Release preparation complete"
+
+review: ## Run CodeRabbit branch review (optional)
+	@./scripts/run-coderabbit.sh branch
 
 # Docker operations (using native commands)
 push: ## Push built image to registry

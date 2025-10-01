@@ -21,6 +21,7 @@ namer/tools
 database/
 .pytest_cache/
 test_config.cfg
+.coderabbit/
 
 # Local production config (secrets)
 namer-prod.cfg

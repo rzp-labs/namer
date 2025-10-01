@@ -176,8 +176,28 @@ else
     echo "✅ Skipping Docker integration tests"
   fi
 fi
-# Step 6: Final validation
-echo "6️⃣ Final validation summary..."
+# Step 6: CodeRabbit AI review (optional)
+echo "6️⃣ Running CodeRabbit AI review..."
+CODERABBIT_SUMMARY="SKIPPED (disabled)"
+if [[ "${CODERABBIT_VALIDATE:-1}" == "0" ]]; then
+  echo "   Skipping CodeRabbit review (CODERABBIT_VALIDATE=0)."
+  CODERABBIT_SUMMARY="SKIPPED (CODERABBIT_VALIDATE=0)"
+elif [[ -x "scripts/run-coderabbit.sh" ]]; then
+  if scripts/run-coderabbit.sh validate; then
+    CODERABBIT_SUMMARY="PASSED"
+  else
+    CODERABBIT_SUMMARY="FAILED"
+    echo "❌ CodeRabbit review reported issues. Address them before proceeding."
+    exit 1
+  fi
+else
+  echo "⚠️  scripts/run-coderabbit.sh not found or not executable; skipping CodeRabbit review."
+  CODERABBIT_SUMMARY="SKIPPED (missing scripts/run-coderabbit.sh)"
+fi
+echo ""
+
+# Step 7: Final validation
+echo "7️⃣ Final validation summary..."
 echo ""
 echo "✅ Code linting: PASSED"
 echo "✅ Unit tests: PASSED"
@@ -186,6 +206,11 @@ if [[ "$FAST" -eq 1 ]]; then
   echo "✅ Docker integration: SKIPPED (fast mode)"
 else
   echo "✅ Docker integration: PASSED"
+fi
+if [[ "$CODERABBIT_SUMMARY" == "PASSED" ]]; then
+  echo "✅ CodeRabbit review: PASSED"
+else
+  echo "ℹ️  CodeRabbit review: $CODERABBIT_SUMMARY"
 fi
 echo ""
 
