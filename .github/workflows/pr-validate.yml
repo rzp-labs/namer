@@ -180,7 +180,7 @@ jobs:
           find scripts -name '*.sh' -print0 | xargs -0 -r shellcheck | tee shellcheck.log
 
       - name: Hadolint Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf
         with:
           dockerfile: Dockerfile
           output-file: hadolint.log
