@@ -1,5 +1,3 @@
-import pytest
-
 from namer.comparison_results import HashType, LookedUpFileInfo, SceneHash
 from namer.metadata_providers.stashdb_provider import StashDBProvider
 from namer.videophash import return_perceptual_hash
