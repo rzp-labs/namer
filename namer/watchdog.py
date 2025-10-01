@@ -13,7 +13,7 @@ from pathlib import Path
 from platform import system
 from queue import Queue
 from threading import Thread
-from typing import Optional, cast
+from typing import Optional
 
 import schedule
 from loguru import logger
@@ -84,9 +84,19 @@ def handle(command: Command):
 
 def _require_config_path(config: NamerConfig, attr: str) -> Path:
     value = getattr(config, attr, None)
-    if value is None:
-        raise AttributeError(f'NamerConfig is missing required "{attr}" configuration path')
-    return cast(Path, value)
+    if not value:
+        raise ValueError(f'NamerConfig is missing required "{attr}" configuration path')
+    if not isinstance(value, Path):
+        raise TypeError(f'NamerConfig "{attr}" configuration path must be a pathlib.Path, got {type(value).__name__}')
+    return value
+
+
+def _path_is_within(base: Path, candidate: Path) -> bool:
+    try:
+        candidate.resolve(strict=False).relative_to(base.resolve(strict=False))
+    except ValueError:
+        return False
+    return True
 
 
 def retry_failed(namer_config: NamerConfig):
@@ -96,7 +106,7 @@ def retry_failed(namer_config: NamerConfig):
     try:
         failed_dir = _require_config_path(namer_config, 'failed_dir')
         watch_dir = _require_config_path(namer_config, 'watch_dir')
-    except AttributeError as error:
+    except (AttributeError, ValueError, TypeError) as error:
         logger.error(error)
         return
 
@@ -148,13 +158,17 @@ class MovieEventHandler(PatternMatchingEventHandler):
 
         if file_path:
             if isinstance(file_path, bytes):
-                file_path = file_path.decode()
+                try:
+                    file_path = file_path.decode('utf-8', errors='replace')
+                except Exception as error:  # pragma: no cover - defensive logging
+                    logger.error('Failed to decode file path: %s', error)
+                    return
             if not isinstance(file_path, str):
                 logger.error('unexpected file path type %s', type(file_path))
                 return
 
             path = Path(file_path).resolve()
-            if not path.is_relative_to(self.__watch_dir):
+            if not _path_is_within(self.__watch_dir, path):
                 logger.error('file should be in watch dir {}', path)
                 return
 
@@ -306,14 +320,14 @@ class MovieWatcher:
         with suppress(FileNotFoundError):
             watch_dir = _require_config_path(self.__namer_config, 'watch_dir')
             for file in watch_dir.rglob('**/*.*'):
-                file = file.resolve()
-                if not file.is_relative_to(watch_dir):
-                    logger.error('file should be in watch dir {}', file)
-                    return
+                resolved_file = file.resolve()
+                if not _path_is_within(watch_dir, resolved_file):
+                    logger.error('file should be in watch dir {}', resolved_file)
+                    continue
 
-                relative_path = str(file.relative_to(watch_dir))
-                if not self.__namer_config.ignored_dir_regex.search(relative_path) and is_interesting_movie(file, self.__namer_config) and done_copying(file):
-                    self.__event_handler.prepare_file_for_processing(file)
+                relative_path = str(resolved_file.relative_to(watch_dir))
+                if not self.__namer_config.ignored_dir_regex.search(relative_path) and is_interesting_movie(resolved_file, self.__namer_config) and done_copying(resolved_file):
+                    self.__event_handler.prepare_file_for_processing(resolved_file)
 
     def stop(self):
         """

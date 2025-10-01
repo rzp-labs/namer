@@ -139,10 +139,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck shfmt
-          curl -sSfL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 -o hadolint
-          echo "1f6a7d08963c069bb2b0a315b0dff78eaefdd8af2fa2a343b390d05f86519fec  hadolint" | sha256sum -c -
-          chmod +x hadolint
-          sudo mv hadolint /usr/local/bin/hadolint
 
       - name: mypy (configuration module only)
         shell: bash
@@ -184,10 +180,10 @@ jobs:
           find scripts -name '*.sh' -print0 | xargs -0 -r shellcheck | tee shellcheck.log
 
       - name: Hadolint Dockerfile
-        shell: bash
-        run: |
-          set -o pipefail
-          hadolint Dockerfile | tee hadolint.log
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          output-file: hadolint.log
 
       - name: Upload static analysis results
         if: always()
