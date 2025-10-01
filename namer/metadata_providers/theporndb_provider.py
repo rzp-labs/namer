@@ -227,7 +227,7 @@ class ThePornDBProvider(BaseMetadataProvider):
                     file_name_parts,
                 )
                 # Mark as found via phash for scoring (helper flag used by downstream scoring logic)
-                setattr(file_info, '_found_via_phash', True)
+                file_info._found_via_phash = True
                 results.append(file_info)
 
         # Text-based search
