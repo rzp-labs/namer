@@ -396,7 +396,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
         config.min_file_size = 0
         config.write_namer_log = True
         config.min_file_size = 0
-        config.new_relative_path_name = '{performers}/{site} - {date} - {name}.{ext}'
+        config.new_relative_path_name = '{all_performers}/{site} - {date} - {name}.{ext}'
         with make_watchdog_context(config) as (temp_dir, watcher, fake_tpdb):
             remove_performer_genders(fake_tpdb._scenes['ea.full.json'])
             targets = [new_ea(config.watch_dir)]
@@ -419,7 +419,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
         config.min_file_size = 0
         config.write_namer_log = True
         config.min_file_size = 0
-        config.new_relative_path_name = '{performers}/{site} - {date} - {name}.{ext}'
+        config.new_relative_path_name = '{all_performers}/{site} - {date} - {name}.{ext}'
         with make_watchdog_context(config) as (temp_dir, watcher, fake_tpdb):
             remove_performers(fake_tpdb._scenes['ea.full.json'])
             targets = [new_ea(config.watch_dir)]

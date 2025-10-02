@@ -16,8 +16,6 @@ import { escape } from 'lodash'
 import { Helpers } from './helpers'
 import './themes'
 
-window.jQuery = $
-
 const filesResult = $('#filesResult')
 const tableButtons = $('#tableButtons')
 const resultForm = $('#searchResults .modal-body')

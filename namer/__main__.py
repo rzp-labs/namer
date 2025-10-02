@@ -13,7 +13,6 @@ match the file.
 """
 
 import sys
-import argparse
 from datetime import timedelta
 from pathlib import Path
 
@@ -60,13 +59,9 @@ def main():
     Call main method in namer.namer or namer.watchdog.
     """
     logger.remove()
+    config = default_config()
 
-    conf_parser = argparse.ArgumentParser(add_help=False)
-    conf_parser.add_argument('-c', '--config', help='Path to a namer.cfg file.')
-    args, arg_list = conf_parser.parse_known_args()
-
-    config_file = Path(args.config) if args.config else None
-    config = default_config(config_file)
+    arg_list = sys.argv[1:]
 
     # create a CachedSession objects for request caching.
     if config.use_requests_cache:
