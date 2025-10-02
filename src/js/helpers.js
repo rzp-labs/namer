@@ -1,5 +1,6 @@
 import $ from 'jquery'
 import { Tooltip } from 'bootstrap'
+import { getToken, updateToken } from './csrf'
 
 export class Helpers {
   static #table
@@ -76,7 +77,7 @@ export class Helpers {
     })
   }
 
-  static request (url, data, success = null) {
+  static request (url, data, success = null, error = null) {
     const progressBar = $('#progressBar')
     const payload = data ?? {}
 
@@ -85,8 +86,9 @@ export class Helpers {
       Accept: 'application/json'
     }
 
-    if (window.namerCsrfToken) {
-      headers['X-CSRF-Token'] = window.namerCsrfToken
+    const token = getToken()
+    if (token) {
+      headers['X-CSRF-Token'] = token
     }
 
     $.ajax({
@@ -110,10 +112,20 @@ export class Helpers {
       contentType: 'application/json',
       dataType: 'json',
       success,
+      error: error || function (response) {
+        let message = 'An unknown error occurred, check the console for more details.'
+        if (response.responseJSON && response.responseJSON.message) {
+          message = response.responseJSON.message
+        } else if (response.statusText) {
+          message = response.statusText
+        }
+        console.log(response.responseText)
+        alert(message)
+      },
       complete: function (xhr) {
         const newToken = xhr.getResponseHeader('X-CSRF-Token') || xhr.getResponseHeader('X-CSRFToken')
-        if (newToken && typeof window.namerUpdateCsrfToken === 'function') {
-          window.namerUpdateCsrfToken(newToken)
+        if (newToken) {
+          updateToken(newToken)
         }
       }
     })

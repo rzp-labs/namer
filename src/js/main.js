@@ -16,8 +16,6 @@ import { escape } from 'lodash'
 import { Helpers } from './helpers'
 import './themes'
 
-window.jQuery = $
-
 const filesResult = $('#filesResult')
 const tableButtons = $('#tableButtons')
 const resultForm = $('#searchResults .modal-body')
@@ -53,6 +51,8 @@ searchButton.on('click', function () {
     Helpers.render('searchResults', data, resultForm, function (selector) {
       Helpers.initTooltips(selector)
     })
+  }, function (response) {
+    resultForm.html(`<div class="alert alert-danger">${response.responseJSON.message || response.statusText}</div>`)
   })
 })
 
@@ -72,6 +72,8 @@ phashButton.on('click', function () {
     Helpers.render('searchResults', data, resultForm, function (selector) {
       Helpers.initTooltips(selector)
     })
+  }, function (response) {
+    resultForm.html(`<div class="alert alert-danger">${response.responseJSON.message || response.statusText}</div>`)
   })
 })
 
@@ -105,6 +107,8 @@ filesResult.on('click', '.log', function () {
     Helpers.render('logFile', data, logForm, function (selector) {
       Helpers.initTooltips(selector)
     })
+  }, function (response) {
+    logForm.html(`<div class="alert alert-danger">${response.responseJSON.message || response.statusText}</div>`)
   })
 })
 
