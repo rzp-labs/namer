@@ -82,6 +82,8 @@ jobs:
         with:
           name: coverage-xml
           path: coverage.xml
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Upload junit report
         if: always()
@@ -90,6 +92,8 @@ jobs:
         with:
           name: pytest-junit
           path: pytest-junit.xml
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Upload lint and test logs
         if: always()

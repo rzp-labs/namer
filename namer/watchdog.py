@@ -275,7 +275,7 @@ class MovieWatcher:
             time.sleep(0.2)
             tries += 1
 
-        if not self.get_web_port:
+        if not self.get_web_port():
             raise RuntimeError('application did not get assigned a port within 4 seconds.')
 
         return self
