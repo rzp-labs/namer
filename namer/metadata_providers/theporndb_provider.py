@@ -328,8 +328,34 @@ class ThePornDBProvider(BaseMetadataProvider):
         Returns:
             List of scene data from GraphQL response
         """
-        # The current public TPDB GraphQL schema does not expose a hash search.
-        # Disable GraphQL hash search for now; hash-based matching will be covered by name search and/or future schema support.
+        query = """
+            query SearchScenesByHash($hash: String!) {
+                scenesByHash(hash: $hash) {
+                    id
+                    title
+                    date
+                    description
+                    duration
+                    url
+                    urls { view }
+                    site { name parent { name } network { name } }
+                    performers {
+                        name
+                        parent { name image extras { gender } }
+                        image
+                        extras { gender }
+                    }
+                    tags { name }
+                    hashes { hash type duration }
+                }
+            }
+        """
+        variables = {'hash': phash.phash}
+        response_data = self._graphql_request(query, variables, config)
+        if response_data and 'scenesByHash' in response_data:
+            scenes = response_data['scenesByHash']
+            return scenes if isinstance(scenes, list) else []
+
         return []
 
     def get_complete_info(self, file_name_parts: Optional[FileInfo], uuid: str, config: NamerConfig) -> Optional[LookedUpFileInfo]:

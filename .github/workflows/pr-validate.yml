@@ -144,24 +144,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck shfmt
 
-      - name: mypy (configuration module only)
+      - name: mypy
         shell: bash
         run: |
           set -o pipefail
-          poetry run mypy namer/configuration.py | tee mypy.log
-
-      - name: mypy (core packages)
-        shell: bash
-        run: |
-          set -o pipefail
-          poetry run mypy namer/watchdog.py namer/metadata_providers | tee -a mypy.log
+          poetry run mypy namer | tee mypy.log
 
       - name: bandit scan
         shell: bash
         run: |
           set -o pipefail
-          poetry run bandit -q -r namer -x namer/web,tests -f json -o bandit.json
-          poetry run bandit -q -r namer -x namer/web,tests -f txt | tee bandit.txt
+          poetry run bandit -q -r namer -x tests -f json -o bandit.json
+          poetry run bandit -q -r namer -x tests -f txt | tee bandit.txt
 
       - name: shfmt check
         shell: bash
