@@ -207,7 +207,7 @@ class MovieWatcher:
     def enqueue_work(self, command: Command):
         queue_items = list(self.__command_queue.queue)
         items = list(map(lambda x: x.get_command_target(), filter(lambda i: i is not None, queue_items)))
-        if not self.__stopped and command.get_command_target() not in items or command is None:
+        if command is None or (not self.__stopped and command.get_command_target() not in items):
             self.__command_queue.put(command)
         else:
             raise RuntimeError('Command not added to work queue, server is stopping')
