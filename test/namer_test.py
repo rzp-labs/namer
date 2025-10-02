@@ -178,7 +178,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             with patch('sys.argv', ['namer', '--config', str(config_file), 'watchdog']):
                 namer_main()
                 mock_default_config.assert_called_with(config_file)
-                mock_watchdog_main.assert_called_once()
+                mock_watchdog_main.assert_called_once_with(config)
                 mock_namer_main.assert_not_called()
 
             mock_default_config.reset_mock()
@@ -189,7 +189,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             with patch('sys.argv', ['namer', 'watchdog', '-c', str(config_file)]):
                 namer_main()
                 mock_default_config.assert_called_with(config_file)
-                mock_watchdog_main.assert_called_once()
+                mock_watchdog_main.assert_called_once_with(config)
                 mock_namer_main.assert_not_called()
 
             mock_default_config.reset_mock()

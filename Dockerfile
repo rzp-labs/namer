@@ -135,7 +135,7 @@ RUN set -eux; \
   TMPDIR=$(mktemp -d); \
   git init "$TMPDIR/src"; \
   git -C "$TMPDIR/src" remote add origin https://github.com/peolic/videohashes.git; \
-  git -C "$TMPDIR/src" fetch --depth 1 origin "$PHASH_COMMIT"; \
+  git -C "$TMPDIR/src" fetch --depth 1 --single-branch origin "$PHASH_COMMIT"; \
   git -C "$TMPDIR/src" checkout --detach "$PHASH_COMMIT"; \
   ACTUAL_COMMIT=$(git -C "$TMPDIR/src" rev-parse HEAD); \
   if [ "$ACTUAL_COMMIT" != "$PHASH_COMMIT" ]; then \

@@ -31,21 +31,22 @@ During container builds, THIS FILE REPLACES ffmpeg.py (see Dockerfile line 77).
 
 import os
 import secrets
-import shutil
-import string
+import subprocess
 from contextlib import suppress
 from dataclasses import dataclass
+import shutil
+import string
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
-from threading import Lock
 from typing import Dict, List, Optional, Tuple
+from threading import Lock
 
 import ffmpeg
 import orjson
 from loguru import logger
-from pathvalidate import ValidationError
 from PIL import Image
+from pathvalidate import ValidationError
 
 from namer.videophash.videophashstash import StashVideoPerceptualHash
 
@@ -662,7 +663,6 @@ class FFMpeg:
                     logger.error('Software pipeline failed for {} at t={}s: {}', file, screenshot_time, ex)
             except Exception:
                 logger.error('Software pipeline failed for {} at t={}s: {}', file, screenshot_time, ex)
-
             # Secondary attempt: retry with PNG encoder instead of APNG to mitigate encoder-specific failures
             try:
                 stream_sw2 = ffmpeg.input(file, ss=screenshot_time)

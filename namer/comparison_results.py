@@ -171,22 +171,18 @@ class LookedUpFileInfo:
     """
     the width of video in pixels.
     """
-
     video_codec: Optional[str] = None
     """
     the codec of video.
     """
-
     audio_codec: Optional[str] = None
     """
     the codec of audio.
     """
-
     external_id: Optional[str] = None
     """
     Should the source site provide it, the id for the site.
     """
-
     is_collected: bool = False
     """
     Indicates if the current user has marked this video as part of their collection.
@@ -209,7 +205,7 @@ class LookedUpFileInfo:
         """
         if not self.performers:
             return []
-        return [p for p in self.performers if p.role and p.role.lower() == 'female']
+        return [p for p in self.performers if p.role and p.role.strip().lower() == 'female']
 
     def as_dict(self, config: NamerConfig):
         """
@@ -263,6 +259,7 @@ class LookedUpFileInfo:
             'audio_codec': self.audio_codec,
             'type': self.type.value,
             'external_id': self.external_id,
+            '_found_via_phash': self._found_via_phash,
         }
 
     def new_file_name(self, template: str, config: NamerConfig, infix: str = '(0)') -> str:
@@ -302,16 +299,6 @@ class LookedUpFileInfo:
 
     @staticmethod
     def __cleanup_dictionary(dictionary: Dict[str, Optional[str]]) -> Dict[str, str]:
-        """
-        Sanitizes a dictionary of metadata values for use in file names.
-        Replaces path separators and uses pathvalidate to ensure universal compatibility.
-
-        Args:
-            dictionary: A dictionary of metadata key-value pairs.
-
-        Returns:
-            A dictionary with sanitized string values.
-        """
         clean_dic = {}
         for key, value in dictionary.items():
             value = str(value) if value else ''
@@ -325,24 +312,9 @@ class LookedUpFileInfo:
         return clean_dic
 
     def found_via_phash(self) -> bool:
-        """
-        Checks if the file was found via perceptual hash.
-
-        Returns:
-            True if the file was found via phash, False otherwise.
-        """
         return self._found_via_phash
 
     def set_found_via_phash(self, value: bool) -> None:
-        """
-        Sets the internal flag indicating whether the file was found via perceptual hash.
-
-        Args:
-            value: The boolean value to set.
-
-        Raises:
-            TypeError: If the provided value is not a boolean.
-        """
         if not isinstance(value, bool):
             raise TypeError('set_found_via_phash expects a bool value')
         self._found_via_phash = value
@@ -435,10 +407,6 @@ class ComparisonResults:
     fileinfo: Optional[FileInfo]
 
     def get_match(self) -> Optional[ComparisonResult]:
-        """
-        Gets the best match from the comparison results.
-        The best match is the first result, unless there are other matches that are better.
-        """
         match = None
         if self.results and self.results[0].is_match():
             # verify the match isn't covering over a better namer match, if it is, no match shall be made

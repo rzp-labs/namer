@@ -1,6 +1,5 @@
 import $ from 'jquery'
 import { Tooltip } from 'bootstrap'
-import { getToken, updateToken } from './csrf'
 
 export class Helpers {
   static #table
@@ -77,15 +76,7 @@ export class Helpers {
     })
   }
 
-  /**
-   * Performs an AJAX request with CSRF token handling and progress bar updates.
-   *
-   * @param {string} url - The URL to send the request to.
-   * @param {object} data - The data to send with the request.
-   * @param {function} success - The success callback function.
-   * @param {function} [error=null] - The error callback function. If not provided, a default handler will be used.
-   */
-  static request (url, data, success = null, error = null) {
+  static request (url, data, success = null) {
     const progressBar = $('#progressBar')
     const payload = data ?? {}
 
@@ -94,9 +85,8 @@ export class Helpers {
       Accept: 'application/json'
     }
 
-    const token = getToken()
-    if (token) {
-      headers['X-CSRF-Token'] = token
+    if (window.namerCsrfToken) {
+      headers['X-CSRF-Token'] = window.namerCsrfToken
     }
 
     $.ajax({
@@ -120,20 +110,10 @@ export class Helpers {
       contentType: 'application/json',
       dataType: 'json',
       success,
-      error: error || function (response) {
-        let message = 'An unknown error occurred, check the console for more details.'
-        if (response.responseJSON && response.responseJSON.message) {
-          message = response.responseJSON.message
-        } else if (response.statusText) {
-          message = response.statusText
-        }
-        console.log(response.responseText)
-        alert(message)
-      },
       complete: function (xhr) {
         const newToken = xhr.getResponseHeader('X-CSRF-Token') || xhr.getResponseHeader('X-CSRFToken')
-        if (newToken) {
-          updateToken(newToken)
+        if (newToken && typeof window.namerUpdateCsrfToken === 'function') {
+          window.namerUpdateCsrfToken(newToken)
         }
       }
     })
