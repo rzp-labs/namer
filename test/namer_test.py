@@ -7,6 +7,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from loguru import logger
 from mutagen.mp4 import MP4
@@ -14,6 +15,7 @@ from mutagen.mp4 import MP4
 from namer.configuration import NamerConfig
 from namer.configuration_utils import to_ini
 from namer.namer import check_arguments, main, set_permissions
+from namer.__main__ import main as namer_main
 from test import utils
 from test.utils import new_ea, sample_config, validate_mp4_tags, environment, FakeTPDB
 
@@ -155,6 +157,51 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             set_permissions(test_dir, config)
             self.assertTrue(os.access(test_dir, os.R_OK))
             set_permissions(None, config)
+
+    @patch('namer.namer.main')
+    @patch('namer.watchdog.main')
+    @patch('namer.__main__.default_config')
+    def test_main_arg_passing(self: unittest.TestCase, mock_default_config, mock_watchdog_main, mock_namer_main):
+        """
+        Tests that arguments are passed correctly to sub commands, even with -c
+        """
+        config = NamerConfig()
+        config.config_updater = sample_config().config_updater
+        mock_default_config.return_value = config
+
+        with tempfile.TemporaryDirectory(prefix='test') as tmpdir:
+            temp_dir = Path(tmpdir)
+            config_file = temp_dir / 'config.cfg'
+            config_file.write_text('[watchdog]\nport=1234')
+
+            # Test case 1: --config before command
+            with patch('sys.argv', ['namer', '--config', str(config_file), 'watchdog']):
+                namer_main()
+                mock_default_config.assert_called_with(config_file)
+                mock_watchdog_main.assert_called_once()
+                mock_namer_main.assert_not_called()
+
+            mock_default_config.reset_mock()
+            mock_watchdog_main.reset_mock()
+            mock_namer_main.reset_mock()
+
+            # Test case 2: -c after command
+            with patch('sys.argv', ['namer', 'watchdog', '-c', str(config_file)]):
+                namer_main()
+                mock_default_config.assert_called_with(config_file)
+                mock_watchdog_main.assert_called_once()
+                mock_namer_main.assert_not_called()
+
+            mock_default_config.reset_mock()
+            mock_watchdog_main.reset_mock()
+            mock_namer_main.reset_mock()
+
+            # Test case 3: rename command with args
+            with patch('sys.argv', ['namer', '-c', str(config_file), 'rename', '-f', 'somefile.mp4']):
+                namer_main()
+                mock_default_config.assert_called_with(config_file)
+                mock_watchdog_main.assert_not_called()
+                mock_namer_main.assert_called_once_with(['-f', 'somefile.mp4'])
 
 
 if __name__ == '__main__':

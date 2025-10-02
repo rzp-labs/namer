@@ -77,6 +77,14 @@ export class Helpers {
     })
   }
 
+  /**
+   * Performs an AJAX request with CSRF token handling and progress bar updates.
+   *
+   * @param {string} url - The URL to send the request to.
+   * @param {object} data - The data to send with the request.
+   * @param {function} success - The success callback function.
+   * @param {function} [error=null] - The error callback function. If not provided, a default handler will be used.
+   */
   static request (url, data, success = null, error = null) {
     const progressBar = $('#progressBar')
     const payload = data ?? {}

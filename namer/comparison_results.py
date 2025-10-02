@@ -203,6 +203,14 @@ class LookedUpFileInfo:
         self.hashes = []
         self.original_parsed_filename = FileInfo()
 
+    def _get_female_performers(self) -> List[Performer]:
+        """
+        Filters the performers list to return only female performers.
+        """
+        if not self.performers:
+            return []
+        return [p for p in self.performers if p.role and p.role.lower() == 'female']
+
     def as_dict(self, config: NamerConfig):
         """
         Converts the info in to a dict that can be used
@@ -227,6 +235,8 @@ class LookedUpFileInfo:
         else:
             self.type = SceneType.SCENE
 
+        female_performers = self._get_female_performers()
+
         return {
             'uuid': self.uuid,
             'date': self.date,
@@ -239,9 +249,9 @@ class LookedUpFileInfo:
             'full_parent': self.parent,
             'network': self.network.replace(' ', '') if self.network else None,
             'full_network': self.network,
-            'performers': ', '.join([p.name for p in self.performers if p.role and p.role.lower() == 'female']) if self.performers else None,
+            'performers': ', '.join([p.name for p in female_performers]) if female_performers else None,
             'all_performers': ', '.join([p.name for p in self.performers]) if self.performers else None,
-            'performer-sites': ', '.join([p.alias for p in self.performers if p.role and p.role.lower() == 'female' and p.alias]) if self.performers else None,
+            'performer-sites': ', '.join([p.alias for p in female_performers if p.alias]) if female_performers else None,
             'all_performer-sites': ', '.join([p.alias for p in self.performers if p.alias]) if self.performers else None,
             'ext': self.original_parsed_filename.extension if self.original_parsed_filename else None,
             'source_file_name': self.original_parsed_filename.source_file_name if self.original_parsed_filename else None,
@@ -292,6 +302,16 @@ class LookedUpFileInfo:
 
     @staticmethod
     def __cleanup_dictionary(dictionary: Dict[str, Optional[str]]) -> Dict[str, str]:
+        """
+        Sanitizes a dictionary of metadata values for use in file names.
+        Replaces path separators and uses pathvalidate to ensure universal compatibility.
+
+        Args:
+            dictionary: A dictionary of metadata key-value pairs.
+
+        Returns:
+            A dictionary with sanitized string values.
+        """
         clean_dic = {}
         for key, value in dictionary.items():
             value = str(value) if value else ''
@@ -305,9 +325,24 @@ class LookedUpFileInfo:
         return clean_dic
 
     def found_via_phash(self) -> bool:
+        """
+        Checks if the file was found via perceptual hash.
+
+        Returns:
+            True if the file was found via phash, False otherwise.
+        """
         return self._found_via_phash
 
     def set_found_via_phash(self, value: bool) -> None:
+        """
+        Sets the internal flag indicating whether the file was found via perceptual hash.
+
+        Args:
+            value: The boolean value to set.
+
+        Raises:
+            TypeError: If the provided value is not a boolean.
+        """
         if not isinstance(value, bool):
             raise TypeError('set_found_via_phash expects a bool value')
         self._found_via_phash = value
@@ -400,6 +435,10 @@ class ComparisonResults:
     fileinfo: Optional[FileInfo]
 
     def get_match(self) -> Optional[ComparisonResult]:
+        """
+        Gets the best match from the comparison results.
+        The best match is the first result, unless there are other matches that are better.
+        """
         match = None
         if self.results and self.results[0].is_match():
             # verify the match isn't covering over a better namer match, if it is, no match shall be made

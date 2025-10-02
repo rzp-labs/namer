@@ -31,21 +31,21 @@ During container builds, THIS FILE REPLACES ffmpeg.py (see Dockerfile line 77).
 
 import os
 import secrets
-from contextlib import suppress
-from dataclasses import dataclass
 import shutil
 import string
+from contextlib import suppress
+from dataclasses import dataclass
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from threading import Lock
+from typing import Dict, List, Optional, Tuple
 
 import ffmpeg
 import orjson
 from loguru import logger
-from PIL import Image
 from pathvalidate import ValidationError
+from PIL import Image
 
 from namer.videophash.videophashstash import StashVideoPerceptualHash
 
