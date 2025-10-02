@@ -395,7 +395,7 @@ class FFMpeg:
 
     def extract_screenshot(self, file: Path, screenshot_time: float, screenshot_width: int = -1, use_gpu: bool = False,
                            hwaccel_backend: Optional[str] = None, hwaccel_device: Optional[str] = None,
-                           hwaccel_decoder: Optional[str] = None) -> Image.Image:
+                           hwaccel_decoder: Optional[str] = None) -> Optional[Image.Image]:
         """
         Extract a single frame as an image with enhanced QSV support and automatic decoder selection.
 

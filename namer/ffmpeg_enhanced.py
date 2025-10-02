@@ -30,17 +30,18 @@ During container builds, THIS FILE REPLACES ffmpeg.py (see Dockerfile line 77).
 """
 
 import os
+import re
 import secrets
-import subprocess
-from contextlib import suppress
-from dataclasses import dataclass
 import shutil
 import string
+import subprocess  # nosec: trusted invocations with shell disabled
+from contextlib import suppress
+from dataclasses import dataclass
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from threading import Lock
+from typing import Dict, List, Optional, Tuple
 
 import ffmpeg
 import orjson
@@ -403,7 +404,7 @@ class FFMpeg:
 
     def extract_screenshot(self, file: Path, screenshot_time: float, screenshot_width: int = -1, use_gpu: bool = False,
                            hwaccel_backend: Optional[str] = None, hwaccel_device: Optional[str] = None,
-                           hwaccel_decoder: Optional[str] = None) -> Image.Image:
+                           hwaccel_decoder: Optional[str] = None) -> Optional[Image.Image]:
         """
         Extract a single frame as an image with enhanced QSV support and automatic decoder selection.
 
