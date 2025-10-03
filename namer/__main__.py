@@ -103,7 +103,8 @@ def main():
     logger.remove()
 
     raw_args = sys.argv[1:]
-    cfg_path, arg_list = _extract_config_option(raw_args)
+    # Parse config path from args, but preserve original args for subcommands
+    cfg_path, cleaned_args = _extract_config_option(raw_args)
     if cfg_path and not cfg_path.is_file():
         logger.error(f'Specified config file does not exist: {cfg_path}')
         sys.exit(1)
@@ -120,19 +121,36 @@ def main():
         db.bind(provider='sqlite', filename=str(db_file), create_db=True)
         db.generate_mapping(create_tables=True)
 
-    arg1 = None if len(arg_list) == 0 else arg_list[0]
+    # Determine subcommand from cleaned args (config flags removed)
+    arg1 = None if len(cleaned_args) == 0 else cleaned_args[0]
+
+    # Helper: return raw args without the first occurrence of the subcommand token
+    def _sub_args_remove_token(args: list[str], token: str) -> list[str]:
+        removed = False
+        out: list[str] = []
+        for t in args:
+            if not removed and t == token:
+                removed = True
+                continue
+            out.append(t)
+        return out
+
     if arg1 == 'watchdog':
         namer.watchdog.main(config)
     elif arg1 == 'rename':
-        namer.namer.main(arg_list[1:])
+        sub_args = _sub_args_remove_token(raw_args, 'rename')
+        namer.namer.main(sub_args)
     elif arg1 == 'suggest':
-        namer.metadataapi.main(arg_list[1:])
+        sub_args = _sub_args_remove_token(raw_args, 'suggest')
+        namer.metadataapi.main(sub_args)
     elif arg1 == 'url':
         print(f'http://{config.host}:{config.port}{config.web_root}')
     elif arg1 == 'hash':
-        namer.videohashes.main(arg_list[1:])
+        sub_args = _sub_args_remove_token(raw_args, 'hash')
+        namer.videohashes.main(sub_args)
     elif arg1 == 'clear-cache':
-        clear_hash_cache(arg_list[1:], config)
+        # cleaned_args is fine for clear-cache; config is passed separately
+        clear_hash_cache(cleaned_args[1:], config)
     elif arg1 in ['-h', 'help', None]:
         print(DESCRIPTION)
 

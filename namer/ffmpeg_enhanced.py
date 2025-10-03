@@ -485,7 +485,7 @@ class FFMpeg:
                             if s not in candidates:
                                 candidates.append(s)
                 except Exception as render_discovery_error:
-                    logger.debug('Failed enumerating /dev/dri render nodes: %s', render_discovery_error)
+                    logger.debug('Failed enumerating /dev/dri render nodes: {}', render_discovery_error)
 
                 last_ex: Optional[Exception] = None
                 for dev in candidates:
@@ -499,7 +499,7 @@ class FFMpeg:
                             return Image.open(BytesIO(out))
                     except Exception as ex2:
                         last_ex = ex2
-                        logger.debug('VAAPI candidate %s failed for %s: %s', dev, file, ex2)
+                        logger.debug('VAAPI candidate {} failed for {}: {}', dev, file, ex2)
                         continue
                 if last_ex:
                     raise last_ex
@@ -573,7 +573,7 @@ class FFMpeg:
                     else:
                         logger.error('Software PNG fallback failed for {} at t={}s: {}', file, screenshot_time, ex2)
                 except Exception as png_fallback_ex:
-                    logger.debug('Software PNG fallback failed for %s at t=%s: %s', file, screenshot_time, png_fallback_ex)
+                    logger.debug('Software PNG fallback failed for {} at t={}: {}', file, screenshot_time, png_fallback_ex)
 
             try:
                 stream_sw3 = ffmpeg.input(file)
@@ -587,7 +587,7 @@ class FFMpeg:
                 )
                 return Image.open(BytesIO(out3))
             except Exception as post_seek_ex:
-                logger.debug('Post-seek APNG fallback failed for %s at t=%s: %s', file, screenshot_time, post_seek_ex)
+                logger.debug('Post-seek APNG fallback failed for {} at t={}: {}', file, screenshot_time, post_seek_ex)
                 try:
                     stream_sw4 = ffmpeg.input(file)
                     if width and width > 0:
@@ -600,7 +600,7 @@ class FFMpeg:
                     )
                     return Image.open(BytesIO(out4))
                 except Exception as png_post_seek_ex:
-                    logger.debug('Post-seek PNG fallback failed for %s at t=%s: %s', file, screenshot_time, png_post_seek_ex)
+                    logger.debug('Post-seek PNG fallback failed for {} at t={}: {}', file, screenshot_time, png_post_seek_ex)
 
             for delta in (-0.25, 0.25, -0.5, 0.5):
                 t2 = max(0.0, (screenshot_time or 0.0) + delta)
@@ -616,7 +616,7 @@ class FFMpeg:
                     )
                     return Image.open(BytesIO(out5))
                 except Exception as jitter_ex:
-                    logger.debug('Timestamp jitter fallback failed for %s at t=%s (delta=%s): %s', file, t2, delta, jitter_ex)
+                    logger.debug('Timestamp jitter fallback failed for {} at t={} (delta={}): {}', file, t2, delta, jitter_ex)
                     continue
 
             return None
@@ -648,7 +648,7 @@ class FFMpeg:
                     shell=False,
                 )
             except Exception as error:  # pragma: no cover - defensive logging
-                logger.debug('Failed to query %s version via %s: %s', tool, executable, error)
+                logger.debug('Failed to query {} version via {}: {}', tool, executable, error)
             else:
                 if completed.stdout:
                     line = completed.stdout.split('\n', 1)[0]
