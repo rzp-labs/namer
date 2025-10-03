@@ -100,22 +100,45 @@ class FFMpeg:
         if not streams:
             return None
 
-        output: List[FFProbeStream] = []
         for stream in streams:
             ff_stream = FFProbeStream()
-            ff_stream.bit_rate = int(stream['bit_rate']) if 'bit_rate' in stream else -1
+            ff_stream.bit_rate = -1
+            bit_rate = stream.get('bit_rate')
+            if bit_rate is not None:
+                try:
+                    ff_stream.bit_rate = int(bit_rate)
+                except (TypeError, ValueError):
+                    logger.debug('Unable to parse stream bit_rate: %s', bit_rate)
             ff_stream.codec_name = stream['codec_name']
             ff_stream.codec_type = stream['codec_type']
             ff_stream.index = int(stream['index'])
-            ff_stream.duration = float(stream['duration']) if 'duration' in stream else -1
-
-            ff_stream.height = int(stream['height']) if 'height' in stream else -1
-            ff_stream.width = int(stream['width']) if 'width' in stream else -1
-            ff_stream.tags_language = stream['tags']['language'] if 'tags' in stream and 'language' in stream['tags'] else None
+            ff_stream.duration = -1
+            duration = stream.get('duration')
+            if duration is not None:
+                try:
+                    ff_stream.duration = float(duration)
+                except (TypeError, ValueError):
+                    logger.debug('Unable to parse stream duration: %s', duration)
+            ff_stream.height = -1
+            height = stream.get('height')
+            if height is not None:
+                try:
+                    ff_stream.height = int(height)
+                except (TypeError, ValueError):
+                    logger.debug('Unable to parse stream height: %s', height)
+            ff_stream.width = -1
+            width = stream.get('width')
+            if width is not None:
+                try:
+                    ff_stream.width = int(width)
+                except (TypeError, ValueError):
+                    logger.debug('Unable to parse stream width: %s', width)
+            tags = stream.get('tags') or {}
+            ff_stream.tags_language = tags.get('language')
 
             if 'disposition' in stream:
                 ff_stream.disposition_attached_pic = stream['disposition']['attached_pic'] == 1
-                ff_stream.disposition_default = stream['disposition']['default'] == 1
+                ff_stream.disposition_default    = stream['disposition']['default']    == 1
 
             if 'avg_frame_rate' in stream:
                 numer, denom = stream['avg_frame_rate'].split('/', 1)
@@ -124,35 +147,6 @@ class FFMpeg:
                     ff_stream.avg_frame_rate = numer / denom
 
             output.append(ff_stream)
-
-        probe_format = FFProbeFormat()
-        format_section = ffprobe_out.get('format') if isinstance(ffprobe_out, dict) else None
-        if format_section:
-            bit_rate = format_section.get('bit_rate')
-            duration = format_section.get('duration')
-            size = format_section.get('size')
-
-            if bit_rate is not None:
-                try:
-                    probe_format.bit_rate = int(bit_rate)
-                except (TypeError, ValueError):
-                    logger.debug('Unable to parse ffprobe bit_rate: %s', bit_rate)
-
-            if duration is not None:
-                try:
-                    probe_format.duration = float(duration)
-                except (TypeError, ValueError):
-                    logger.debug('Unable to parse ffprobe duration: %s', duration)
-
-            if size is not None:
-                try:
-                    probe_format.size = int(size)
-                except (TypeError, ValueError):
-                    logger.debug('Unable to parse ffprobe size: %s', size)
-
-            probe_format.tags = format_section.get('tags', {}) if isinstance(format_section, dict) else {}
-
-        return FFProbeResults(output, probe_format)
 
     def _auto_detect_qsv_decoder(self, file: Path) -> Optional[str]:
         """
