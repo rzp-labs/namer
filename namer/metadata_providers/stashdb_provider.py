@@ -5,6 +5,7 @@ This provider interfaces with StashDB's GraphQL API to provide
 metadata for adult content, mapping results to namer's data structures.
 """
 
+from collections import Counter
 from pathlib import Path
 import os
 from typing import Any, Dict, List, Optional, Tuple
@@ -64,33 +65,62 @@ class StashDBProvider(BaseMetadataProvider):
             try:
                 phash_results = self._search_by_phash(phash, config)
                 if phash_results:
-                    # Get unique scene IDs from phash results
-                    unique_scene_ids = set(scene_info.guid for scene_info in phash_results if scene_info.guid)
+                    scenes_with_guid = [scene_info for scene_info in phash_results if scene_info.guid]
+                    threshold = config.phash_unique_threshold if config.phash_unique_threshold is not None else 1.0
+                    threshold = max(0.0, min(1.0, threshold))
 
-                    if len(unique_scene_ids) == 1:
-                        # Single unique scene - treat as super match and return only one result
-                        logger.info(f'Phash match found single unique scene with {len(phash_results)} submissions - returning confident match')
-                        results.clear()  # Clear any name-based search results
-                        # Only add the first result to avoid conflict logic in get_match()
-                        scene_info = phash_results[0]
-                        comparison_result = self._build_phash_comparison(scene_info, file_name_parts, phash)
-                        comparison_result.name_match = 100.0  # Force high name match for unique phash
-                        comparison_result.date_match = True  # Force date match for unique phash
-                        comparison_result.site_match = True  # Force site match for unique phash
-                        comparison_result.phash_distance = comparison_result.phash_distance or 0
-                        comparison_result.phash_duration = True if comparison_result.phash_duration is None else comparison_result.phash_duration
-                        results.append(comparison_result)
-                    elif len(unique_scene_ids) > 1:
-                        logger.warning(
-                            'Multiple scene IDs exist for this phash: %d unique scenes found (%s); handing off to disambiguation',
-                            len(unique_scene_ids),
-                            unique_scene_ids,
-                        )
+                    if scenes_with_guid:
+                        counts = Counter(scene_info.guid for scene_info in scenes_with_guid)
+                        most_common_guid, most_common_count = counts.most_common(1)[0]
+                        total_guid_entries = len(scenes_with_guid)
+                        consensus_fraction = most_common_count / total_guid_entries if total_guid_entries else 0.0
+
+                        if consensus_fraction >= threshold:
+                            logger.info(
+                                'PHASH threshold met: %s accounts for %.2f of %d submissions (threshold %.2f). Returning confident match.',
+                                most_common_guid,
+                                consensus_fraction,
+                                total_guid_entries,
+                                threshold,
+                            )
+                            results.clear()
+                            scene_info = None
+                            for candidate in scenes_with_guid:
+                                if candidate.guid == most_common_guid:
+                                    scene_info = candidate
+                                    break
+                            if not scene_info:
+                                logger.warning('PHASH threshold met but matching scene missing; treating results as ambiguous')
+                                for candidate in phash_results:
+                                    comparison_result = self._build_phash_comparison(candidate, file_name_parts, phash)
+                                    results.append(comparison_result)
+                            else:
+                                comparison_result = self._build_phash_comparison(scene_info, file_name_parts, phash)
+                                comparison_result.name_match = 100.0  # Force high name match for unique/majority phash
+                                comparison_result.date_match = True  # Force date match for unique/majority phash
+                                comparison_result.site_match = True  # Force site match for unique/majority phash
+                                comparison_result.phash_distance = comparison_result.phash_distance or 0
+                                comparison_result.phash_duration = True if comparison_result.phash_duration is None else comparison_result.phash_duration
+                                results.append(comparison_result)
+                        else:
+                            logger.warning(
+                                'PHASH threshold not met: %d unique scene IDs across %d submissions (top fraction %.2f, threshold %.2f); handing off to disambiguation',
+                                len(counts),
+                                len(phash_results),
+                                consensus_fraction,
+                                threshold,
+                            )
+                            results.clear()
+                            for scene_info in phash_results:
+                                comparison_result = self._build_phash_comparison(scene_info, file_name_parts, phash)
+                                results.append(comparison_result)
+                    else:
+                        # No GUIDs available; treat all results as ambiguous candidates
+                        logger.warning('PHASH results returned without GUIDs; handing off all candidates for disambiguation')
                         results.clear()
                         for scene_info in phash_results:
                             comparison_result = self._build_phash_comparison(scene_info, file_name_parts, phash)
                             results.append(comparison_result)
-                    # If no unique scene IDs (shouldn't happen), fall through to name search
             except Exception as e:
                 logger.debug(f'Phash search failed: {e}')
 
