@@ -28,7 +28,6 @@ RUN apt-get update \
   && if [ "$TARGETARCH" = "amd64" ]; then \
   apt-get install -y --no-install-recommends \
   intel-media-va-driver \
-  libmfx-gen1.2 \
   ; \
   fi \
   && rm -rf /var/lib/apt/lists/* \
@@ -165,7 +164,7 @@ RUN pip3 install --break-system-packages /namer-*.tar.gz \
 # This step installs firmware to support Intel Arc, UHD Graphics, and other Intel GPUs
 RUN mkdir -p /lib/firmware/i915 /tmp/firmware-backup
 COPY scripts/install-intel-firmware-fast.sh /tmp/install-intel-firmware-fast.sh
-RUN timeout 300 bash -c "chmod +x /tmp/install-intel-firmware-fast.sh && /tmp/install-intel-firmware-fast.sh"
+RUN timeout 300 bash -c "chmod +x /tmp/install-intel-firmware-fast.sh && /tmp/install-intel-firmware-fast.sh" || true
 
 # Copy Intel GPU detection script
 COPY scripts/detect-intel-gpu.sh /usr/local/bin/detect-gpu.sh

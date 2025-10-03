@@ -30,11 +30,9 @@ During container builds, THIS FILE REPLACES ffmpeg.py (see Dockerfile line 77).
 """
 
 import os
-import re
 import secrets
 import shutil
 import string
-import subprocess  # nosec: trusted invocations with shell disabled
 from contextlib import suppress
 from dataclasses import dataclass
 from functools import lru_cache
