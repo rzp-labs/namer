@@ -270,13 +270,14 @@ class MovieWatcher:
         self.__background_thread = Thread(target=self.run)
         self.__background_thread.start()
 
-        tries = 0
-        while not self.get_web_port() and tries < 20:
-            time.sleep(0.2)
-            tries += 1
+        if self.__namer_config.web:
+            tries = 0
+            while not self.get_web_port() and tries < 20:
+                time.sleep(0.2)
+                tries += 1
 
-        if not self.get_web_port():
-            raise RuntimeError('application did not get assigned a port within 4 seconds.')
+            if not self.get_web_port():
+                raise RuntimeError('application did not get assigned a port within 4 seconds.')
 
         return self
 
