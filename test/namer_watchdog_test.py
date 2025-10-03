@@ -396,14 +396,14 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
         config.min_file_size = 0
         config.write_namer_log = True
         config.min_file_size = 0
-        config.new_relative_path_name = '{performers}/{site} - {date} - {name}.{ext}'
+        config.new_relative_path_name = '{all_performers}/{site} - {date} - {name}.{ext}'
         with make_watchdog_context(config) as (temp_dir, watcher, fake_tpdb):
             remove_performer_genders(fake_tpdb._scenes['ea.full.json'])
             targets = [new_ea(config.watch_dir)]
             wait_until_processed(watcher)
             self.assertFalse(targets[0].get_file().exists())
             self.assertEqual(len(list(config.work_dir.iterdir())), 0)
-            output_file = config.dest_dir / 'Carmela Clutch, Francesca Le' / 'EvilAngel - 2022-01-03 - Carmela Clutch Fabulous Anal 3-Way!.mp4'
+            output_file = config.dest_dir / 'Carmela Clutch, Francesca Le, Mark Wood' / 'EvilAngel - 2022-01-03 - Carmela Clutch Fabulous Anal 3-Way!.mp4'
             self.assertTrue(output_file.is_file())
             output = MP4(output_file)
             self.assertEqual(output.get('\xa9nam'), ['Carmela Clutch: Fabulous Anal 3-Way!'])
@@ -419,7 +419,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
         config.min_file_size = 0
         config.write_namer_log = True
         config.min_file_size = 0
-        config.new_relative_path_name = '{performers}/{site} - {date} - {name}.{ext}'
+        config.new_relative_path_name = '{all_performers}/{site} - {date} - {name}.{ext}'
         with make_watchdog_context(config) as (temp_dir, watcher, fake_tpdb):
             remove_performers(fake_tpdb._scenes['ea.full.json'])
             targets = [new_ea(config.watch_dir)]

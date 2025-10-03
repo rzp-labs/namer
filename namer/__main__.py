@@ -15,6 +15,7 @@ match the file.
 import sys
 from datetime import timedelta
 from pathlib import Path
+from typing import Optional, List
 
 from loguru import logger
 from requests_cache import CachedSession
@@ -54,14 +55,60 @@ def create_default_config_if_missing():
     print('please edit the token or any other settings whose defaults you want changed.')
 
 
+def _extract_config_option(args: List[str]) -> tuple[Optional[Path], List[str]]:
+    """
+    Extract a config file path from CLI args and return (config_path, cleaned_args).
+    Supports:
+    -c <path>
+    --config <path>
+    --configfile <path>
+    """
+    cleaned = []
+    i = 0
+    cfg: Optional[Path] = None
+    while i < len(args):
+        tok = args[i]
+        if tok in ('-c', '--config', '--configfile') and i + 1 < len(args):
+            try:
+                cfg = Path(args[i + 1]).expanduser()
+            except Exception:
+                # If expansion fails, still pass raw value through
+                try:
+                    cfg = Path(args[i + 1])
+                except Exception:
+                    cfg = None
+            i += 2
+            continue
+        # Support --config=/path style
+        if tok.startswith('--config=') or tok.startswith('--configfile='):
+            val = tok.split('=', 1)[1]
+            try:
+                cfg = Path(val).expanduser()
+            except Exception:
+                try:
+                    cfg = Path(val)
+                except Exception:
+                    cfg = None
+            i += 1
+            continue
+        cleaned.append(tok)
+        i += 1
+    return cfg, cleaned
+
+
 def main():
     """
     Call main method in namer.namer or namer.watchdog.
     """
     logger.remove()
-    config = default_config()
 
-    arg_list = sys.argv[1:]
+    raw_args = sys.argv[1:]
+    # Parse config path from args, but preserve original args for subcommands
+    cfg_path, cleaned_args = _extract_config_option(raw_args)
+    if cfg_path and not cfg_path.is_file():
+        logger.error(f'Specified config file does not exist: {cfg_path}')
+        sys.exit(1)
+    config = default_config(cfg_path) if cfg_path else default_config()
 
     # create a CachedSession objects for request caching.
     if config.use_requests_cache:
@@ -74,19 +121,36 @@ def main():
         db.bind(provider='sqlite', filename=str(db_file), create_db=True)
         db.generate_mapping(create_tables=True)
 
-    arg1 = None if len(arg_list) == 0 else arg_list[0]
+    # Determine subcommand from cleaned args (config flags removed)
+    arg1 = None if len(cleaned_args) == 0 else cleaned_args[0]
+
+    # Helper: return raw args without the first occurrence of the subcommand token
+    def _sub_args_remove_token(args: list[str], token: str) -> list[str]:
+        removed = False
+        out: list[str] = []
+        for t in args:
+            if not removed and t == token:
+                removed = True
+                continue
+            out.append(t)
+        return out
+
     if arg1 == 'watchdog':
         namer.watchdog.main(config)
     elif arg1 == 'rename':
-        namer.namer.main(arg_list[1:])
+        sub_args = _sub_args_remove_token(cleaned_args, 'rename')
+        namer.namer.main(sub_args)
     elif arg1 == 'suggest':
-        namer.metadataapi.main(arg_list[1:])
+        sub_args = _sub_args_remove_token(raw_args, 'suggest')
+        namer.metadataapi.main(sub_args)
     elif arg1 == 'url':
         print(f'http://{config.host}:{config.port}{config.web_root}')
     elif arg1 == 'hash':
-        namer.videohashes.main(arg_list[1:])
+        sub_args = _sub_args_remove_token(raw_args, 'hash')
+        namer.videohashes.main(sub_args)
     elif arg1 == 'clear-cache':
-        clear_hash_cache(arg_list[1:])
+        # cleaned_args is fine for clear-cache; config is passed separately
+        clear_hash_cache(cleaned_args[1:], config)
     elif arg1 in ['-h', 'help', None]:
         print(DESCRIPTION)
 
@@ -94,7 +158,7 @@ def main():
         config.cache_session.cache.delete(expired=True)
 
 
-def clear_hash_cache(arg_list):
+def clear_hash_cache(arg_list, config=None):
     """Clear cached hashes for files matching a pattern."""
     if len(arg_list) == 0:
         print('Usage: namer clear-cache <filename_pattern>')
@@ -102,7 +166,8 @@ def clear_hash_cache(arg_list):
         return
 
     filename_pattern = arg_list[0]
-    config = default_config()
+    if config is None:
+        config = default_config()
 
     if not config.use_database:
         print('❌ Database is not enabled in configuration')

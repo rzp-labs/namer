@@ -200,10 +200,10 @@ class ThePornDBProvider(BaseMetadataProvider):
         """
         Search for metadata matches based on file name parts and/or perceptual hash using GraphQL.
         """
-        results = []
+        results: List[LookedUpFileInfo] = []
 
         if not file_name_parts and not phash:
-            return ComparisonResults(results, file_name_parts)
+            return ComparisonResults([], file_name_parts)
 
         # Build search query based on available information
         search_terms = []
@@ -220,9 +220,14 @@ class ThePornDBProvider(BaseMetadataProvider):
         if phash:
             hash_results = self._search_by_hash(phash, config)
             for scene_data in hash_results:
-                file_info = self._graphql_scene_to_fileinfo(scene_data, f'hash:{phash.phash}', orjson.dumps(scene_data, option=orjson.OPT_INDENT_2).decode('utf-8'), file_name_parts)
-                # Mark as found via phash for scoring
-                file_info._found_via_phash = True
+                file_info = self._graphql_scene_to_fileinfo(
+                    scene_data,
+                    f'hash:{phash.phash}',
+                    orjson.dumps(scene_data, option=orjson.OPT_INDENT_2).decode('utf-8'),
+                    file_name_parts,
+                )
+                # Mark as found via phash for scoring (helper flag used by downstream scoring logic)
+                file_info.set_found_via_phash(True)
                 results.append(file_info)
 
         # Text-based search

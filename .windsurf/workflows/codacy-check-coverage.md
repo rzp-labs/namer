@@ -1,5 +1,6 @@
 ---
 description: Check code coverage of your project using Codacy
+auto_execution_mode: 3
 ---
 
 1. Call 'codacy_get_file_coverage' tool for each of the files given as context

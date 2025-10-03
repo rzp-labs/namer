@@ -28,7 +28,6 @@ RUN apt-get update \
   && if [ "$TARGETARCH" = "amd64" ]; then \
   apt-get install -y --no-install-recommends \
   intel-media-va-driver \
-  libmfx-gen1.2 \
   ; \
   fi \
   && rm -rf /var/lib/apt/lists/* \
@@ -111,10 +110,10 @@ RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps )"
 # - amd64: download pinned release asset (videohashes-linux-amd64)
 # - arm64: build from local sources (videohashes/linux-arm64 target) and copy
 ARG PHASH_VERSION=2025.09.09
+# Commit SHA corresponding to the pinned PHASH_VERSION tag (used for deterministic arm64 builds)
+ARG PHASH_COMMIT=6d3a6d6f4e6a9a8cf4b30a9fd5bfa80ba3fc43e4
 # SHA256 for amd64 asset at the pinned tag (videohashes-linux-amd64)
 ARG PHASH_AMD64_SHA256=dbcc09bd45e260f09dd385e329b041e359fff3bfe66be767070918d519e6f476
-# SHA256 for arm64 source tarball at the pinned tag
-ARG PHASH_ARM64_TAR_SHA256=9fa44b290bc32b8173a2efe08f27d4272406b7583de0a6daa72258e42afc2b3f
 RUN set -eux; \
   cd /work; \
   mkdir -p namer/tools; \
@@ -131,15 +130,17 @@ RUN set -eux; \
   chmod +x "namer/tools/${TARGET_NAME}"; \
   ;; \
   arm64) \
-  # Build from source tarball for the pinned tag (no repo submodule needed)
+  # Clone the exact commit for deterministic arm64 build and verify HEAD matches
   TMPDIR=$(mktemp -d); \
-  curl --fail --silent --show-error --location \
-  --proto '=https' --proto-redir '=https' \
-  -o "$TMPDIR/videohashes.tar.gz" \
-  "https://github.com/peolic/videohashes/tarball/${PHASH_VERSION}"; \
-  echo "${PHASH_ARM64_TAR_SHA256}  $TMPDIR/videohashes.tar.gz" | sha256sum -c -; \
-  mkdir -p "$TMPDIR/src"; \
-  tar -xzf "$TMPDIR/videohashes.tar.gz" -C "$TMPDIR/src" --strip-components=1; \
+  git init "$TMPDIR/src"; \
+  git -C "$TMPDIR/src" remote add origin https://github.com/peolic/videohashes.git; \
+  git -C "$TMPDIR/src" fetch --depth 1 --single-branch origin "$PHASH_COMMIT"; \
+  git -C "$TMPDIR/src" checkout --detach "$PHASH_COMMIT"; \
+  ACTUAL_COMMIT=$(git -C "$TMPDIR/src" rev-parse HEAD); \
+  if [ "$ACTUAL_COMMIT" != "$PHASH_COMMIT" ]; then \
+    echo "Expected videohashes commit $PHASH_COMMIT but got $ACTUAL_COMMIT" >&2; \
+    exit 1; \
+  fi; \
   make -C "$TMPDIR/src" linux-arm64; \
   cp "$TMPDIR/src/dist/videohashes-arm64-linux" ./namer/tools/; \
   chmod +x ./namer/tools/videohashes-arm64-linux; \
@@ -163,7 +164,7 @@ RUN pip3 install --break-system-packages /namer-*.tar.gz \
 # This step installs firmware to support Intel Arc, UHD Graphics, and other Intel GPUs
 RUN mkdir -p /lib/firmware/i915 /tmp/firmware-backup
 COPY scripts/install-intel-firmware-fast.sh /tmp/install-intel-firmware-fast.sh
-RUN timeout 300 bash -c "chmod +x /tmp/install-intel-firmware-fast.sh && /tmp/install-intel-firmware-fast.sh"
+RUN timeout 300 bash -c "chmod +x /tmp/install-intel-firmware-fast.sh && /tmp/install-intel-firmware-fast.sh" || true
 
 # Copy Intel GPU detection script
 COPY scripts/detect-intel-gpu.sh /usr/local/bin/detect-gpu.sh

@@ -188,11 +188,24 @@ class LookedUpFileInfo:
     Indicates if the current user has marked this video as part of their collection.
     """
 
+    _found_via_phash: bool = False
+    """
+    Internal flag indicating whether this result originated from a perceptual hash lookup.
+    """
+
     def __init__(self):
         self.performers = []
         self.tags = []
         self.hashes = []
         self.original_parsed_filename = FileInfo()
+
+    def _get_female_performers(self) -> List[Performer]:
+        """
+        Filters the performers list to return only female performers.
+        """
+        if not self.performers:
+            return []
+        return [p for p in self.performers if p.role and p.role.strip().lower() == 'female']
 
     def as_dict(self, config: NamerConfig):
         """
@@ -218,6 +231,8 @@ class LookedUpFileInfo:
         else:
             self.type = SceneType.SCENE
 
+        female_performers = self._get_female_performers()
+
         return {
             'uuid': self.uuid,
             'date': self.date,
@@ -230,10 +245,10 @@ class LookedUpFileInfo:
             'full_parent': self.parent,
             'network': self.network.replace(' ', '') if self.network else None,
             'full_network': self.network,
-            'performers': ', '.join(map(lambda p: p.name, filter(lambda p: p.role == 'Female', self.performers))) if self.performers else None,
-            'all_performers': ', '.join(map(lambda p: p.name, self.performers)) if self.performers else None,
-            'performer-sites': ', '.join(map(lambda p: p.alias, filter(lambda p: p.role == 'Female' and p.alias, self.performers))) if self.performers else None,
-            'all_performer-sites': ', '.join(map(lambda p: p.name, filter(lambda p: p.alias, self.performers))) if self.performers else None,
+            'performers': ', '.join([p.name for p in female_performers]) if female_performers else None,
+            'all_performers': ', '.join([p.name for p in self.performers]) if self.performers else None,
+            'performer-sites': ', '.join([p.alias for p in female_performers if p.alias]) if female_performers else None,
+            'all_performer-sites': ', '.join([p.alias for p in self.performers if p.alias]) if self.performers else None,
             'ext': self.original_parsed_filename.extension if self.original_parsed_filename else None,
             'source_file_name': self.original_parsed_filename.source_file_name if self.original_parsed_filename else None,
             'source_file_stem': self.original_parsed_filename.source_file_stem if self.original_parsed_filename else None,
@@ -244,6 +259,7 @@ class LookedUpFileInfo:
             'audio_codec': self.audio_codec,
             'type': self.type.value,
             'external_id': self.external_id,
+            '_found_via_phash': self._found_via_phash,
         }
 
     def new_file_name(self, template: str, config: NamerConfig, infix: str = '(0)') -> str:
@@ -296,7 +312,12 @@ class LookedUpFileInfo:
         return clean_dic
 
     def found_via_phash(self) -> bool:
-        return bool(self.original_query and '?hash=' in self.original_query)
+        return self._found_via_phash
+
+    def set_found_via_phash(self, value: bool) -> None:
+        if not isinstance(value, bool):
+            raise TypeError('set_found_via_phash expects a bool value')
+        self._found_via_phash = value
 
 
 @dataclass(init=True, repr=False, eq=True, order=False, unsafe_hash=True, frozen=False)
@@ -391,7 +412,7 @@ class ComparisonResults:
             # verify the match isn't covering over a better namer match, if it is, no match shall be made
             # implying that the site and date on the name of the file may be wrong.   leave it for the user
             # to sort it out.
-            match: Optional[ComparisonResult] = self.results[0]
+            match = self.results[0]
             for potential in self.results[1:]:
                 # Now that matches are unique in the list, don't match if there are multiple
                 if match:

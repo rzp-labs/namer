@@ -3,7 +3,7 @@ Namer Configuration readers/verifier
 """
 
 import os
-import random
+import secrets
 import re
 import shutil
 from importlib import resources
@@ -488,7 +488,7 @@ def from_config(config: ConfigUpdater, namer_config: NamerConfig) -> NamerConfig
                     setattr(namer_config, name, new_value)
 
     if not hasattr(namer_config, 'retry_time') or namer_config.retry_time is None:
-        setattr(namer_config, 'retry_time', f'03:{random.randint(0, 59):0>2}')  # noqa: B010
+        setattr(namer_config, 'retry_time', f"03:{secrets.randbelow(60):0>2}")
 
     return namer_config
 
