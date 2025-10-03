@@ -40,5 +40,5 @@ test/dest/
 test/ambiguous/
 test/**/*_namer.json.gz
 
-#Ignore windsurf AI rules
+# Ignore windsurf AI rules
 .windsurfrules
