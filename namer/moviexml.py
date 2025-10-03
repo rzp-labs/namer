@@ -7,7 +7,8 @@ or used in renaming the video file.
 from pathlib import Path
 
 from typing import Any, Optional, List
-from xml.dom.minidom import parseString, Document, Element
+from xml.dom.minidom import Document, Element
+from defusedxml.minidom import parseString as safe_parse_string
 
 from namer.configuration import NamerConfig
 from namer.command import set_permissions
@@ -38,7 +39,7 @@ def parse_movie_xml_file(xml_file: Path) -> LookedUpFileInfo:
     """
     content = xml_file.read_text(encoding='UTF-8')
 
-    movie: Any = parseString(bytes(content, encoding='UTF-8'))
+    movie: Any = safe_parse_string(bytes(content, encoding='UTF-8'))
     info = LookedUpFileInfo()
     info.name = get_childnode_text(movie, 'title')
     info.site = get_all_childnode_text(movie, 'studio')[0]

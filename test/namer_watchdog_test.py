@@ -15,7 +15,7 @@ from mutagen.mp4 import MP4
 
 from namer.ffmpeg import FFMpeg
 from namer.configuration import NamerConfig
-from namer.watchdog import create_watcher, done_copying, retry_failed, MovieWatcher
+from namer.watchdog import MovieWatcher, _path_is_within, _require_config_path, create_watcher, done_copying, retry_failed
 from test import utils
 from test.utils import Wait, new_ea, new_dorcel, validate_mp4_tags, validate_permissions, environment, sample_config, ProcessingTarget
 
@@ -79,6 +79,31 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
         non_path = Path('should_not_exist')
         self.assertFalse(done_copying(non_path))
         self.assertFalse(done_copying(None))
+
+    def test_require_config_path_success(self):
+        config = NamerConfig()
+        config.watch_dir = Path('/test/watch')
+        self.assertEqual(_require_config_path(config, 'watch_dir'), Path('/test/watch'))
+
+    def test_require_config_path_missing(self):
+        config = NamerConfig()
+        with self.assertRaises(ValueError):
+            _require_config_path(config, 'watch_dir')
+
+    def test_require_config_path_wrong_type(self):
+        config = NamerConfig()
+        config.watch_dir = '/test/watch'
+        with self.assertRaises(TypeError):
+            _require_config_path(config, 'watch_dir')
+
+    def test_path_is_within_success(self):
+        self.assertTrue(_path_is_within(Path('/base'), Path('/base/candidate')))
+
+    def test_path_is_within_failure(self):
+        self.assertFalse(_path_is_within(Path('/base'), Path('/other/candidate')))
+
+    def test_path_is_within_traversal(self):
+        self.assertFalse(_path_is_within(Path('/base'), Path('/base/../other/candidate')))
 
     def test_handler_collisions_success(self):
         """

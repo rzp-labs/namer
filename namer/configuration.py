@@ -11,15 +11,16 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import ClassVar, Dict, List, Optional, Pattern, Sequence, Set
-from configupdater import ConfigUpdater
-
 import orjson
+from configupdater import ConfigUpdater
 from requests_cache import CachedSession
-
 from namer import database
 from namer.ffmpeg import FFMpeg
 from namer.videophash.videophash import VideoPerceptualHash
 from namer.videophash.videophashstash import StashVideoPerceptualHash
+
+TPDB_TOKEN_MISSING_PLACEHOLDER = 'TPDB token not configured; visit https://theporndb.net/register to obtain one.'  # nosec B105
+STASHDB_TOKEN_MISSING_PLACEHOLDER = 'StashDB token not configured; add it in settings.'  # nosec B105
 
 
 class ImageDownloadType(str, Enum):
@@ -28,15 +29,10 @@ class ImageDownloadType(str, Enum):
     PERFORMER = 'performer'
 
 
-# noinspection PyDataclass
 @dataclass(init=False, repr=False, eq=True, order=False, unsafe_hash=False, frozen=False)
 class NamerConfig:
     # pylint: disable=too-many-instance-attributes
-
     config_file: Path = Path()
-    """
-    Location of config file used to generate this config.
-    """
 
     config_updater: ConfigUpdater = field(default_factory=ConfigUpdater)
     """
@@ -622,7 +618,7 @@ class NamerConfig:
         info: Dict[str, str] = {}
         provider = self.metadata_provider.lower()
         if provider == 'theporndb':
-            token = 'None is Set, Go to https://theporndb.net/register to get one!'
+            token = TPDB_TOKEN_MISSING_PLACEHOLDER
             if self.porndb_token:
                 token = '*' * len(self.porndb_token)
             info.update(
@@ -632,7 +628,7 @@ class NamerConfig:
                 }
             )
         elif provider == 'stashdb':
-            token = 'None is Set, Get token from StashDB settings!'
+            token = STASHDB_TOKEN_MISSING_PLACEHOLDER
             if self.stashdb_token:
                 token = '*' * len(self.stashdb_token)
             info.update(

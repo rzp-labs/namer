@@ -12,7 +12,7 @@ from loguru import logger
 from namer.configuration import NamerConfig
 from namer.configuration_utils import verify_configuration
 from namer.name_formatter import PartialFormatter
-from namer.comparison_results import Performer
+from namer.comparison_results import LookedUpFileInfo, Performer
 from test import utils
 
 
@@ -35,6 +35,18 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
         self.assertEqual(str(Performer('Name', None)), 'Name')
         self.assertEqual(str(Performer(None, 'Role')), 'Unknown (Role)')
         self.assertEqual(str(Performer('Name', 'Role')), 'Name (Role)')
+
+    def test_set_found_via_phash_type_validation(self):
+        """
+        Test that set_found_via_phash raises a TypeError for non-boolean values.
+        """
+        info = LookedUpFileInfo()
+        with self.assertRaises(TypeError):
+            info.set_found_via_phash("true")
+        with self.assertRaises(TypeError):
+            info.set_found_via_phash(1)
+        info.set_found_via_phash(True)
+        self.assertTrue(info.found_via_phash())
 
     def test_default_no_config(self):
         """

@@ -30,7 +30,8 @@ During container builds, THIS FILE REPLACES ffmpeg.py (see Dockerfile line 77).
 """
 
 import os
-import subprocess
+import secrets
+import subprocess  # nosec: trusted invocations with shell disabled
 from contextlib import suppress
 from dataclasses import dataclass
 import shutil
@@ -39,7 +40,6 @@ import re
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
-from random import choices
 from typing import Dict, List, Optional, Tuple
 from threading import Lock
 
@@ -334,8 +334,8 @@ class FFMpeg:
         Copies, and potentially updates the default audio stream of a video file.
         """
 
-        random = ''.join(choices(population=string.ascii_uppercase + string.digits, k=10))
-        temp_filename = f'{mp4_file.stem}_{random}' + mp4_file.suffix
+        random_suffix = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+        temp_filename = f'{mp4_file.stem}_{random_suffix}' + mp4_file.suffix
         work_file = mp4_file.parent / temp_filename
 
         stream = self.get_audio_stream_for_lang(mp4_file, language) if language else None
@@ -370,8 +370,8 @@ class FFMpeg:
         return True
 
     def attempt_fix_corrupt(self, mp4_file: Path) -> bool:
-        random = ''.join(choices(population=string.ascii_uppercase + string.digits, k=10))
-        temp_filename = f'{mp4_file.stem}_{random}' + mp4_file.suffix
+        random_suffix = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+        temp_filename = f'{mp4_file.stem}_{random_suffix}' + mp4_file.suffix
         work_file = mp4_file.parent / temp_filename
         success = self.convert(mp4_file, work_file)
         if success:
@@ -587,7 +587,6 @@ class FFMpeg:
                     )
                     return out_bytes
 
-                # Build candidate list: env device -> configured -> all render nodes
                 candidates: List[Optional[str]] = []
                 if final_device:
                     candidates.append(final_device)
@@ -601,15 +600,14 @@ class FFMpeg:
                             s = str(p)
                             if s not in candidates:
                                 candidates.append(s)
-                except Exception:
-                    pass
+                except Exception as render_discovery_error:
+                    logger.debug('Failed enumerating /dev/dri render nodes: %s', render_discovery_error)
 
                 last_ex: Optional[Exception] = None
                 for dev in candidates:
                     try:
                         out = _try_device(dev)
                         if out:
-                            # cache working device
                             if dev:
                                 with FFMpeg.__vaapi_lock:
                                     FFMpeg.__vaapi_device_cached = dev
@@ -617,8 +615,8 @@ class FFMpeg:
                             return Image.open(BytesIO(out))
                     except Exception as ex2:
                         last_ex = ex2
+                        logger.debug('VAAPI candidate %s failed for %s: %s', dev, file, ex2)
                         continue
-                # If all candidates failed, re-raise the last exception to trigger software fallback logging
                 if last_ex:
                     raise last_ex
 
@@ -666,12 +664,12 @@ class FFMpeg:
                     logger.error('Software pipeline failed for {} at t={}s: {}', file, screenshot_time, ex)
             except Exception:
                 logger.error('Software pipeline failed for {} at t={}s: {}', file, screenshot_time, ex)
+
             # Secondary attempt: retry with PNG encoder instead of APNG to mitigate encoder-specific failures
             try:
                 stream_sw2 = ffmpeg.input(file, ss=screenshot_time)
                 if width and width > 0:
                     stream_sw2 = stream_sw2.filter('scale', width, -2)
-                # Apply consistent format processing
                 stream_sw2 = stream_sw2.filter('format', 'rgb24')
                 out2, _err2 = (
                     stream_sw2
@@ -681,7 +679,6 @@ class FFMpeg:
                 try:
                     return Image.open(BytesIO(out2))
                 except Exception as pil_ex2:
-                    # Continue to post-seek fallbacks
                     raise pil_ex2
             except Exception as ex2:
                 try:
@@ -692,14 +689,13 @@ class FFMpeg:
                         logger.error('Software PNG fallback failed for {} at t={}s. Details: {}', file, screenshot_time, err_tail2)
                     else:
                         logger.error('Software PNG fallback failed for {} at t={}s: {}', file, screenshot_time, ex2)
-                except Exception:
-                    logger.error('Software PNG fallback failed for {} at t={}s: {}', file, screenshot_time, ex2)
-            # Tertiary attempt: accurate seek using output-side -ss (post-seek), APNG then PNG
+                except Exception as png_fallback_ex:
+                    logger.debug('Software PNG fallback failed for %s at t=%s: %s', file, screenshot_time, png_fallback_ex)
+
             try:
                 stream_sw3 = ffmpeg.input(file)
                 if width and width > 0:
                     stream_sw3 = stream_sw3.filter('scale', width, -2)
-                # Apply consistent format processing
                 stream_sw3 = stream_sw3.filter('format', 'rgb24')
                 out3, _err3 = (
                     stream_sw3
@@ -707,12 +703,12 @@ class FFMpeg:
                     .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                 )
                 return Image.open(BytesIO(out3))
-            except Exception:
+            except Exception as post_seek_ex:
+                logger.debug('Post-seek APNG fallback failed for %s at t=%s: %s', file, screenshot_time, post_seek_ex)
                 try:
                     stream_sw4 = ffmpeg.input(file)
                     if width and width > 0:
                         stream_sw4 = stream_sw4.filter('scale', width, -2)
-                    # Apply consistent format processing
                     stream_sw4 = stream_sw4.filter('format', 'rgb24')
                     out4, _err4 = (
                         stream_sw4
@@ -720,16 +716,15 @@ class FFMpeg:
                         .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                     )
                     return Image.open(BytesIO(out4))
-                except Exception:
-                    pass
-            # Quaternary attempt: small jitter around timestamp with PNG post-seek
+                except Exception as png_post_seek_ex:
+                    logger.debug('Post-seek PNG fallback failed for %s at t=%s: %s', file, screenshot_time, png_post_seek_ex)
+
             for delta in (-0.25, 0.25, -0.5, 0.5):
                 t2 = max(0.0, (screenshot_time or 0.0) + delta)
                 try:
                     stream_sw5 = ffmpeg.input(file)
                     if width and width > 0:
                         stream_sw5 = stream_sw5.filter('scale', width, -2)
-                    # Apply consistent format processing
                     stream_sw5 = stream_sw5.filter('format', 'rgb24')
                     out5, _err5 = (
                         stream_sw5
@@ -737,8 +732,10 @@ class FFMpeg:
                         .run(quiet=True, capture_stdout=True, capture_stderr=True, cmd=self.__ffmpeg_cmd)
                     )
                     return Image.open(BytesIO(out5))
-                except Exception:
+                except Exception as jitter_ex:
+                    logger.debug('Timestamp jitter fallback failed for %s at t=%s (delta=%s): %s', file, t2, delta, jitter_ex)
                     continue
+
             return None
 
     def ffmpeg_version(self) -> Dict:
@@ -755,21 +752,23 @@ class FFMpeg:
         for tool in tools:
             executable = local_dir / tool if local_dir else tool
             # fmt: off
-            args = [
-                str(executable),
-                '-version'
-            ]
-
-            process = None
-            with suppress(Exception):
-                process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, universal_newlines=True)
+            args = [str(executable), '-version']
 
             matches = None
-            if process:
-                stdout, _ = process.communicate()
-
-                if stdout:
-                    line = stdout.split('\n', 1)[0]
+            try:
+                completed = subprocess.run(  # nosec B603: fixed executable path without user input
+                    args,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                    check=False,
+                    shell=False,
+                )
+            except Exception as error:  # pragma: no cover - defensive logging
+                logger.debug('Failed to query %s version via %s: %s', tool, executable, error)
+            else:
+                if completed.stdout:
+                    line = completed.stdout.split('\n', 1)[0]
                     matches = reg.search(line)
 
             versions[tool] = matches.groupdict().get('version') if matches else None
