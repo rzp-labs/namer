@@ -15,7 +15,7 @@ match the file.
 import sys
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from loguru import logger
 from requests_cache import CachedSession
@@ -55,7 +55,7 @@ def create_default_config_if_missing():
     print('please edit the token or any other settings whose defaults you want changed.')
 
 
-def _extract_config_option(args: list[str]) -> tuple[Optional[Path], list[str]]:
+def _extract_config_option(args: List[str]) -> tuple[Optional[Path], List[str]]:
     """
     Extract a config file path from CLI args and return (config_path, cleaned_args).
     Supports:
@@ -104,6 +104,9 @@ def main():
 
     raw_args = sys.argv[1:]
     cfg_path, arg_list = _extract_config_option(raw_args)
+    if cfg_path and not cfg_path.is_file():
+        logger.error(f'Specified config file does not exist: {cfg_path}')
+        sys.exit(1)
     config = default_config(cfg_path) if cfg_path else default_config()
 
     # create a CachedSession objects for request caching.
@@ -129,7 +132,7 @@ def main():
     elif arg1 == 'hash':
         namer.videohashes.main(arg_list[1:])
     elif arg1 == 'clear-cache':
-        clear_hash_cache(arg_list[1:])
+        clear_hash_cache(arg_list[1:], config)
     elif arg1 in ['-h', 'help', None]:
         print(DESCRIPTION)
 
@@ -137,7 +140,7 @@ def main():
         config.cache_session.cache.delete(expired=True)
 
 
-def clear_hash_cache(arg_list):
+def clear_hash_cache(arg_list, config=None):
     """Clear cached hashes for files matching a pattern."""
     if len(arg_list) == 0:
         print('Usage: namer clear-cache <filename_pattern>')
@@ -145,7 +148,8 @@ def clear_hash_cache(arg_list):
         return
 
     filename_pattern = arg_list[0]
-    config = default_config()
+    if config is None:
+        config = default_config()
 
     if not config.use_database:
         print('❌ Database is not enabled in configuration')

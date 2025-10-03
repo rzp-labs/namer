@@ -38,12 +38,14 @@ from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 from threading import Lock
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import ffmpeg
 from loguru import logger
 from PIL import Image
 from pathvalidate import ValidationError
+import subprocess  # nosec: trusted invocations with shell disabled
+import re
 
 from namer.videophash.videophashstash import StashVideoPerceptualHash
 
@@ -618,3 +620,40 @@ class FFMpeg:
                     continue
 
             return None
+
+    def ffmpeg_version(self) -> Dict:
+        return self.__ffmpeg_version(self.__local_dir)
+
+    @staticmethod
+    def __ffmpeg_version(local_dir: Optional[Path] = None) -> Dict:
+        tools = ['ffmpeg', 'ffprobe']
+        re_tools = '|'.join(tools)
+        reg = re.compile(rf'({re_tools}) version (?P<version>.*) Copyright')
+
+        versions = {}
+
+        for tool in tools:
+            executable = local_dir / tool if local_dir else tool
+            # fmt: off
+            args = [str(executable), '-version']
+
+            matches = None
+            try:
+                completed = subprocess.run(  # nosec B603: fixed executable path without user input
+                    args,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                    check=False,
+                    shell=False,
+                )
+            except Exception as error:  # pragma: no cover - defensive logging
+                logger.debug('Failed to query %s version via %s: %s', tool, executable, error)
+            else:
+                if completed.stdout:
+                    line = completed.stdout.split('\n', 1)[0]
+                    matches = reg.search(line)
+
+            versions[tool] = matches.groupdict().get('version') if matches else None
+
+        return versions
