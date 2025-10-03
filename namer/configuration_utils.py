@@ -56,6 +56,12 @@ def validate_disambiguation_config(config: NamerConfig) -> bool:
             config.phash_majority_accept_fraction,
         )
         ok = False
+    if config.phash_unique_threshold is None or not (0.0 <= config.phash_unique_threshold <= 1.0):
+        logger.error(
+            'phash_unique_threshold must be within [0.0, 1.0], got {}',
+            config.phash_unique_threshold,
+        )
+        ok = False
     # Distance relationships
     if config.phash_accept_distance >= config.phash_ambiguous_min:
         logger.error(

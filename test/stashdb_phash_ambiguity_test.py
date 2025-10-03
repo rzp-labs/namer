@@ -34,3 +34,48 @@ def test_stashdb_phash_multiple_scene_ids_returns_candidates(monkeypatch):
     guids = {result.looked_up.guid for result in results.results}
     assert guids == {'guid-a', 'guid-b'}
     assert not results.get_match()
+
+
+def test_stashdb_phash_threshold_accepts_majority(monkeypatch):
+    config = sample_config()
+    config.phash_unique_threshold = 0.5
+    provider = StashDBProvider()
+    phash = return_perceptual_hash(600, 'ffffffffffffffff', 'oshash')
+
+    scenes = [_make_scene('guid-a'), _make_scene('guid-a'), _make_scene('guid-b')]
+
+    def fake_search(self, phash_arg, config_arg):
+        assert phash_arg == phash
+        assert config_arg is config
+        return scenes
+
+    monkeypatch.setattr(StashDBProvider, '_search_by_phash', fake_search)
+
+    results = provider.match(None, config, phash=phash)
+
+    assert len(results.results) == 1
+    match = results.get_match()
+    assert match is not None
+    assert match.looked_up.guid == 'guid-a'
+
+
+def test_stashdb_phash_threshold_requires_supermajority(monkeypatch):
+    config = sample_config()
+    config.phash_unique_threshold = 0.75
+    provider = StashDBProvider()
+    phash = return_perceptual_hash(600, 'ffffffffffffffff', 'oshash')
+
+    scenes = [_make_scene('guid-a'), _make_scene('guid-a'), _make_scene('guid-b')]
+
+    def fake_search(self, phash_arg, config_arg):
+        assert phash_arg == phash
+        assert config_arg is config
+        return scenes
+
+    monkeypatch.setattr(StashDBProvider, '_search_by_phash', fake_search)
+
+    results = provider.match(None, config, phash=phash)
+
+    guids = {result.looked_up.guid for result in results.results}
+    assert guids == {'guid-a', 'guid-b'}
+    assert not results.get_match()
