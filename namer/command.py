@@ -187,7 +187,21 @@ def write_log_file(movie_file: Optional[Path], match_attempts: Optional[Comparis
         _write_summary_file(movie_file, summary, namer_config)
         with open(log_name, 'wb') as log_file:
             if match_attempts:
-                json_out = jsonpickle.encode(match_attempts, separators=(',', ':'))
+                redacted: List[Tuple[LookedUpFileInfo, Optional[str], Optional[str]]] = []
+                try:
+                    for result in match_attempts.results or []:
+                        looked_up = getattr(result, 'looked_up', None)
+                        if looked_up:
+                            redacted.append((looked_up, getattr(looked_up, 'original_query', None), getattr(looked_up, 'original_response', None)))
+                            looked_up.original_query = None
+                            looked_up.original_response = None
+
+                    json_out = jsonpickle.encode(match_attempts, separators=(',', ':'))
+                finally:
+                    for looked_up, original_query, original_response in redacted:
+                        looked_up.original_query = original_query
+                        looked_up.original_response = original_response
+
                 if json_out:
                     json_out = json_out.encode('UTF-8')
                     json_out = gzip.compress(json_out)

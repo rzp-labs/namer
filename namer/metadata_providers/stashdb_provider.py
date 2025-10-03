@@ -304,24 +304,22 @@ class StashDBProvider(BaseMetadataProvider):
         if response and 'data' in response and response['data'] and 'searchScene' in response['data']:
             # StashDB returns scenes directly, not wrapped in a 'scenes' object
             scenes = response['data']['searchScene']
-            if isinstance(scenes, list):
-                serialized_query = orjson.dumps(graphql_query).decode('utf-8')
-                for scene in scenes:
-                    serialized_scene = orjson.dumps(scene).decode('utf-8')
-                    file_info = self._map_stashdb_scene_to_fileinfo(
-                        scene,
-                        config,
-                        original_query=serialized_query,
-                        original_response=serialized_scene,
-                        parsed_filename=None,
-                    )
-                    if file_info:
-                        if file_name_parts:
-                            file_info.original_parsed_filename = file_name_parts
-                        results.append(file_info)
+            if not isinstance(scenes, list):
+                scenes = [scenes]
+
+            serialized_query = orjson.dumps(graphql_query).decode('utf-8')
+            for scene in scenes:
+                serialized_scene = orjson.dumps(scene).decode('utf-8')
+                file_info = self._map_stashdb_scene_to_fileinfo(
+                    scene,
+                    config,
+                    original_query=serialized_query,
+                    original_response=serialized_scene,
+                )
+                if file_info:
+                    results.append(file_info)
 
         return results
-
     def download_file(self, url: str, file: Path, config: NamerConfig) -> bool:
         """
         Download a file (image, trailer) from StashDB.
@@ -529,25 +527,14 @@ class StashDBProvider(BaseMetadataProvider):
         if response and 'data' in response and response['data'] and 'findSceneByFingerprint' in response['data']:
             scenes = response['data']['findSceneByFingerprint']
             if scenes:
-                # StashDB returns an array of scenes for fingerprint matches
-                if isinstance(scenes, list):
-                    serialized_query = orjson.dumps(query).decode('utf-8')
-                    for scene in scenes:
-                        serialized_scene = orjson.dumps(scene).decode('utf-8')
-                        file_info = self._map_stashdb_scene_to_fileinfo(
-                            scene,
-                            config,
-                            original_query=serialized_query,
-                            original_response=serialized_scene,
-                        )
-                        if file_info:
-                            results.append(file_info)
-                else:
-                    # Handle case where it might return a single scene object
-                    serialized_query = orjson.dumps(query).decode('utf-8')
-                    serialized_scene = orjson.dumps(scenes).decode('utf-8')
+                if not isinstance(scenes, list):
+                    scenes = [scenes]
+
+                serialized_query = orjson.dumps(query).decode('utf-8')
+                for scene in scenes:
+                    serialized_scene = orjson.dumps(scene).decode('utf-8')
                     file_info = self._map_stashdb_scene_to_fileinfo(
-                        scenes,
+                        scene,
                         config,
                         original_query=serialized_query,
                         original_response=serialized_scene,
