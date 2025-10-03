@@ -15,6 +15,7 @@ match the file.
 import sys
 from datetime import timedelta
 from pathlib import Path
+from typing import Optional
 
 from loguru import logger
 from requests_cache import CachedSession
@@ -54,14 +55,56 @@ def create_default_config_if_missing():
     print('please edit the token or any other settings whose defaults you want changed.')
 
 
+def _extract_config_option(args: list[str]) -> tuple[Optional[Path], list[str]]:
+    """
+    Extract a config file path from CLI args and return (config_path, cleaned_args).
+    Supports:
+    -c <path>
+    --config <path>
+    --configfile <path>
+    """
+    cleaned = []
+    i = 0
+    cfg: Optional[Path] = None
+    while i < len(args):
+        tok = args[i]
+        if tok in ('-c', '--config', '--configfile') and i + 1 < len(args):
+            try:
+                cfg = Path(args[i + 1]).expanduser()
+            except Exception:
+                # If expansion fails, still pass raw value through
+                try:
+                    cfg = Path(args[i + 1])
+                except Exception:
+                    cfg = None
+            i += 2
+            continue
+        # Support --config=/path style
+        if tok.startswith('--config=') or tok.startswith('--configfile='):
+            val = tok.split('=', 1)[1]
+            try:
+                cfg = Path(val).expanduser()
+            except Exception:
+                try:
+                    cfg = Path(val)
+                except Exception:
+                    cfg = None
+            i += 1
+            continue
+        cleaned.append(tok)
+        i += 1
+    return cfg, cleaned
+
+
 def main():
     """
     Call main method in namer.namer or namer.watchdog.
     """
     logger.remove()
-    config = default_config()
 
-    arg_list = sys.argv[1:]
+    raw_args = sys.argv[1:]
+    cfg_path, arg_list = _extract_config_option(raw_args)
+    config = default_config(cfg_path) if cfg_path else default_config()
 
     # create a CachedSession objects for request caching.
     if config.use_requests_cache:
