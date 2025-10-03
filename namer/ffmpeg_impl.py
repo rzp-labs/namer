@@ -126,11 +126,31 @@ class FFMpeg:
             output.append(ff_stream)
 
         probe_format = FFProbeFormat()
-        if 'format' in ffprobe_out:
-            probe_format.bit_rate = int(ffprobe_out['format']['bit_rate'])
-            probe_format.duration = float(ffprobe_out['format']['duration'])
-            probe_format.size = int(ffprobe_out['format']['size'])
-            probe_format.tags = ffprobe_out['format']['tags'] if 'tags' in ffprobe_out['format'] else {}
+        format_section = ffprobe_out.get('format') if isinstance(ffprobe_out, dict) else None
+        if format_section:
+            bit_rate = format_section.get('bit_rate')
+            duration = format_section.get('duration')
+            size = format_section.get('size')
+
+            if bit_rate is not None:
+                try:
+                    probe_format.bit_rate = int(bit_rate)
+                except (TypeError, ValueError):
+                    logger.debug('Unable to parse ffprobe bit_rate: %s', bit_rate)
+
+            if duration is not None:
+                try:
+                    probe_format.duration = float(duration)
+                except (TypeError, ValueError):
+                    logger.debug('Unable to parse ffprobe duration: %s', duration)
+
+            if size is not None:
+                try:
+                    probe_format.size = int(size)
+                except (TypeError, ValueError):
+                    logger.debug('Unable to parse ffprobe size: %s', size)
+
+            probe_format.tags = format_section.get('tags', {}) if isinstance(format_section, dict) else {}
 
         return FFProbeResults(output, probe_format)
 

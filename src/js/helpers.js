@@ -76,7 +76,7 @@ export class Helpers {
     })
   }
 
-  static request (url, data, success = null) {
+  static request (url, data, success = null, error = null) {
     const progressBar = $('#progressBar')
     const payload = data ?? {}
 
@@ -110,10 +110,19 @@ export class Helpers {
       contentType: 'application/json',
       dataType: 'json',
       success,
+      error,
       complete: function (xhr) {
         const newToken = xhr.getResponseHeader('X-CSRF-Token') || xhr.getResponseHeader('X-CSRFToken')
         if (newToken && typeof window.namerUpdateCsrfToken === 'function') {
           window.namerUpdateCsrfToken(newToken)
+        }
+        if (progressBar && progressBar.length) {
+          const container = progressBar.closest('.progress')
+          if (container && container.length) {
+            container.remove()
+          } else {
+            progressBar.remove()
+          }
         }
       }
     })
