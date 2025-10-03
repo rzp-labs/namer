@@ -4,6 +4,7 @@ Tools for working with files and directories in namer.
 
 import argparse
 import gzip
+import json
 from dataclasses import dataclass
 import os
 import shutil
@@ -115,38 +116,86 @@ def move_command_files(target: Optional[Command], new_target: Path, is_auto: boo
     return output
 
 
+def _build_summary(match_attempts: Optional[ComparisonResults]) -> dict:
+    if not match_attempts:
+        return {'results': [], 'fileinfo': None}
+
+    summary_results = []
+    for result in match_attempts.results:
+        looked_up = result.looked_up
+        looked_up_summary = None
+        if looked_up:
+            looked_up_summary = {
+                'uuid': looked_up.uuid,
+                'guid': looked_up.guid,
+                'name': looked_up.name,
+                'site': looked_up.site,
+                'source_url': getattr(looked_up, 'source_url', None),
+                'original_query': getattr(looked_up, 'original_query', None),
+                'original_response': getattr(looked_up, 'original_response', None),
+            }
+
+        summary_results.append(
+            {
+                'name': result.name,
+                'name_match': result.name_match,
+                'site_match': result.site_match,
+                'date_match': result.date_match,
+                'phash_distance': result.phash_distance,
+                'phash_duration': result.phash_duration,
+                'looked_up': looked_up_summary,
+            }
+        )
+
+    fileinfo = match_attempts.fileinfo
+    fileinfo_summary = None
+    if fileinfo:
+        fileinfo_summary = {
+            'site': fileinfo.site,
+            'name': fileinfo.name,
+            'date': fileinfo.date,
+        }
+
+    return {
+        'results': summary_results,
+        'fileinfo': fileinfo_summary,
+    }
+
+
+def _write_summary_file(movie_file: Path, summary: dict, namer_config: NamerConfig) -> Optional[Path]:
+    summary_path = movie_file.with_name(movie_file.stem + '_namer_summary.json')
+    try:
+        with open(summary_path, 'w', encoding='utf-8') as summary_file:
+            json.dump(summary, summary_file, ensure_ascii=False, indent=2)
+    except OSError as write_error:
+        logger.error('Failed to write summary log %s: %s', summary_path, write_error)
+        return None
+
+    set_permissions(summary_path, namer_config)
+    return summary_path
+
+
 def write_log_file(movie_file: Optional[Path], match_attempts: Optional[ComparisonResults], namer_config: NamerConfig) -> Optional[Path]:
     """
     Given porndb scene results sorted by how closely they match a file,  write the contents
-    of the result matches to a log file with json pickle, the ui could reconstitute the results
     """
     log_name = None
     if movie_file:
         log_name = movie_file.with_name(movie_file.stem + '_namer.json.gz')
         logger.info('Writing log to {}', log_name)
+        summary = _build_summary(match_attempts)
+        _write_summary_file(movie_file, summary, namer_config)
         with open(log_name, 'wb') as log_file:
             if match_attempts:
-                for result in match_attempts.results:
-                    # Some providers/test doubles may not provide these fields
-                    try:
-                        del result.looked_up.original_query
-                    except AttributeError as attr_err:
-                        logger.debug('No original_query on lookup result for %s: %s', movie_file, attr_err)
-                    try:
-                        del result.looked_up.original_response
-                    except AttributeError as attr_err:
-                        logger.debug('No original_response on lookup result for %s: %s', movie_file, attr_err)
-
-            json_out = jsonpickle.encode(match_attempts, separators=(',', ':'))
-            if json_out:
-                json_out = json_out.encode('UTF-8')
-                json_out = gzip.compress(json_out)
-                log_file.write(json_out)
+                json_out = jsonpickle.encode(match_attempts, separators=(',', ':'))
+                if json_out:
+                    json_out = json_out.encode('UTF-8')
+                    json_out = gzip.compress(json_out)
+                    log_file.write(json_out)
 
         set_permissions(log_name, namer_config)
 
     return log_name
-
 
 def _set_perms(target: Path, config: NamerConfig):
     file_perm: Optional[int] = int(str(config.set_file_permissions), 8) if config.set_file_permissions else None

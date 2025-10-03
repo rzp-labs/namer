@@ -46,6 +46,8 @@ class StashDBProvider(BaseMetadataProvider):
 
             # Convert to ComparisonResult objects
             for scene_info in scene_results:
+                if file_name_parts and not scene_info.original_parsed_filename:
+                    scene_info.original_parsed_filename = file_name_parts
                 # Create a basic comparison result - this would need more sophisticated
                 # matching logic similar to what's in metadataapi.py
                 comparison_result = ComparisonResult(
@@ -65,6 +67,11 @@ class StashDBProvider(BaseMetadataProvider):
             try:
                 phash_results = self._search_by_phash(phash, config)
                 if phash_results:
+                    if file_name_parts:
+                        for scene in phash_results:
+                            if not scene.original_parsed_filename:
+                                scene.original_parsed_filename = file_name_parts
+
                     scenes_with_guid = [scene_info for scene_info in phash_results if scene_info.guid]
                     threshold = config.phash_unique_threshold if config.phash_unique_threshold is not None else 1.0
                     threshold = max(0.0, min(1.0, threshold))
@@ -228,7 +235,15 @@ class StashDBProvider(BaseMetadataProvider):
 
         response = self._execute_graphql_query(query, config)
         if response and 'data' in response and response['data']['findScene']:
-            return self._map_stashdb_scene_to_fileinfo(response['data']['findScene'], config)
+            serialized_query = orjson.dumps(query).decode('utf-8')
+            serialized_scene = orjson.dumps(response['data']['findScene']).decode('utf-8')
+            return self._map_stashdb_scene_to_fileinfo(
+                response['data']['findScene'],
+                config,
+                original_query=serialized_query,
+                original_response=serialized_scene,
+                parsed_filename=file_name_parts,
+            )
 
         return None
 
@@ -290,9 +305,19 @@ class StashDBProvider(BaseMetadataProvider):
             # StashDB returns scenes directly, not wrapped in a 'scenes' object
             scenes = response['data']['searchScene']
             if isinstance(scenes, list):
+                serialized_query = orjson.dumps(graphql_query).decode('utf-8')
                 for scene in scenes:
-                    file_info = self._map_stashdb_scene_to_fileinfo(scene, config)
+                    serialized_scene = orjson.dumps(scene).decode('utf-8')
+                    file_info = self._map_stashdb_scene_to_fileinfo(
+                        scene,
+                        config,
+                        original_query=serialized_query,
+                        original_response=serialized_scene,
+                        parsed_filename=None,
+                    )
                     if file_info:
+                        if file_name_parts:
+                            file_info.original_parsed_filename = file_name_parts
                         results.append(file_info)
 
         return results
@@ -370,7 +395,15 @@ class StashDBProvider(BaseMetadataProvider):
 
         return None
 
-    def _map_stashdb_scene_to_fileinfo(self, scene: Dict[str, Any], config: NamerConfig) -> Optional[LookedUpFileInfo]:
+    def _map_stashdb_scene_to_fileinfo(
+        self,
+        scene: Dict[str, Any],
+        config: NamerConfig,
+        *,
+        original_query: Optional[str] = None,
+        original_response: Optional[str] = None,
+        parsed_filename: Optional[FileInfo] = None,
+    ) -> Optional[LookedUpFileInfo]:
         """
         Map StashDB scene data to LookedUpFileInfo.
         """
@@ -430,6 +463,13 @@ class StashDBProvider(BaseMetadataProvider):
                 if hash_type == 'PHASH':
                     scene_hash = SceneHash(scene_hash=fingerprint.get('hash', ''), hash_type=HashType.PHASH, duration=fingerprint.get('duration'))
                     file_info.hashes.append(scene_hash)
+
+        if original_query is not None:
+            file_info.original_query = original_query
+        if original_response is not None:
+            file_info.original_response = original_response
+        if parsed_filename is not None:
+            file_info.original_parsed_filename = parsed_filename
 
         return file_info
 
@@ -491,13 +531,27 @@ class StashDBProvider(BaseMetadataProvider):
             if scenes:
                 # StashDB returns an array of scenes for fingerprint matches
                 if isinstance(scenes, list):
+                    serialized_query = orjson.dumps(query).decode('utf-8')
                     for scene in scenes:
-                        file_info = self._map_stashdb_scene_to_fileinfo(scene, config)
+                        serialized_scene = orjson.dumps(scene).decode('utf-8')
+                        file_info = self._map_stashdb_scene_to_fileinfo(
+                            scene,
+                            config,
+                            original_query=serialized_query,
+                            original_response=serialized_scene,
+                        )
                         if file_info:
                             results.append(file_info)
                 else:
                     # Handle case where it might return a single scene object
-                    file_info = self._map_stashdb_scene_to_fileinfo(scenes, config)
+                    serialized_query = orjson.dumps(query).decode('utf-8')
+                    serialized_scene = orjson.dumps(scenes).decode('utf-8')
+                    file_info = self._map_stashdb_scene_to_fileinfo(
+                        scenes,
+                        config,
+                        original_query=serialized_query,
+                        original_response=serialized_scene,
+                    )
                     if file_info:
                         results.append(file_info)
 
