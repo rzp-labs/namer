@@ -284,7 +284,12 @@ def from_path(value: Optional[Path]) -> str:
 
 
 def to_float(value: Optional[str]) -> Optional[float]:
-    return float(value) if value is not None else None
+    if value is None:
+        return None
+    value = value.strip()
+    if value == '':
+        return None
+    return float(value)
 
 
 def from_float(value: Optional[float]) -> str:
@@ -393,20 +398,17 @@ field_info: Dict[str, Tuple[str, Optional[Callable[[Optional[str]], Any]], Optio
     'phash_ambiguous_max': ('Phash', to_int, from_int),
     'phash_distance_margin_accept': ('Phash', to_int, from_int),
     'phash_majority_accept_fraction': ('Phash', to_float, from_float),
+    'phash_unique_threshold': ('Phash', to_float, from_float),
     'max_ffmpeg_workers': ('Phash', to_int, from_int),
     'use_gpu': ('Phash', to_bool, from_bool),
     'ffmpeg_hwaccel_backend': ('Phash', None, None),
     'ffmpeg_hwaccel_device': ('Phash', None, None),
     'ffmpeg_hwaccel_decoder': ('Phash', None, None),
-    'mark_collected': ('metadata', to_bool, from_bool),
-    'write_nfo': ('metadata', to_bool, from_bool),
-    'enabled_tagging': ('metadata', to_bool, from_bool),
     'enabled_poster': ('metadata', to_bool, from_bool),
     'download_type': ('metadata', to_str_list_lower, from_str_list_lower),
     'image_format': ('metadata', None, None),
     'enable_metadataapi_genres': ('metadata', to_bool, from_bool),
     'default_genre': ('metadata', None, None),
-    'language': ('metadata', None, None),
     'preserve_duplicates': ('duplicates', to_bool, from_bool),
     'max_desired_resolutions': ('duplicates', to_int, from_int),
     'desired_codec': ('duplicates', to_str_list_lower, from_str_list_lower),

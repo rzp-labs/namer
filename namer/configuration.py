@@ -429,6 +429,17 @@ class NamerConfig:
     If there is a PHASH match, require any name match be in the top N results
     """
 
+    phash_unique_threshold: float = 1.0
+    """
+    When multiple scene identifiers are returned for a PHASH/OSHASH match, accept the
+    best candidate only if the most frequent identifier accounts for at least this
+    fraction of all returned identifiers. Example values:
+
+    * 1.0 -> strict uniqueness (only accept when every match points to the same scene)
+    * 0.8 -> accept when a single scene represents 80% or more of returned identifiers
+    * 0.5 -> accept when simple majority (>50%) agrees on the same scene
+    """
+
     ignored_dir_regex: Pattern = re.compile(r'.*_UNPACK_.*', re.IGNORECASE)
     """
     If a file found in the watch dir matches this regex it will be ignored, useful for some file processes.
@@ -692,6 +703,7 @@ class NamerConfig:
                 'ffmpeg_hwaccel_backend': self.ffmpeg_hwaccel_backend or '',
                 'ffmpeg_hwaccel_device': self.ffmpeg_hwaccel_device or '',
                 'ffmpeg_hwaccel_decoder': self.ffmpeg_hwaccel_decoder or '',
+                'phash_unique_threshold': self.phash_unique_threshold,
                 'phash_accept_distance': self.phash_accept_distance,
                 'phash_ambiguous_min': self.phash_ambiguous_min,
                 'phash_ambiguous_max': self.phash_ambiguous_max,

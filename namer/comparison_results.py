@@ -198,6 +198,8 @@ class LookedUpFileInfo:
         self.tags = []
         self.hashes = []
         self.original_parsed_filename = FileInfo()
+        self.original_query = None
+        self.original_response = None
 
     def _get_female_performers(self) -> List[Performer]:
         """

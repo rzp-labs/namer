@@ -175,6 +175,9 @@ phash_ambiguous_min = 7
 phash_ambiguous_max = 12
 phash_distance_margin_accept = 3
 phash_majority_accept_fraction = 0.7
+# When multiple scene IDs are returned for a hash match, accept the top candidate only if it
+# accounts for at least this fraction of the returned IDs. 1.0 enforces strict uniqueness.
+phash_unique_threshold = 1.0
 
 # Should phashes be sent to tpdb if no phash match was found but a name match was.
 # Requires search_phash be true or is ignored.
