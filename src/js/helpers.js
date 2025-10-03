@@ -116,13 +116,11 @@ export class Helpers {
         if (newToken && typeof window.namerUpdateCsrfToken === 'function') {
           window.namerUpdateCsrfToken(newToken)
         }
-        if (progressBar && progressBar.length) {
-          const container = progressBar.closest('.progress')
-          if (container && container.length) {
-            container.remove()
-          } else {
-            progressBar.remove()
-          }
+        const container = progressBar?.closest('.progress')
+        if (container?.length) {
+          container.remove()
+        } else if (progressBar?.length) {
+          progressBar.remove()
         }
       }
     })

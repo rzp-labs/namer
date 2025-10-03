@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 
 T = TypeVar('T')
@@ -250,8 +251,21 @@ def wait_until_present(driver, by: str, value: str):
 def find_and_wait_until_stale(driver, by: str, value: str):
     wait = WebDriverWait(driver, 30)
     element = find_if_present(driver, by, value)
-    if element:
+    if not element:
+        return
+
+    try:
         wait.until(expected_conditions.any_of(expected_conditions.invisibility_of_element(element), expected_conditions.staleness_of(element)))
+    except TimeoutException:
+        # Re-fetch the element in case the DOM replaced it but the first reference stayed valid.
+        element = find_if_present(driver, by, value)
+        if not element:
+            return
+
+        try:
+            wait.until(expected_conditions.any_of(expected_conditions.invisibility_of_element(element), expected_conditions.staleness_of(element)))
+        except TimeoutException:
+            WebDriverWait(driver, 5).until_not(expected_conditions.presence_of_element_located((by, value)))
 
 
 def wait_until_invisible(element: WebElement):

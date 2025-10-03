@@ -73,7 +73,11 @@ jobs:
           poetry run ruff check . | tee ruff-report.txt
 
       - name: Pytest with coverage (skip slow)
-        run: poetry run pytest -m "not slow" --cov --junitxml=pytest-junit.xml --cov-report=xml --log-file=pytest.log
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: |
+          set -o pipefail
+          poetry run pytest -p pytest_cov -m "not slow" --cov --junitxml=pytest-junit.xml --cov-report=xml --log-file=pytest.log
 
       - name: Upload coverage.xml
         if: always()
