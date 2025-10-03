@@ -138,7 +138,7 @@ def main():
     if arg1 == 'watchdog':
         namer.watchdog.main(config)
     elif arg1 == 'rename':
-        sub_args = _sub_args_remove_token(raw_args, 'rename')
+        sub_args = _sub_args_remove_token(cleaned_args, 'rename')
         namer.namer.main(sub_args)
     elif arg1 == 'suggest':
         sub_args = _sub_args_remove_token(raw_args, 'suggest')
