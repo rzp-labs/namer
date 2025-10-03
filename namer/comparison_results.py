@@ -171,21 +171,30 @@ class LookedUpFileInfo:
     """
     the width of video in pixels.
     """
+
     video_codec: Optional[str] = None
     """
     the codec of video.
     """
+
     audio_codec: Optional[str] = None
     """
     the codec of audio.
     """
+
     external_id: Optional[str] = None
     """
     Should the source site provide it, the id for the site.
     """
+
     is_collected: bool = False
     """
     Indicates if the current user has marked this video as part of their collection.
+    """
+
+    _found_via_phash: bool = False
+    """
+    Internal flag indicating whether this result originated from a perceptual hash lookup.
     """
 
     def __init__(self):
@@ -230,10 +239,10 @@ class LookedUpFileInfo:
             'full_parent': self.parent,
             'network': self.network.replace(' ', '') if self.network else None,
             'full_network': self.network,
-            'performers': ', '.join(map(lambda p: p.name, filter(lambda p: p.role == 'Female', self.performers))) if self.performers else None,
-            'all_performers': ', '.join(map(lambda p: p.name, self.performers)) if self.performers else None,
-            'performer-sites': ', '.join(map(lambda p: p.alias, filter(lambda p: p.role == 'Female' and p.alias, self.performers))) if self.performers else None,
-            'all_performer-sites': ', '.join(map(lambda p: p.name, filter(lambda p: p.alias, self.performers))) if self.performers else None,
+            'performers': ', '.join([p.name for p in self.performers if p.role and p.role.lower() == 'female']) if self.performers else None,
+            'all_performers': ', '.join([p.name for p in self.performers]) if self.performers else None,
+            'performer-sites': ', '.join([p.alias for p in self.performers if p.role and p.role.lower() == 'female' and p.alias]) if self.performers else None,
+            'all_performer-sites': ', '.join([p.alias for p in self.performers if p.alias]) if self.performers else None,
             'ext': self.original_parsed_filename.extension if self.original_parsed_filename else None,
             'source_file_name': self.original_parsed_filename.source_file_name if self.original_parsed_filename else None,
             'source_file_stem': self.original_parsed_filename.source_file_stem if self.original_parsed_filename else None,
@@ -296,7 +305,12 @@ class LookedUpFileInfo:
         return clean_dic
 
     def found_via_phash(self) -> bool:
-        return bool(self.original_query and '?hash=' in self.original_query)
+        return self._found_via_phash
+
+    def set_found_via_phash(self, value: bool) -> None:
+        if not isinstance(value, bool):
+            raise TypeError('set_found_via_phash expects a bool value')
+        self._found_via_phash = value
 
 
 @dataclass(init=True, repr=False, eq=True, order=False, unsafe_hash=True, frozen=False)
@@ -391,7 +405,7 @@ class ComparisonResults:
             # verify the match isn't covering over a better namer match, if it is, no match shall be made
             # implying that the site and date on the name of the file may be wrong.   leave it for the user
             # to sort it out.
-            match: Optional[ComparisonResult] = self.results[0]
+            match = self.results[0]
             for potential in self.results[1:]:
                 # Now that matches are unique in the list, don't match if there are multiple
                 if match:

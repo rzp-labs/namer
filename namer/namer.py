@@ -9,15 +9,15 @@ import argparse
 import sys
 from dataclasses import dataclass
 import pathlib
+import secrets
 import string
 from pathlib import Path
-from random import choices
 from typing import List, Optional
 
 import orjson
 from loguru import logger
 
-from namer.command import Command
+from namer.command import Command, ensure_directory
 from namer.comparison_results import ComparisonResult, ComparisonResults, HashType, LookedUpFileInfo, SceneHash
 from namer.configuration import ImageDownloadType, NamerConfig
 from namer.configuration_utils import default_config, verify_configuration
@@ -121,8 +121,8 @@ def tag_in_place(video: Optional[Path], config: NamerConfig, new_metadata: Looke
         poster = None
         if config.enabled_tagging and video.suffix.lower() == '.mp4':
             if config.enabled_poster:
-                random = ''.join(choices(population=string.ascii_uppercase + string.digits, k=10))
-                poster = metadataapi.get_image(new_metadata.poster_url, random, video, config) if new_metadata.poster_url else None
+                random_suffix = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+                poster = metadataapi.get_image(new_metadata.poster_url, random_suffix, video, config) if new_metadata.poster_url else None
 
             logger.info('Updating file metadata (atoms): {}', video)
             update_mp4_file(video, new_metadata, poster, ffprobe_results, config)
@@ -290,21 +290,45 @@ def process_file(command: Command) -> Optional[Command]:
                 return target
         elif command.inplace is False:
             # Ensure failed_dir exists before moving files
-            try:
-                command.config.failed_dir.mkdir(parents=True, exist_ok=True)
-            except Exception:
-                # Directory creation failure should not mask original intent; move will still raise if invalid
-                pass
+            ensure_directory(command.config.failed_dir, 'Unable to create failed directory {}: {}')
             # If disambiguation is enabled and an ambiguous_dir is configured, prefer routing there over failed
             ambiguous_dir = getattr(command.config, 'ambiguous_dir', None) if getattr(command.config, 'enable_disambiguation', False) else None
             if ambiguous_dir:
-                try:
-                    ambiguous_dir.mkdir(parents=True, exist_ok=True)
-                except Exception:
-                    pass
+                ensure_directory(ambiguous_dir, 'Unable to create ambiguous directory {}: {}')
+                unresolved_candidates: List[str] = []
+                ambiguous_guid: Optional[str] = None
+                if search_results:
+                    if search_results.ambiguous_reason:
+                        ambiguous_guid = search_results.ambiguous_reason
+                    if search_results.results:
+                        for _candidate in search_results.results[:5]:
+                            if _candidate.looked_up and (_candidate.looked_up.guid or _candidate.looked_up.uuid):
+                                unresolved_candidates.append(_candidate.looked_up.guid or _candidate.looked_up.uuid or '')
+                if ambiguous_guid:
+                    logger.info('Ambiguous routing fallback for %s (best GUID %s)', command.target_movie_file, ambiguous_guid)
+                elif unresolved_candidates:
+                    logger.info('Ambiguous routing fallback for %s (candidate GUIDs: %s)', command.target_movie_file, ', '.join(unresolved_candidates))
+                else:
+                    logger.info('Ambiguous routing fallback for %s (no GUID candidates)', command.target_movie_file)
                 moved = move_command_files(command, ambiguous_dir)
-                if moved is not None and search_results is not None and moved.config.write_namer_failed_log:
-                    write_log_file(moved.target_movie_file, search_results, moved.config)
+                if moved is not None:
+                    if search_results is not None and moved.config.write_namer_failed_log:
+                        write_log_file(moved.target_movie_file, search_results, moved.config)
+                    ambiguous_note = moved.target_movie_file.parent / f'{moved.target_movie_file.stem}.ambiguous.json'
+                    if ambiguous_guid or unresolved_candidates:
+                        try:
+                            ambiguous_note.write_text(
+                                orjson.dumps(
+                                    {
+                                        'source': str(command.target_movie_file),
+                                        'ambiguous_guid': ambiguous_guid,
+                                        'candidate_guids': unresolved_candidates,
+                                    },
+                                    option=orjson.OPT_INDENT_2,
+                                ).decode('utf-8')
+                            )
+                        except Exception as ambiguity_write_error:
+                            logger.debug('Unable to write ambiguity metadata for %s: %s', moved.target_movie_file, ambiguity_write_error)
                 return moved
             failed = move_command_files(command, command.config.failed_dir)
             if failed is not None and search_results is not None and failed.config.write_namer_failed_log:
