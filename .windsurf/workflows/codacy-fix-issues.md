@@ -1,5 +1,6 @@
 ---
 description: Find and fix issues in your project using Codacy local analysis
+auto_execution_mode: 3
 ---
 
 If the user didn't provide any files as context, ask which files they want to analyse.
