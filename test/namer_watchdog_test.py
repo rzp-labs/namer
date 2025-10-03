@@ -403,7 +403,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             wait_until_processed(watcher)
             self.assertFalse(targets[0].get_file().exists())
             self.assertEqual(len(list(config.work_dir.iterdir())), 0)
-            output_file = config.dest_dir / 'Carmela Clutch, Francesca Le' / 'EvilAngel - 2022-01-03 - Carmela Clutch Fabulous Anal 3-Way!.mp4'
+            output_file = config.dest_dir / 'Carmela Clutch, Francesca Le, Mark Wood' / 'EvilAngel - 2022-01-03 - Carmela Clutch Fabulous Anal 3-Way!.mp4'
             self.assertTrue(output_file.is_file())
             output = MP4(output_file)
             self.assertEqual(output.get('\xa9nam'), ['Carmela Clutch: Fabulous Anal 3-Way!'])
