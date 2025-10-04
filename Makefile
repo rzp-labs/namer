@@ -11,7 +11,7 @@ SCRIPT_DIR = ./scripts
 .PHONY: all help build build-fast build-full build-dev \
         build-amd64 build-arm64 build-multiarch ensure-builder \
         test test-basic test-integration validate clean clean-deep config \
-        setup-dev review
+        setup-dev review local-dev
 
 help: ## Show available targets
 	@echo "🏗️  Namer Build System"
@@ -25,6 +25,7 @@ help: ## Show available targets
 	@echo "  make build-validated # Full validation + fast build"
 	@echo "  make build-full      # Complete build with all tests (slow)"
 	@echo "  make test            # Test the built image"
+	@echo "  make local-dev       # One-command setup for local development environment"
 	@echo ""
 
 all: build ## Default 'all' target builds the project
@@ -148,3 +149,25 @@ setup-dev: ## Bootstrap Poetry + deps, then install local hooks (pre-commit + pr
 	  poetry install; \
 	  chmod +x scripts/install-hooks.sh || true; \
 	  ./scripts/install-hooks.sh'
+
+local-dev: ## One-command setup for local development environment
+	@echo "🚀 Setting up local development environment..."
+	@echo "Step 1/4: Initializing git submodules..."
+	@git submodule update --init --recursive
+	@echo "Step 2/4: Installing Node dependencies with pnpm..."
+	@if ! command -v pnpm >/dev/null 2>&1; then \
+		echo "⚠️  pnpm not found. Please install pnpm first (https://pnpm.io/installation)"; \
+		exit 1; \
+	fi
+	@pnpm install
+	@echo "Step 3/4: Installing Python dependencies with Poetry..."
+	@if ! command -v poetry >/dev/null 2>&1; then \
+		echo "⚠️  Poetry not found. Please install Poetry first (https://python-poetry.org/docs/#installation)"; \
+		exit 1; \
+	fi
+	@poetry install
+	@echo "Step 4/4: Installing pre-commit hooks..."
+	@chmod +x scripts/install-hooks.sh || true
+	@./scripts/install-hooks.sh
+	@echo "✅ Local development environment setup complete!"
+	@echo "🔍 You can now start developing. Try 'poetry run namer --help' to get started."
