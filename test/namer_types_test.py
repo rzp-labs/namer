@@ -6,6 +6,8 @@ import os
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
 
 from loguru import logger
 
@@ -101,10 +103,14 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             fmt1.format_field(format_spec='adsfadsf', value='fmt')
         self.assertTrue('Invalid format specifier' in str(error2.exception))
 
-    def test_config_verification(self):
+    @patch('namer.configuration_utils.__verify_ffmpeg')
+    def test_config_verification(self, mock_verify_ffmpeg):
         """
         Verify config verification.
         """
+        # Mock FFMpeg verification to return True since we don't have ffmpeg in test environment
+        mock_verify_ffmpeg.return_value = True
+        
         config = NamerConfig()
         success = verify_configuration(config, PartialFormatter())
         self.assertEqual(success, True)

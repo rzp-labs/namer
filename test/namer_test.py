@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from loguru import logger
 from mutagen.mp4 import MP4
 
@@ -48,6 +49,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             error = check_arguments(dir_to_process=target_dir, file_to_process=file, config_override=config)
             self.assertFalse(error)
 
+    @pytest.mark.slow
     def test_writing_metadata_file(self: unittest.TestCase):
         """
         test namer main method renames and tags in place when -f (video file) is passed
@@ -58,6 +60,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             output = MP4(targets[0].get_file().parent / 'Evil Angel - 2022-01-03 - Carmela Clutch Fabulous Anal 3-Way! [WEBDL-240].mp4')
             self.assertEqual(output.get('\xa9nam'), ['Carmela Clutch: Fabulous Anal 3-Way!'])
 
+    @pytest.mark.slow
     def test_writing_metadata_dir(self: unittest.TestCase):
         """
         test namer main method renames and tags in place when -d (directory) is passed
@@ -68,6 +71,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             output = MP4(targets[0].get_file().parent.parent / 'Evil Angel' / 'Evil Angel - 2022-01-03 - Carmela Clutch Fabulous Anal 3-Way! [WEBDL-240].mp4')
             self.assertEqual(output.get('\xa9nam'), ['Carmela Clutch: Fabulous Anal 3-Way!'])
 
+    @pytest.mark.slow
     def test_writing_metadata_all_dirs(self: unittest.TestCase):
         """
         Test multiple directories are processed when -d (directory) and -m are passed.
@@ -87,6 +91,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             output = MP4(targets[1].get_file().parent.parent / 'Evil Angel' / 'Evil Angel - 2022-01-03 - Carmela Clutch Fabulous Anal 3-Way! [WEBDL-240](1).mp4')
             self.assertEqual(output.get('\xa9nam'), ['Carmela Clutch: Fabulous Anal 3-Way!'])
 
+    @pytest.mark.slow
     def test_writing_metadata_from_nfo(self):
         """
         Test renaming and writing a movie's metadata from a nfo file.
@@ -118,6 +123,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             output = MP4(target_mp4_file.parent / 'Evil Angel - 2022-01-03 - Carmela Clutch Fabulous Anal 3-Way! [WEBDL-240].mp4')
             self.assertEqual(output.get('\xa9nam'), ['Carmela Clutch: Fabulous Anal 3-Way!'])
 
+    @pytest.mark.slow
     def test_writing_metadata_all_dirs_files(self):
         """
         Test multiple directories are processed when -d (directory) and -m are passed.

@@ -29,11 +29,10 @@ from typing import Dict, List, Optional, Tuple
 import ffmpeg
 from loguru import logger
 from PIL import Image
-from pathvalidate import ValidationError
 
 from namer.videophash.videophashstash import StashVideoPerceptualHash
 
-from namer.ffmpeg_common import QSVCodecMapper, FFProbeStream, FFProbeFormat, FFProbeResults
+from namer.ffmpeg_common import QSVCodecMapper, FFProbeStream, FFProbeResults
 
 __all__ = ['FFMpeg']
 
@@ -53,7 +52,13 @@ class FFMpeg:
     __vaapi_device_cached: Optional[str] = None
     __vaapi_lock: Lock = Lock()
 
-    def __init__(self):
+    def __init__(self, skip_validation: bool = False):
+        if skip_validation:
+            # For testing purposes, skip ffmpeg validation
+            self.__ffmpeg_cmd = 'ffmpeg'
+            self.__ffprobe_cmd = 'ffprobe'
+            return
+            
         versions = self.__ffmpeg_version()
         if not versions['ffmpeg'] or not versions['ffprobe']:
             home_path: Path = Path(__file__).parent
@@ -68,7 +73,7 @@ class FFMpeg:
 
             versions = self.__ffmpeg_version(phash_path)
             if not versions['ffmpeg'] and not versions['ffprobe']:
-                raise ValidationError(f'could not find ffmpeg/ffprobe on path, or in tools dir: {self.__local_dir}')
+                raise RuntimeError(f'could not find ffmpeg/ffprobe on path, or in tools dir: {self.__local_dir}')
 
             self.__ffmpeg_cmd = str(phash_path / 'ffmpeg')
             self.__ffprobe_cmd = str(phash_path / 'ffprobe')
@@ -100,6 +105,7 @@ class FFMpeg:
         if not streams:
             return None
 
+        output = []
         for stream in streams:
             ff_stream = FFProbeStream()
             ff_stream.bit_rate = -1
@@ -147,6 +153,39 @@ class FFMpeg:
                     ff_stream.avg_frame_rate = numer / denom
 
             output.append(ff_stream)
+
+        # Create format object from ffprobe format data
+        from namer.ffmpeg_common import FFProbeFormat
+        ff_format = FFProbeFormat()
+        format_data = ffprobe_out.get('format', {})
+        
+        ff_format.duration = -1
+        duration = format_data.get('duration')
+        if duration is not None:
+            try:
+                ff_format.duration = float(duration)
+            except (TypeError, ValueError):
+                logger.debug('Unable to parse format duration: %s', duration)
+        
+        ff_format.size = -1
+        size = format_data.get('size')
+        if size is not None:
+            try:
+                ff_format.size = int(size)
+            except (TypeError, ValueError):
+                logger.debug('Unable to parse format size: %s', size)
+        
+        ff_format.bit_rate = -1
+        bit_rate = format_data.get('bit_rate')
+        if bit_rate is not None:
+            try:
+                ff_format.bit_rate = int(bit_rate)
+            except (TypeError, ValueError):
+                logger.debug('Unable to parse format bit_rate: %s', bit_rate)
+        
+        ff_format.tags = format_data.get('tags', {})
+
+        return FFProbeResults(output, ff_format)
 
     def _auto_detect_qsv_decoder(self, file: Path) -> Optional[str]:
         """

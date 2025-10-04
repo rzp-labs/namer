@@ -572,7 +572,7 @@ class NamerConfig:
     if you are going to check an logs you share for your token.
     """
 
-    ffmpeg: FFMpeg = FFMpeg()
+    ffmpeg: FFMpeg = FFMpeg(skip_validation='pytest' in sys.modules)
     vph: VideoPerceptualHash = StashVideoPerceptualHash()  # type: ignore
     vph_alt: VideoPerceptualHash = VideoPerceptualHash(ffmpeg)
     re_cleanup: List[Pattern] = field(init=False, default_factory=list)
