@@ -160,29 +160,42 @@ Finally, the file is moved to a location defined by dest_dir_ and new_relative_p
 Development
 ------------------------------
 
+The recommended way to set up a development environment is to use the Makefile:
+
 .. code-block:: sh
 
-  # Install Python
-  # Install poetry
-  # Install pnpm
-  # Install golang
-
-  # Install poe the poet
-  poetry self add 'poethepoet[poetry_plugin]'
-  # or
-  pip add poethepoet
+  # Bootstrap Poetry + dependencies and install local hooks
+  make setup-dev
 
   # Set python version if not using the latest python as your default
   poetry env use 3.11
-
-  # Build everything
-  poetry run poe build_all
 
   # Code Coverage:
   poetry run pytest --cov
 
   # Html Coverage report:
   poetry run coverage html
+
+The ``setup-dev`` target will:
+
+1. Check for Poetry and install it if needed (using pipx)
+2. Install project dependencies with Poetry
+3. Set up git hooks for pre-commit and pre-push
+
+For more build options, run ``make help`` to see all available targets:
+
+.. code-block:: sh
+
+  make help
+
+This will show you all available build targets including:
+
+* ``build-fast``: Fast Docker build (skips tests, ~5 minutes)
+* ``build-full``: Complete build with all tests (~20 minutes)
+* ``build-amd64``: Build for linux/amd64 (works on ARM64 hosts via emulation)
+* ``build-arm64``: Build for linux/arm64 (native on Apple Silicon)
+* ``validate``: Run comprehensive pre-push validation
+* ``test``: Run basic functionality tests
 
 CodeRabbit CLI workflow
 -----------------------
