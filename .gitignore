@@ -42,3 +42,8 @@ test/**/*_namer.json.gz
 
 # Ignore windsurf AI rules
 .windsurfrules
+
+# npm artifacts
+package-lock.json
+npm-debug.log
+.npm/

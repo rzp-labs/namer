@@ -100,6 +100,7 @@ class FFMpeg:
         if not streams:
             return None
 
+        output = []
         for stream in streams:
             ff_stream = FFProbeStream()
             ff_stream.bit_rate = -1
@@ -147,6 +148,35 @@ class FFMpeg:
                     ff_stream.avg_frame_rate = numer / denom
 
             output.append(ff_stream)
+
+        # Create format information
+        format_info = ffprobe_out.get('format', {})
+        ff_format = FFProbeFormat()
+        
+        # Safely parse duration
+        try:
+            duration_val = format_info.get('duration', -1)
+            ff_format.duration = float(duration_val) if duration_val is not None else -1
+        except (TypeError, ValueError):
+            ff_format.duration = -1
+            
+        # Safely parse size
+        try:
+            size_val = format_info.get('size', -1)
+            ff_format.size = int(size_val) if size_val is not None else -1
+        except (TypeError, ValueError):
+            ff_format.size = -1
+            
+        # Safely parse bit_rate
+        try:
+            bit_rate_val = format_info.get('bit_rate', -1)
+            ff_format.bit_rate = int(bit_rate_val) if bit_rate_val is not None else -1
+        except (TypeError, ValueError):
+            ff_format.bit_rate = -1
+            
+        ff_format.tags = format_info.get('tags', {})
+
+        return FFProbeResults(output, ff_format)
 
     def _auto_detect_qsv_decoder(self, file: Path) -> Optional[str]:
         """

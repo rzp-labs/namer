@@ -88,10 +88,6 @@ if ! command -v node &> /dev/null; then
     missing_tools+=("Node.js")
 fi
 
-if ! command -v pnpm &> /dev/null; then
-    missing_tools+=("pnpm")
-fi
-
 if ! command -v go &> /dev/null; then
     missing_tools+=("Go")
 fi
@@ -104,6 +100,12 @@ if [[ ${#missing_tools[@]} -gt 0 ]]; then
     echo "❌ Missing required tools for Docker build:"
     printf '   - %s\n' "${missing_tools[@]}"
     echo "   Install missing tools before proceeding."
+    exit 1
+fi
+
+# Enforce pnpm usage
+echo "   Enforcing pnpm as package manager..."
+if ! ./scripts/enforce-pnpm.sh; then
     exit 1
 fi
 
