@@ -152,10 +152,19 @@ class FFMpeg:
         # Create FFProbeFormat from format data
         format_data = ffprobe_out.get('format', {})
         ff_format = FFProbeFormat()
-        ff_format.duration = float(format_data.get('duration', -1))
-        ff_format.size = int(format_data.get('size', -1))
-        ff_format.bit_rate = int(format_data.get('bit_rate', -1))
-        ff_format.tags = format_data.get('tags', {})
+        try:
+            ff_format.duration = float(format_data.get('duration', -1))
+        except (TypeError, ValueError):
+            ff_format.duration = -1.0
+        try:
+            ff_format.size = int(format_data.get('size', -1))
+        except (TypeError, ValueError):
+            ff_format.size = -1
+        try:
+            ff_format.bit_rate = int(format_data.get('bit_rate', -1))
+        except (TypeError, ValueError):
+            ff_format.bit_rate = -1
+        ff_format.tags = format_data.get('tags', {}) or {}
 
         return FFProbeResults(output, ff_format)
 
