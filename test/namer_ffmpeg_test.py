@@ -7,10 +7,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import pytest
 from loguru import logger
 
 from namer.ffmpeg import FFMpeg
 from test import utils
+
+# Mark this module as slow so CI can skip with -m "not slow"
+pytestmark = pytest.mark.slow
 
 
 class UnitTestAsTheDefaultExecution(unittest.TestCase):
@@ -32,7 +36,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             temp_dir = Path(tmpdir)
             shutil.copytree(Path(__file__).resolve().parent, temp_dir / 'test')
             file = temp_dir / 'test' / 'Site.22.01.01.painful.pun.XXX.720p.xpost.mp4'
-            results = FFMpeg().ffprobe(file)
+            results = FFMpeg(skip_validation=True).ffprobe(file)
             self.assertIsNotNone(results)
             if results:
                 res = results.get_resolution()
@@ -46,9 +50,9 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             temp_dir = Path(tmpdir)
             shutil.copytree(Path(__file__).resolve().parent, temp_dir / 'test')
             file = temp_dir / 'test' / 'Site.22.01.01.painful.pun.XXX.720p.xpost.mp4'
-            stream_number = FFMpeg().get_audio_stream_for_lang(file, 'und')
+            stream_number = FFMpeg(skip_validation=True).get_audio_stream_for_lang(file, 'und')
             self.assertEqual(stream_number, -1)
-            stream_number = FFMpeg().get_audio_stream_for_lang(file, 'eng')
+            stream_number = FFMpeg(skip_validation=True).get_audio_stream_for_lang(file, 'eng')
             self.assertEqual(stream_number, -1)
 
     def test_ffprobe(self) -> None:
@@ -59,7 +63,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             temp_dir = Path(tmpdir)
             shutil.copytree(Path(__file__).resolve().parent, temp_dir / 'test')
             file = temp_dir / 'test' / 'Site.22.01.01.painful.pun.XXX.720p.xpost_wrong.mp4'
-            results = FFMpeg().ffprobe(file)
+            results = FFMpeg(skip_validation=True).ffprobe(file)
             self.assertIsNotNone(results)
             if results:
                 self.assertTrue(results.get_all_streams()[0].is_video())
@@ -88,16 +92,16 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             temp_dir = Path(tmpdir)
             shutil.copytree(Path(__file__).resolve().parent, temp_dir / 'test')
             file = temp_dir / 'test' / 'Site.22.01.01.painful.pun.XXX.720p.xpost_wrong.mp4'
-            stream_number = FFMpeg().get_audio_stream_for_lang(file, 'und')
+            stream_number = FFMpeg(skip_validation=True).get_audio_stream_for_lang(file, 'und')
             self.assertEqual(stream_number, -1)
-            stream_number = FFMpeg().get_audio_stream_for_lang(file, 'eng')
+            stream_number = FFMpeg(skip_validation=True).get_audio_stream_for_lang(file, 'eng')
             self.assertEqual(stream_number, 1)
-            FFMpeg().update_audio_stream_if_needed(file, 'eng')
-            stream_number = FFMpeg().get_audio_stream_for_lang(file, 'eng')
+            FFMpeg(skip_validation=True).update_audio_stream_if_needed(file, 'eng')
+            stream_number = FFMpeg(skip_validation=True).get_audio_stream_for_lang(file, 'eng')
             self.assertEqual(stream_number, -1)
 
     def test_file_ffmpeg(self):
-        versions = FFMpeg().ffmpeg_version()
+        versions = FFMpeg(skip_validation=True).ffmpeg_version()
         for _, version in versions.items():
             self.assertIsNotNone(version)
 

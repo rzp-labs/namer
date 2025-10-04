@@ -14,10 +14,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import pytest
 from loguru import logger
 
 from namer.videophash import imagehash
 from namer.videophash.videophash import VideoPerceptualHash
+
+# Mark this module as slow so CI can skip with -m "not slow"
+pytestmark = pytest.mark.slow
 from test import utils
 from test.utils import sample_config
 
