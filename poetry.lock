@@ -247,29 +247,27 @@ cffi = ">=1.0.0"
 
 [[package]]
 name = "cattrs"
-version = "25.1.1"
+version = "23.2.3"
 description = "Composable complex class support for attrs and dataclasses."
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "cattrs-25.1.1-py3-none-any.whl", hash = "sha256:1b40b2d3402af7be79a7e7e097a9b4cd16d4c06e6d526644b0b26a063a1cc064"},
-    {file = "cattrs-25.1.1.tar.gz", hash = "sha256:c914b734e0f2d59e5b720d145ee010f1fd9a13ee93900922a2f3f9d593b8382c"},
+    {file = "cattrs-23.2.3-py3-none-any.whl", hash = "sha256:0341994d94971052e9ee70662542699a3162ea1e0c62f7ce1b4a57f563685108"},
+    {file = "cattrs-23.2.3.tar.gz", hash = "sha256:a934090d95abaa9e911dac357e3a8699e0b4b14f8529bcc7d2b1ad9d51672b9f"},
 ]
 
 [package.dependencies]
-attrs = ">=24.3.0"
-typing-extensions = ">=4.12.2"
+attrs = ">=23.1.0"
 
 [package.extras]
 bson = ["pymongo (>=4.4.0)"]
 cbor2 = ["cbor2 (>=5.4.6)"]
 msgpack = ["msgpack (>=1.0.5)"]
-msgspec = ["msgspec (>=0.19.0) ; implementation_name == \"cpython\""]
-orjson = ["orjson (>=3.10.7) ; implementation_name == \"cpython\""]
+orjson = ["orjson (>=3.9.2) ; implementation_name == \"cpython\""]
 pyyaml = ["pyyaml (>=6.0)"]
 tomlkit = ["tomlkit (>=0.11.8)"]
-ujson = ["ujson (>=5.10.0)"]
+ujson = ["ujson (>=5.7.0)"]
 
 [[package]]
 name = "certifi"
@@ -2183,6 +2181,7 @@ files = [
     {file = "typing_extensions-4.14.1-py3-none-any.whl", hash = "sha256:d1e1e3b58374dc93031d6eda2420a48ea44a36c2b4766a4fdeb3710755731d76"},
     {file = "typing_extensions-4.14.1.tar.gz", hash = "sha256:38b39f4aeeab64884ce9f74c94263ef78f3c22467c8724005483154c26648d36"},
 ]
+markers = {main = "python_version < \"3.13\""}
 
 [[package]]
 name = "unidecode"
@@ -2381,4 +2380,4 @@ email = ["email-validator"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.15"
-content-hash = "8ccf262cccea25ef2e224d856f57d6241f19888f246b9b887d506137d552b86d"
+content-hash = "4eb97ba5f4f26c459cbf1af7db8d2a04dff7d26d06127d1f137479b63ff8dcee"
