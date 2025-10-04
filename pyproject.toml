@@ -74,7 +74,7 @@ ignore = ["E501", "E722"]
 [tool.poe.tasks]
 install_npm = { shell = "pnpm install" }
 build_node = { shell = "pnpm run build" }
-install_videohashes_src = { shell = "command -v git >/dev/null 2>&1 && git submodule update || echo 'Skipping git sub module update'" }
+install_videohashes_src = { shell = "command -v git >/dev/null 2>&1 && git submodule update --init --recursive || echo 'Skipping git sub module update'" }
 build_videohashes = { shell = "ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && OS=$(uname -s | tr '[:upper:]' '[:lower:]') && if [ -d ./videohashes ] && [ -f ./videohashes/Makefile ]; then mkdir -p ./videohashes/dist && if [ \"$OS\" = \"darwin\" ]; then make macos-$ARCH -C ./videohashes; else make linux-$ARCH -C ./videohashes; fi; else echo 'Skipping videohashes build (submodule/Makefile not present)'; fi" }
 move_videohashes = { shell = "if [ -d ./videohashes/dist ]; then mkdir -p ./namer/tools && cp -r ./videohashes/dist/* ./namer/tools/; else echo 'Skipping copy (dist missing)'; fi" }
 build_namer = { shell = "poetry build" }
