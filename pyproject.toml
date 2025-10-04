@@ -42,8 +42,8 @@ numpy = "^2.3"
 scipy = "^1.16"
 orjson = "^3.10"
 defusedxml = "^0.7"
-attrs = "24.3.0"
-cattrs = "<25.0.0"
+attrs = "^25.3.0"
+cattrs = ">=23.1.0,<24.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4"
