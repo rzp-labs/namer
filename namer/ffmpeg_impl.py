@@ -29,7 +29,7 @@ from typing import Dict, List, Optional, Tuple
 import ffmpeg
 from loguru import logger
 from PIL import Image
-from pathvalidate import ValidationError
+# from pathvalidate import ValidationError  # Not needed, using ValueError instead
 
 from namer.videophash.videophashstash import StashVideoPerceptualHash
 
@@ -68,7 +68,7 @@ class FFMpeg:
 
             versions = self.__ffmpeg_version(phash_path)
             if not versions['ffmpeg'] and not versions['ffprobe']:
-                raise ValidationError(f'could not find ffmpeg/ffprobe on path, or in tools dir: {self.__local_dir}')
+                raise ValueError(f'could not find ffmpeg/ffprobe on path, or in tools dir: {self.__local_dir}')
 
             self.__ffmpeg_cmd = str(phash_path / 'ffmpeg')
             self.__ffprobe_cmd = str(phash_path / 'ffprobe')
