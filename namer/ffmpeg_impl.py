@@ -29,7 +29,6 @@ from typing import Dict, List, Optional, Tuple
 import ffmpeg
 from loguru import logger
 from PIL import Image
-from pathvalidate import ValidationError
 
 from namer.videophash.videophashstash import StashVideoPerceptualHash
 
