@@ -208,7 +208,7 @@ def process_file(command: Command) -> Optional[Command]:
         # convert container type if requested.
         if command.config.convert_container_to and command.target_movie_file.suffix != command.config.convert_container_to:
             new_loc = command.target_movie_file.parent.joinpath(Path(command.target_movie_file.stem + '.' + command.config.convert_container_to))
-            if FFMpeg().convert(command.target_movie_file, new_loc):
+            if command.config.ffmpeg.convert(command.target_movie_file, new_loc):
                 command.target_movie_file = new_loc
                 if command.parsed_file:
                     command.parsed_file.extension = command.config.convert_container_to

@@ -53,7 +53,13 @@ class FFMpeg:
     __vaapi_device_cached: Optional[str] = None
     __vaapi_lock: Lock = Lock()
 
-    def __init__(self):
+    def __init__(self, skip_validation: bool = False):
+        if skip_validation:
+            # For testing purposes, skip ffmpeg validation
+            self.__ffmpeg_cmd = 'ffmpeg'
+            self.__ffprobe_cmd = 'ffprobe'
+            return
+            
         versions = self.__ffmpeg_version()
         if not versions['ffmpeg'] or not versions['ffprobe']:
             home_path: Path = Path(__file__).parent
@@ -68,7 +74,7 @@ class FFMpeg:
 
             versions = self.__ffmpeg_version(phash_path)
             if not versions['ffmpeg'] and not versions['ffprobe']:
-                raise ValidationError(f'could not find ffmpeg/ffprobe on path, or in tools dir: {self.__local_dir}')
+                raise RuntimeError(f'could not find ffmpeg/ffprobe on path, or in tools dir: {self.__local_dir}')
 
             self.__ffmpeg_cmd = str(phash_path / 'ffmpeg')
             self.__ffprobe_cmd = str(phash_path / 'ffprobe')
