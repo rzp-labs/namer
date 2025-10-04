@@ -107,12 +107,12 @@ RUN rm -rf /work/namer/__pycache__/ || true \
 RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps )"
 
 # Build videohashes from git submodule
-# This uses the videohashes submodule that was already cloned and updated during COPY
+# The videohashes submodule is already present in the build context from COPY
 RUN set -eux; \
   cd /work; \
   mkdir -p namer/tools; \
-  # Initialize and update git submodules
-  git submodule update --init --recursive; \
+  # Verify videohashes submodule is present
+  ls -la videohashes/; \
   # Build videohashes for the current architecture
   ARCH=$(dpkg --print-architecture); \
   case "$ARCH" in \
