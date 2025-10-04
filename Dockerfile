@@ -107,51 +107,32 @@ RUN rm -rf /work/namer/__pycache__/ || true \
   && poetry install
 # Build dependencies (node, optional submodule), then fetch videohashes binary, then build package
 RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps )"
-
-# Fetch or build videohashes to bundle into the wheel
-# - amd64: download pinned release asset (videohashes-linux-amd64)
-# - arm64: build from local sources (videohashes/linux-arm64 target) and copy
-ARG PHASH_VERSION=2025.09.09
-# Commit SHA corresponding to the pinned PHASH_VERSION tag (used for deterministic arm64 builds)
-ARG PHASH_COMMIT=25b54691c183c4a4a69e5a4fa9e2e14667ecf1fc
-# SHA256 for amd64 asset at the pinned tag (videohashes-linux-amd64)
-ARG PHASH_AMD64_SHA256=dbcc09bd45e260f09dd385e329b041e359fff3bfe66be767070918d519e6f476
+# Build videohashes from git submodule
+# This uses the videohashes submodule that was already cloned and updated during COPY
 RUN set -eux; \
   cd /work; \
   mkdir -p namer/tools; \
+  # Initialize and update git submodules
+  git submodule update --init --recursive; \
+  # Build videohashes for the current architecture
   ARCH=$(dpkg --print-architecture); \
-  if [ "$ARCH" = "amd64" ]; then \
-    DOWNLOAD_NAME="videohashes-linux-amd64"; \
-    TARGET_NAME="videohashes-amd64-linux"; \
-    curl --fail --silent --show-error --location \
-      --proto '=https' --proto-redir '=https' \
-      -o "namer/tools/${TARGET_NAME}" \
-      "https://github.com/peolic/videohashes/releases/download/${PHASH_VERSION}/${DOWNLOAD_NAME}"; \
-    echo "${PHASH_AMD64_SHA256}  namer/tools/${TARGET_NAME}" | sha256sum -c -; \
-    chmod +x "namer/tools/${TARGET_NAME}"; \
-  elif [ "$ARCH" = "arm64" ]; then \
-    # Clone the tagged source deterministically for arm64 builds
-    TMPDIR=$(mktemp -d); \
-    git init "$TMPDIR/src"; \
-    git -C "$TMPDIR/src" remote add origin https://github.com/peolic/videohashes.git; \
-    # Fetch the release tag uniquely to avoid ambiguous refs on shallow clones
-    git -C "$TMPDIR/src" fetch --depth 1 origin "refs/tags/${PHASH_VERSION}"; \
-    git -C "$TMPDIR/src" checkout --detach FETCH_HEAD; \
-    ACTUAL_COMMIT=$(git -C "$TMPDIR/src" rev-parse HEAD); \
-    if [ "$ACTUAL_COMMIT" != "$PHASH_COMMIT" ]; then \
-      echo "Expected videohashes commit $PHASH_COMMIT but got $ACTUAL_COMMIT" >&2; \
-      exit 1; \
-    fi; \
-    make -C "$TMPDIR/src" linux-arm64; \
-    cp "$TMPDIR/src/dist/videohashes-arm64-linux" ./namer/tools/; \
+  case "$ARCH" in \
+  amd64) \
+    make -C ./videohashes linux-amd64; \
+    cp ./videohashes/dist/videohashes-amd64-linux ./namer/tools/; \
+    chmod +x ./namer/tools/videohashes-amd64-linux; \
+    # Sanity check the produced binary looks like an x86_64 ELF
+    file ./namer/tools/videohashes-amd64-linux | grep -E 'ELF 64-bit.*x86-64' >/dev/null; \
+    ;; \
+  arm64) \
+    make -C ./videohashes linux-arm64; \
+    cp ./videohashes/dist/videohashes-arm64-linux ./namer/tools/; \
     chmod +x ./namer/tools/videohashes-arm64-linux; \
     # Sanity check the produced binary looks like an aarch64 ELF
     file ./namer/tools/videohashes-arm64-linux | grep -E 'ELF 64-bit.*aarch64' >/dev/null; \
-    rm -rf "$TMPDIR"; \
-  else \
-    echo "Unsupported architecture: $ARCH" >&2; \
-    exit 1; \
-  fi; \
+    ;; \
+  *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;; \
+  esac; \
   ls -l namer/tools
 RUN bash -lc "( cd /work/ && poetry run poe build_namer )"
 FROM base
