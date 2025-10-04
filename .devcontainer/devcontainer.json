@@ -46,5 +46,5 @@
       ]
     }
   },
-  "postCreateCommand": "bash -lc 'set -e; git submodule update --init --recursive || true; command -v pnpm >/dev/null || npm -g i pnpm@10; command -v poetry >/dev/null || pipx install poetry==1.8.3; poetry config virtualenvs.in-project true; poetry install --no-interaction; poetry run poe build_deps'"
+  "postCreateCommand": "bash -lc 'set -e; git submodule update --init --recursive || true; command -v pnpm >/dev/null || (corepack enable && corepack prepare pnpm@10 --activate); command -v poetry >/dev/null || pipx install poetry==1.8.3; poetry config virtualenvs.in-project true; poetry install --no-interaction; poetry run poe build_deps'"
 }
