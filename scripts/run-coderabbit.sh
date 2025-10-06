@@ -12,14 +12,14 @@ cd "$ROOT_DIR"
 
 log() { echo "[coderabbit] $*"; }
 
-if ! command -v coderabbit > /dev/null 2>&1; then
-    log "CodeRabbit CLI not found. Install it before running this script."
-    exit 1
+if ! command -v coderabbit >/dev/null 2>&1; then
+	log "CodeRabbit CLI not found. Install it before running this script."
+	exit 1
 fi
 
 MODE="${1:-}"
 if [[ -z "$MODE" ]]; then
-    cat << 'EOF'
+	cat <<'EOF'
 Usage: scripts/run-coderabbit.sh <mode>
 
 Modes:
@@ -33,7 +33,7 @@ Environment variables:
   CODERABBIT_VALIDATE     Set to 0 to skip validate runs (default: 1)
   CODERABBIT_EXTRA_ARGS   Extra arguments appended to `coderabbit review` (supports shell-style quoting)
 EOF
-    exit 2
+	exit 2
 fi
 
 BASE_BRANCH="${CODERABBIT_BASE:-main}"
@@ -41,41 +41,41 @@ export CODERABBIT_NON_INTERACTIVE=1
 
 ARGS=(review --plain --no-color)
 case "$MODE" in
-    pre-commit)
-        if [[ "${CODERABBIT_PRECOMMIT:-0}" != "1" ]]; then
-            log "Skipping pre-commit review (set CODERABBIT_PRECOMMIT=1 to enable)."
-            exit 0
-        fi
-        ARGS+=(--type uncommitted --base "$BASE_BRANCH")
-        ;;
-    validate)
-        if [[ "${CODERABBIT_VALIDATE:-1}" == "0" ]]; then
-            log "Skipping validate review (set CODERABBIT_VALIDATE=1 to enable)."
-            exit 0
-        fi
-        ARGS+=(--type committed --base "$BASE_BRANCH")
-        ;;
-    branch)
-        ARGS+=(--type all --base "$BASE_BRANCH")
-        ;;
-    *)
-        log "Unknown mode: $MODE"
-        exit 2
-        ;;
+pre-commit)
+	if [[ "${CODERABBIT_PRECOMMIT:-0}" != "1" ]]; then
+		log "Skipping pre-commit review (set CODERABBIT_PRECOMMIT=1 to enable)."
+		exit 0
+	fi
+	ARGS+=(--type uncommitted --base "$BASE_BRANCH")
+	;;
+validate)
+	if [[ "${CODERABBIT_VALIDATE:-1}" == "0" ]]; then
+		log "Skipping validate review (set CODERABBIT_VALIDATE=1 to enable)."
+		exit 0
+	fi
+	ARGS+=(--type committed --base "$BASE_BRANCH")
+	;;
+branch)
+	ARGS+=(--type all --base "$BASE_BRANCH")
+	;;
+*)
+	log "Unknown mode: $MODE"
+	exit 2
+	;;
 esac
 
 if [[ -n "${CODERABBIT_EXTRA_ARGS:-}" ]]; then
-    if ! eval 'EXTRA_ARGS=('"${CODERABBIT_EXTRA_ARGS}"')'; then
-        log "Failed to parse CODERABBIT_EXTRA_ARGS"
-        exit 2
-    fi
-    ARGS+=("${EXTRA_ARGS[@]}")
+	if ! eval 'EXTRA_ARGS=('"${CODERABBIT_EXTRA_ARGS}"')'; then
+		log "Failed to parse CODERABBIT_EXTRA_ARGS"
+		exit 2
+	fi
+	ARGS+=("${EXTRA_ARGS[@]}")
 fi
 
 log "Running CodeRabbit review (mode: $MODE, base: $BASE_BRANCH)..."
 if ! coderabbit "${ARGS[@]}"; then
-    log "CodeRabbit review reported issues."
-    exit 1
+	log "CodeRabbit review reported issues."
+	exit 1
 fi
 
 log "CodeRabbit review completed successfully."
