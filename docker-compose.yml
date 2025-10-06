@@ -1,24 +1,19 @@
 services:
   namer:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        BUILD_DATE: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-        GIT_HASH: "$(git rev-parse HEAD 2>/dev/null || echo unknown)"
-        PROJECT_VERSION: "$(grep version pyproject.toml 2>/dev/null | cut -d'\"' -f2 || echo dev)"
-    image: namer:intel-hwaccell
+    image: nehpz/namer:latest
     container_name: namer
     restart: unless-stopped
     
     # Intel GPU hardware acceleration support
-    devices:
-      - /dev/dri:/dev/dri
+    # devices:
+    #   - /dev/dri:/dev/dri
     
     # Volume mounts
     volumes:
-      - ./config:/config
-      - /mnt/user/appdata/namer/media:/app/media
+      - ./test/integration/config:/app/config
+      - ./test/integration/database:/app/database
+      - ./test/integration/logs:/app/logs
+      - ./test/integration/media:/app/media
     
     # Port mapping
     ports:
@@ -26,12 +21,12 @@ services:
     
     # Environment variables for Intel GPU support and user management
     environment:
-      - NAMER_CONFIG=/config/namer.cfg
+      - NAMER_CONFIG=/app/config/namer.cfg
       - TZ=${TZ}
       - PUID=${PUID}
       - PGID=${PGID}
       - UMASK=${UMASK}
-      - LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-iHD}
+      # - LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-iHD}
       - TPDB_TOKEN=${TPDB_TOKEN}
       - STASHDB_TOKEN=${STASHDB_TOKEN}
       - DEBUG=false
