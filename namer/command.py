@@ -118,7 +118,7 @@ def move_command_files(target: Optional[Command], new_target: Path, is_auto: boo
 
 def _build_summary(match_attempts: Optional[ComparisonResults]) -> dict:
     if not match_attempts:
-        return {'results': [], 'fileinfo': None}
+        return {'results': [], 'fileinfo': None, 'ambiguous_reason': None, 'candidate_guids': []}
 
     summary_results = []
     for result in match_attempts.results:
@@ -131,8 +131,7 @@ def _build_summary(match_attempts: Optional[ComparisonResults]) -> dict:
                 'name': looked_up.name,
                 'site': looked_up.site,
                 'source_url': getattr(looked_up, 'source_url', None),
-                'original_query': getattr(looked_up, 'original_query', None),
-                'original_response': getattr(looked_up, 'original_response', None),
+                # original_query and original_response omitted to prevent redacted data leakage
             }
 
         summary_results.append(
@@ -159,6 +158,8 @@ def _build_summary(match_attempts: Optional[ComparisonResults]) -> dict:
     return {
         'results': summary_results,
         'fileinfo': fileinfo_summary,
+        'ambiguous_reason': match_attempts.ambiguous_reason,
+        'candidate_guids': match_attempts.candidate_guids,
     }
 
 
@@ -177,7 +178,7 @@ def _write_summary_file(movie_file: Path, summary: dict, namer_config: NamerConf
 
 def write_log_file(movie_file: Optional[Path], match_attempts: Optional[ComparisonResults], namer_config: NamerConfig) -> Optional[Path]:
     """
-    Given porndb scene results sorted by how closely they match a file,  write the contents
+    Writes scene results to a gzipped JSON log and a human-readable summary file.
     """
     log_name = None
     if movie_file:

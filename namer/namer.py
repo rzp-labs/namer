@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import pathlib
 import secrets
 import string
+import uuid
 from pathlib import Path
 from typing import List, Optional
 
@@ -47,6 +48,44 @@ DESCRIPTION = """
     file will be written with all the potential matches sorted, descending by how closely the scene name/performer names
     match the file's name segment after the 'SITE.[YY]YY.MM.DD'.
   """
+
+
+def write_ambiguous_metadata(
+    target_file: Path,
+    source_file: Path,
+    ambiguous_reason: Optional[str],
+    candidate_ids: List[str],
+    search_results: Optional[ComparisonResults],
+) -> None:
+    """Write ambiguous.json metadata file with enriched candidate details."""
+    ambiguous_note = target_file.parent / f'{target_file.stem}.ambiguous.json'
+
+    # Build candidate details with scene names
+    candidates_with_names = []
+    if search_results:
+        guid_to_name = {
+            (r.looked_up.guid or r.looked_up.uuid): r.looked_up.name
+            for r in search_results.results
+            if r.looked_up and (r.looked_up.guid or r.looked_up.uuid) and r.looked_up.name
+        }
+        for guid in candidate_ids:
+            candidates_with_names.append({'guid': guid, 'name': guid_to_name.get(guid, 'Unknown')})
+
+    try:
+        ambiguous_note.write_text(
+            orjson.dumps(
+                {
+                    'source': str(source_file),
+                    'ambiguous_reason': ambiguous_reason or 'phash_decision_ambiguous',
+                    'candidates': candidates_with_names if candidates_with_names else [{'guid': g, 'name': 'Unknown'} for g in candidate_ids],
+                    'candidate_guids': candidate_ids,
+                },
+                option=orjson.OPT_INDENT_2,
+            ).decode('utf-8')
+        )
+        logger.info('Wrote ambiguous metadata to {}', ambiguous_note)
+    except (OSError, IOError, orjson.JSONEncodeError) as ambiguity_write_error:
+        logger.warning('Unable to write ambiguity metadata for {}: {}', target_file, ambiguity_write_error)
 
 
 @dataclass(init=False, repr=False, eq=True, order=False, unsafe_hash=True, frozen=False)
@@ -199,12 +238,14 @@ def process_file(command: Command) -> Optional[Command]:
             if command.config.enable_disambiguation and search_results and getattr(command.config, 'phash_accept_distance', None) is not None:
                 # Build candidates from comparison results that have a phash_distance and a guid/uuid
                 cand_list = []
+                candidate_ids: List[str] = []
                 for r in search_results.results:
                     if r.phash_distance is None or not r.looked_up:
                         continue
                     guid = r.looked_up.guid or r.looked_up.uuid or ''
                     if guid:
                         cand_list.append(Candidate(guid=guid, phash_distance=int(r.phash_distance)))
+                        candidate_ids.append(guid)
                 if cand_list:
                     _, decision = decide(
                         cand_list,
@@ -214,15 +255,33 @@ def process_file(command: Command) -> Optional[Command]:
                         distance_margin_accept=command.config.phash_distance_margin_accept,
                         majority_accept_fraction=command.config.phash_majority_accept_fraction,
                     )
+                    candidate_ids = list(dict.fromkeys(candidate_ids))
+                    if decision == Decision.AMBIGUOUS and not search_results.ambiguous_reason:
+                        search_results.mark_ambiguous('phash_decision_ambiguous', candidate_ids)
                     ambiguous_dir = getattr(command.config, 'ambiguous_dir', None)
                     if decision == Decision.AMBIGUOUS and ambiguous_dir:
                         # Route to ambiguous review directory (mirrors failed_dir handling)
                         if command.inplace is False:
                             ambiguous_dir.mkdir(parents=True, exist_ok=True)
-                            logger.info('Routing to ambiguous_dir due to ambiguous decision -> {}', ambiguous_dir)
-                            moved = move_command_files(command, ambiguous_dir)
-                            if moved is not None and search_results is not None and moved.config.write_namer_failed_log:
-                                write_log_file(moved.target_movie_file, search_results, moved.config)
+                            # Create subdirectory for this ambiguous file with unique identifier
+                            file_stem = command.target_movie_file.stem
+                            unique_id = str(uuid.uuid4())[:8]
+                            ambiguous_subdir = ambiguous_dir / f"{file_stem}_{unique_id}"
+                            ambiguous_subdir.mkdir(parents=True, exist_ok=True)
+                            logger.info('Routing to ambiguous_dir due to ambiguous decision -> {}', ambiguous_subdir)
+                            moved = move_command_files(command, ambiguous_subdir)
+                            if moved is not None:
+                                if search_results is not None and moved.config.write_namer_failed_log:
+                                    write_log_file(moved.target_movie_file, search_results, moved.config)
+                                # Write ambiguous metadata file for manual review
+                                ambiguous_reason = getattr(search_results, 'ambiguous_reason', None) if search_results else None
+                                write_ambiguous_metadata(
+                                    moved.target_movie_file,
+                                    command.target_movie_file,
+                                    ambiguous_reason,
+                                    candidate_ids,
+                                    search_results,
+                                )
                             return moved
             if search_results:
                 matched = search_results.get_match()
@@ -295,41 +354,33 @@ def process_file(command: Command) -> Optional[Command]:
             ambiguous_dir = getattr(command.config, 'ambiguous_dir', None) if getattr(command.config, 'enable_disambiguation', False) else None
             if ambiguous_dir:
                 ensure_directory(ambiguous_dir, 'Unable to create ambiguous directory {}: {}')
-                unresolved_candidates: List[str] = []
-                ambiguous_guid: Optional[str] = None
-                if search_results:
-                    if search_results.ambiguous_reason:
-                        ambiguous_guid = search_results.ambiguous_reason
-                    if search_results.results:
-                        for _candidate in search_results.results[:5]:
-                            if _candidate.looked_up and (_candidate.looked_up.guid or _candidate.looked_up.uuid):
-                                unresolved_candidates.append(_candidate.looked_up.guid or _candidate.looked_up.uuid or '')
-                if ambiguous_guid:
-                    logger.info('Ambiguous routing fallback for %s (best GUID %s)', command.target_movie_file, ambiguous_guid)
-                elif unresolved_candidates:
-                    logger.info('Ambiguous routing fallback for %s (candidate GUIDs: %s)', command.target_movie_file, ', '.join(unresolved_candidates))
-                else:
-                    logger.info('Ambiguous routing fallback for %s (no GUID candidates)', command.target_movie_file)
-                moved = move_command_files(command, ambiguous_dir)
-                if moved is not None:
-                    if search_results is not None and moved.config.write_namer_failed_log:
-                        write_log_file(moved.target_movie_file, search_results, moved.config)
-                    ambiguous_note = moved.target_movie_file.parent / f'{moved.target_movie_file.stem}.ambiguous.json'
-                    if ambiguous_guid or unresolved_candidates:
-                        try:
-                            ambiguous_note.write_text(
-                                orjson.dumps(
-                                    {
-                                        'source': str(command.target_movie_file),
-                                        'ambiguous_guid': ambiguous_guid,
-                                        'candidate_guids': unresolved_candidates,
-                                    },
-                                    option=orjson.OPT_INDENT_2,
-                                ).decode('utf-8')
-                            )
-                        except Exception as ambiguity_write_error:
-                            logger.debug('Unable to write ambiguity metadata for %s: %s', moved.target_movie_file, ambiguity_write_error)
-                return moved
+                ambiguous_reason = getattr(search_results, 'ambiguous_reason', None) if search_results else None
+                candidate_guids = getattr(search_results, 'candidate_guids', []) if search_results else []
+
+                if ambiguous_reason or candidate_guids:
+                    if ambiguous_reason:
+                        logger.info('Ambiguous routing fallback for {} (reason: {})', command.target_movie_file, ambiguous_reason)
+                    else:
+                        logger.info('Ambiguous routing fallback for {} (candidate GUIDs: {})', command.target_movie_file, ', '.join(candidate_guids))
+                    # Create subdirectory for this ambiguous file with unique identifier
+                    file_stem = command.target_movie_file.stem
+                    unique_id = str(uuid.uuid4())[:8]
+                    ambiguous_subdir = ambiguous_dir / f"{file_stem}_{unique_id}"
+                    ambiguous_subdir.mkdir(parents=True, exist_ok=True)
+                    moved = move_command_files(command, ambiguous_subdir)
+                    if moved is not None:
+                        if search_results is not None and moved.config.write_namer_failed_log:
+                            write_log_file(moved.target_movie_file, search_results, moved.config)
+                        write_ambiguous_metadata(
+                            moved.target_movie_file,
+                            command.target_movie_file,
+                            ambiguous_reason,
+                            candidate_guids,
+                            search_results,
+                        )
+                    return moved
+
+                logger.info('No metadata candidates for {}; routing to failed directory', command.target_movie_file)
             failed = move_command_files(command, command.config.failed_dir)
             if failed is not None and search_results is not None and failed.config.write_namer_failed_log:
                 write_log_file(failed.target_movie_file, search_results, failed.config)

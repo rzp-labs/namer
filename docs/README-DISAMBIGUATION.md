@@ -37,6 +37,21 @@ Notes:
   ```
 - Files are routed here only when `enable_disambiguation = True` and the decision engine concludes the result is ambiguous.
 
+### Artifacts created for ambiguous files
+
+When a file is routed to `ambiguous_dir`, the following artifacts are written alongside the moved media (relative to the ambiguous directory):
+
+- `<stem>_namer_summary.json`: Structured summary produced by `_build_summary()` containing the top-ranked `results`, parsed `fileinfo`, and ambiguity metadata.
+  - `ambiguous_reason`: String key describing why the result was ambiguous (for example `phash_decision_ambiguous`, `phash_consensus_not_met`, or `phash_missing_guids`).
+  - `candidate_guids`: Ordered list of GUIDs (or scene names when GUIDs are unavailable) that should be reviewed manually.
+- `<stem>.ambiguous.json`: Lightweight note containing:
+  - `ambiguous_reason`: Same reason string as above
+  - `candidate_guids`: Simple array of GUID strings for programmatic access
+  - `candidates`: Array of objects with `{guid, name}` pairs for rich UI display
+- `<stem>_namer.json.gz`: Gzipped `ComparisonResults` dump used by legacy tooling. The encoded object now includes the same `ambiguous_reason` and `candidate_guids` attributes for completeness.
+
+These outputs help downstream automation, UIs, or operators understand why the scene required disambiguation and which candidates to check. All artifacts use the consistent field name `candidate_guids` to match the `ComparisonResults.candidate_guids` attribute.
+
 ## Thresholds (provider‑agnostic)
 
 Fine‑tune the decision thresholds under the `[Phash]` section:

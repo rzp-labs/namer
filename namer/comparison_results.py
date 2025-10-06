@@ -407,6 +407,8 @@ class ComparisonResult:
 class ComparisonResults:
     results: List[ComparisonResult]
     fileinfo: Optional[FileInfo]
+    ambiguous_reason: Optional[str] = None
+    candidate_guids: List[str] = field(default_factory=list)
 
     def get_match(self) -> Optional[ComparisonResult]:
         match = None
@@ -423,3 +425,7 @@ class ComparisonResults:
                     elif not match.is_super_match() and not match.is_phash_match() and potential.name_match > match.name_match:
                         match = None
         return match
+
+    def mark_ambiguous(self, reason: Optional[str], candidates: Optional[List[str]] = None) -> None:
+        self.ambiguous_reason = reason
+        self.candidate_guids = candidates or []

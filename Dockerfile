@@ -25,6 +25,7 @@ RUN apt-get update \
   vainfo \
   bc \
   gosu \
+  file \
   && if [ "$TARGETARCH" = "amd64" ]; then \
   apt-get install -y --no-install-recommends \
   intel-media-va-driver \
@@ -111,48 +112,47 @@ RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps )"
 # - arm64: build from local sources (videohashes/linux-arm64 target) and copy
 ARG PHASH_VERSION=2025.09.09
 # Commit SHA corresponding to the pinned PHASH_VERSION tag (used for deterministic arm64 builds)
-ARG PHASH_COMMIT=6d3a6d6f4e6a9a8cf4b30a9fd5bfa80ba3fc43e4
+ARG PHASH_COMMIT=25b54691c183c4a4a69e5a4fa9e2e14667ecf1fc
 # SHA256 for amd64 asset at the pinned tag (videohashes-linux-amd64)
 ARG PHASH_AMD64_SHA256=dbcc09bd45e260f09dd385e329b041e359fff3bfe66be767070918d519e6f476
 RUN set -eux; \
   cd /work; \
   mkdir -p namer/tools; \
   ARCH=$(dpkg --print-architecture); \
-  case "$ARCH" in \
-  amd64) \
-  DOWNLOAD_NAME="videohashes-linux-amd64"; \
-  TARGET_NAME="videohashes-amd64-linux"; \
-  curl --fail --silent --show-error --location \
-  --proto '=https' --proto-redir '=https' \
-  -o "namer/tools/${TARGET_NAME}" \
-  "https://github.com/peolic/videohashes/releases/download/${PHASH_VERSION}/${DOWNLOAD_NAME}"; \
-  echo "${PHASH_AMD64_SHA256}  namer/tools/${TARGET_NAME}" | sha256sum -c -; \
-  chmod +x "namer/tools/${TARGET_NAME}"; \
-  ;; \
-  arm64) \
-  # Clone the exact commit for deterministic arm64 build and verify HEAD matches
-  TMPDIR=$(mktemp -d); \
-  git init "$TMPDIR/src"; \
-  git -C "$TMPDIR/src" remote add origin https://github.com/peolic/videohashes.git; \
-  git -C "$TMPDIR/src" fetch --depth 1 --single-branch origin "$PHASH_COMMIT"; \
-  git -C "$TMPDIR/src" checkout --detach "$PHASH_COMMIT"; \
-  ACTUAL_COMMIT=$(git -C "$TMPDIR/src" rev-parse HEAD); \
-  if [ "$ACTUAL_COMMIT" != "$PHASH_COMMIT" ]; then \
-    echo "Expected videohashes commit $PHASH_COMMIT but got $ACTUAL_COMMIT" >&2; \
+  if [ "$ARCH" = "amd64" ]; then \
+    DOWNLOAD_NAME="videohashes-linux-amd64"; \
+    TARGET_NAME="videohashes-amd64-linux"; \
+    curl --fail --silent --show-error --location \
+      --proto '=https' --proto-redir '=https' \
+      -o "namer/tools/${TARGET_NAME}" \
+      "https://github.com/peolic/videohashes/releases/download/${PHASH_VERSION}/${DOWNLOAD_NAME}"; \
+    echo "${PHASH_AMD64_SHA256}  namer/tools/${TARGET_NAME}" | sha256sum -c -; \
+    chmod +x "namer/tools/${TARGET_NAME}"; \
+  elif [ "$ARCH" = "arm64" ]; then \
+    # Clone the tagged source deterministically for arm64 builds
+    TMPDIR=$(mktemp -d); \
+    git init "$TMPDIR/src"; \
+    git -C "$TMPDIR/src" remote add origin https://github.com/peolic/videohashes.git; \
+    # Fetch the release tag uniquely to avoid ambiguous refs on shallow clones
+    git -C "$TMPDIR/src" fetch --depth 1 origin "refs/tags/${PHASH_VERSION}"; \
+    git -C "$TMPDIR/src" checkout --detach FETCH_HEAD; \
+    ACTUAL_COMMIT=$(git -C "$TMPDIR/src" rev-parse HEAD); \
+    if [ "$ACTUAL_COMMIT" != "$PHASH_COMMIT" ]; then \
+      echo "Expected videohashes commit $PHASH_COMMIT but got $ACTUAL_COMMIT" >&2; \
+      exit 1; \
+    fi; \
+    make -C "$TMPDIR/src" linux-arm64; \
+    cp "$TMPDIR/src/dist/videohashes-arm64-linux" ./namer/tools/; \
+    chmod +x ./namer/tools/videohashes-arm64-linux; \
+    # Sanity check the produced binary looks like an aarch64 ELF
+    file ./namer/tools/videohashes-arm64-linux | grep -E 'ELF 64-bit.*aarch64' >/dev/null; \
+    rm -rf "$TMPDIR"; \
+  else \
+    echo "Unsupported architecture: $ARCH" >&2; \
     exit 1; \
   fi; \
-  make -C "$TMPDIR/src" linux-arm64; \
-  cp "$TMPDIR/src/dist/videohashes-arm64-linux" ./namer/tools/; \
-  chmod +x ./namer/tools/videohashes-arm64-linux; \
-  # Sanity check the produced binary looks like an aarch64 ELF
-  file ./namer/tools/videohashes-arm64-linux | grep -E 'ELF 64-bit.*aarch64' >/dev/null; \
-  rm -rf "$TMPDIR"; \
-  ;; \
-  *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;; \
-  esac; \
   ls -l namer/tools
 RUN bash -lc "( cd /work/ && poetry run poe build_namer )"
-
 FROM base
 
 # Install the built namer package globally
@@ -197,9 +197,9 @@ ARG GIT_HASH
 ARG PROJECT_VERSION
 ENV PYTHONUNBUFFERED=1
 ENV NAMER_CONFIG=/config/namer.cfg
-ENV BUILD_DATE=$BUILD_DATE
-ENV GIT_HASH=$GIT_HASH
-ENV PROJECT_VERSION=$PROJECT_VERSION
+ENV BUILD_DATE=${BUILD_DATE}
+ENV GIT_HASH=${GIT_HASH}
+ENV PROJECT_VERSION=${PROJECT_VERSION}
 ENV LIBVA_DRIVER_NAME=iHD
 
 EXPOSE 6980

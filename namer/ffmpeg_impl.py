@@ -33,7 +33,7 @@ from pathvalidate import ValidationError
 
 from namer.videophash.videophashstash import StashVideoPerceptualHash
 
-from namer.ffmpeg_common import QSVCodecMapper, FFProbeStream, FFProbeFormat, FFProbeResults
+from namer.ffmpeg_common import QSVCodecMapper, FFProbeStream, FFProbeResults, FFProbeFormat
 
 __all__ = ['FFMpeg']
 
@@ -100,6 +100,7 @@ class FFMpeg:
         if not streams:
             return None
 
+        output = []
         for stream in streams:
             ff_stream = FFProbeStream()
             ff_stream.bit_rate = -1
@@ -147,6 +148,41 @@ class FFMpeg:
                     ff_stream.avg_frame_rate = numer / denom
 
             output.append(ff_stream)
+
+        # Parse format data into FFProbeFormat object
+        format_data = ffprobe_out.get('format', {})
+        ff_format = FFProbeFormat()
+
+        duration_value = format_data.get('duration')
+        try:
+            ff_format.duration = float(duration_value)
+        except (TypeError, ValueError):
+            logger.debug('Unable to parse format duration: %s', duration_value)
+            ff_format.duration = 0.0
+
+        size_value = format_data.get('size')
+        try:
+            ff_format.size = int(size_value)
+        except (TypeError, ValueError):
+            logger.debug('Unable to parse format size: %s', size_value)
+            ff_format.size = 0
+
+        bitrate_value = format_data.get('bit_rate')
+        try:
+            ff_format.bit_rate = int(bitrate_value)
+        except (TypeError, ValueError):
+            logger.debug('Unable to parse format bit rate: %s', bitrate_value)
+            ff_format.bit_rate = 0
+
+        tags_value = format_data.get('tags')
+        if isinstance(tags_value, dict):
+            ff_format.tags = tags_value
+        else:
+            if tags_value is not None:
+                logger.debug('Format tags is not a dict: %s', tags_value)
+            ff_format.tags = {}
+
+        return FFProbeResults(output, ff_format)
 
     def _auto_detect_qsv_decoder(self, file: Path) -> Optional[str]:
         """
@@ -646,7 +682,7 @@ class FFMpeg:
                     stderr=subprocess.DEVNULL,
                     text=True,
                     check=False,
-                    shell=False,
+                    shell=False,  # nosec B603
                 )
             except Exception as error:
                 logger.debug('Failed to query %s version via %s: %s', tool, executable, error)

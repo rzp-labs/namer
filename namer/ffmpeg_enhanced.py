@@ -6,6 +6,7 @@ with the development entrypoint. The shared implementation lives in
 related typed results for container builds.
 """
 
-from namer.ffmpeg_impl import FFMpeg, FFProbeFormat, FFProbeResults, FFProbeStream
+from namer.ffmpeg_impl import FFMpeg, FFProbeResults, FFProbeStream
+from namer.ffmpeg_common import FFProbeFormat
 
 __all__ = ['FFMpeg', 'FFProbeResults', 'FFProbeStream', 'FFProbeFormat']

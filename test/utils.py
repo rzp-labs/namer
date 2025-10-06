@@ -550,6 +550,7 @@ def setup_disambiguation_config(tmp_path: Path, enable_flag: bool) -> tuple[Name
     cfg.ambiguous_dir = ambiguous_dir
     cfg.min_file_size = 0
     cfg.search_phash = False
+    cfg.write_namer_failed_log = True
 
     return cfg, ambiguous_dir
 

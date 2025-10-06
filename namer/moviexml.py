@@ -8,7 +8,7 @@ from pathlib import Path
 
 from typing import Any, Optional, List
 from defusedxml.minidom import parseString
-from xml.dom.minidom import Document, Element
+from xml.dom.minidom import Document, Element  # nosec B408: Using defusedxml for parsing
 
 from namer.configuration import NamerConfig
 from namer.command import set_permissions

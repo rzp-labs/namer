@@ -41,6 +41,9 @@ class StashDBProvider(BaseMetadataProvider):
         results: List[ComparisonResult] = []
 
         # For now, implement a basic search using scene title
+        ambiguous_reason: Optional[str] = None
+        ambiguous_candidates: List[str] = []
+
         if file_name_parts and file_name_parts.name:
             scene_results = self.search(file_name_parts.name, SceneType.SCENE, config)
 
@@ -84,25 +87,25 @@ class StashDBProvider(BaseMetadataProvider):
 
                         if consensus_fraction >= threshold:
                             logger.info(
-                                'PHASH threshold met: %s accounts for %.2f of %d submissions (threshold %.2f). Returning confident match.',
+                                'PHASH threshold met: {} accounts for {:.2f} of {} submissions (threshold {:.2f}). Returning confident match.',
                                 most_common_guid,
                                 consensus_fraction,
                                 total_guid_entries,
                                 threshold,
                             )
                             results.clear()
-                            scene_info = None
+                            matched_scene: Optional[LookedUpFileInfo] = None
                             for candidate in scenes_with_guid:
                                 if candidate.guid == most_common_guid:
-                                    scene_info = candidate
+                                    matched_scene = candidate
                                     break
-                            if not scene_info:
+                            if not matched_scene:
                                 logger.warning('PHASH threshold met but matching scene missing; treating results as ambiguous')
                                 for candidate in phash_results:
                                     comparison_result = self._build_phash_comparison(candidate, file_name_parts, phash)
                                     results.append(comparison_result)
                             else:
-                                comparison_result = self._build_phash_comparison(scene_info, file_name_parts, phash)
+                                comparison_result = self._build_phash_comparison(matched_scene, file_name_parts, phash)
                                 comparison_result.name_match = 100.0  # Force high name match for unique/majority phash
                                 comparison_result.date_match = True  # Force date match for unique/majority phash
                                 comparison_result.site_match = True  # Force site match for unique/majority phash
@@ -111,7 +114,7 @@ class StashDBProvider(BaseMetadataProvider):
                                 results.append(comparison_result)
                         else:
                             logger.warning(
-                                'PHASH threshold not met: %d unique scene IDs across %d submissions (top fraction %.2f, threshold %.2f); handing off to disambiguation',
+                                'PHASH threshold not met: {} unique scene IDs across {} submissions (top fraction {:.2f}, threshold {:.2f}); handing off to disambiguation',
                                 len(counts),
                                 len(phash_results),
                                 consensus_fraction,
@@ -121,6 +124,10 @@ class StashDBProvider(BaseMetadataProvider):
                             for scene_info in phash_results:
                                 comparison_result = self._build_phash_comparison(scene_info, file_name_parts, phash)
                                 results.append(comparison_result)
+                            ambiguous_reason = 'phash_consensus_not_met'
+                            ambiguous_candidates = [scene_info.guid or scene_info.uuid or '' for scene_info in phash_results if scene_info.guid or scene_info.uuid]
+                            if not ambiguous_candidates:
+                                ambiguous_candidates = [scene_info.name for scene_info in phash_results if scene_info.name]
                     else:
                         # No GUIDs available; treat all results as ambiguous candidates
                         logger.warning('PHASH results returned without GUIDs; handing off all candidates for disambiguation')
@@ -128,13 +135,19 @@ class StashDBProvider(BaseMetadataProvider):
                         for scene_info in phash_results:
                             comparison_result = self._build_phash_comparison(scene_info, file_name_parts, phash)
                             results.append(comparison_result)
+                        ambiguous_reason = 'phash_missing_guids'
+                        ambiguous_candidates = [scene_info.name for scene_info in phash_results if scene_info.name]
             except Exception as e:
                 logger.debug(f'Phash search failed: {e}')
 
         # Sort results by quality
         results = sorted(results, key=self._calculate_match_weight, reverse=True)
+        comparison_results = ComparisonResults(results, file_name_parts)
+        if ambiguous_reason:
+            deduped_candidates = list(dict.fromkeys(c for c in ambiguous_candidates if c))
+            comparison_results.mark_ambiguous(ambiguous_reason, deduped_candidates)
 
-        return ComparisonResults(results, file_name_parts)
+        return comparison_results
 
     def _build_phash_comparison(self, scene_info: LookedUpFileInfo, file_name_parts: Optional[FileInfo], phash: Optional[PerceptualHash]) -> ComparisonResult:
         name_match = 0.0
