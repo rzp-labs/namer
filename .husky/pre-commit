@@ -8,4 +8,4 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 "$REPO_ROOT/scripts/enforce-pnpm.sh"
 
 # Run lint-staged
-pnpm lint-staged
+pnpm exec lint-staged
