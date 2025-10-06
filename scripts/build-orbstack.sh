@@ -27,20 +27,34 @@ echo "[build-orbstack] Build date: $BUILD_DATE"
 echo "[build-orbstack] Git hash: $GIT_HASH"
 echo "[build-orbstack] Project version: $PROJECT_VERSION"
 
+run_build() {
+  local -a docker_cmd=(docker build)
+  if [[ $# -gt 0 ]]; then
+    docker_cmd+=("$@")
+  fi
+  if [[ -n "${BUILD_ARGS:-}" ]]; then
+    echo "[build-orbstack] Extra build args: ${BUILD_ARGS}"
+    # shellcheck disable=SC2206 # intentional word splitting for docker CLI flags
+    docker_cmd+=( ${BUILD_ARGS} )
+  fi
+  docker_cmd+=("${COMMON_ARGS[@]}")
+  "${docker_cmd[@]}"
+}
+
 case "$MODE" in
   fast)
-    docker build "${COMMON_ARGS[@]}"
+    run_build
     ;;
   full)
     if [[ -x ./validate.sh ]]; then
       echo "[build-orbstack] Running validation before full build..."
       ./validate.sh
     fi
-    docker build --no-cache "${COMMON_ARGS[@]}"
+    run_build --no-cache
     ;;
   dev)
     # If your Dockerfile has a dedicated builder stage, feel free to add --target here.
-    docker build --progress=plain "${COMMON_ARGS[@]}"
+    run_build --progress=plain
     ;;
   *)
     echo "Usage: $0 <fast|full|dev> <image_name> <version>" >&2
