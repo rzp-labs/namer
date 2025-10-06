@@ -49,6 +49,43 @@ DESCRIPTION = """
   """
 
 
+def write_ambiguous_metadata(
+    target_file: Path,
+    source_file: Path,
+    ambiguous_reason: Optional[str],
+    candidate_ids: List[str],
+    search_results: Optional[ComparisonResults],
+) -> None:
+    """Write ambiguous.json metadata file with enriched candidate details."""
+    ambiguous_note = target_file.parent / f'{target_file.stem}.ambiguous.json'
+
+    # Build candidate details with scene names
+    candidates_with_names = []
+    if search_results:
+        guid_to_name = {
+            r.looked_up.guid or r.looked_up.uuid: r.looked_up.name
+            for r in search_results.results
+            if r.looked_up and (r.looked_up.guid or r.looked_up.uuid)
+        }
+        for guid in candidate_ids:
+            candidates_with_names.append({'guid': guid, 'name': guid_to_name.get(guid, 'Unknown')})
+
+    try:
+        ambiguous_note.write_text(
+            orjson.dumps(
+                {
+                    'source': str(source_file),
+                    'ambiguous_reason': ambiguous_reason or 'phash_decision_ambiguous',
+                    'candidates': candidates_with_names if candidates_with_names else [{'guid': g, 'name': 'Unknown'} for g in candidate_ids],
+                },
+                option=orjson.OPT_INDENT_2,
+            ).decode('utf-8')
+        )
+        logger.info('Wrote ambiguous metadata to {}', ambiguous_note)
+    except Exception as ambiguity_write_error:
+        logger.warning('Unable to write ambiguity metadata for {}: {}', target_file, ambiguity_write_error)
+
+
 @dataclass(init=False, repr=False, eq=True, order=False, unsafe_hash=True, frozen=False)
 class ProcessingResults:
     """
@@ -234,31 +271,14 @@ def process_file(command: Command) -> Optional[Command]:
                                 if search_results is not None and moved.config.write_namer_failed_log:
                                     write_log_file(moved.target_movie_file, search_results, moved.config)
                                 # Write ambiguous metadata file for manual review
-                                ambiguous_note = moved.target_movie_file.parent / f'{moved.target_movie_file.stem}.ambiguous.json'
                                 ambiguous_reason = getattr(search_results, 'ambiguous_reason', None) if search_results else None
-                                # Build candidate details with scene names
-                                candidates_with_names = []
-                                if search_results:
-                                    guid_to_name = {r.looked_up.guid or r.looked_up.uuid: r.looked_up.name for r in search_results.results if r.looked_up and (r.looked_up.guid or r.looked_up.uuid)}
-                                    for guid in candidate_ids:
-                                        candidates_with_names.append({
-                                            'guid': guid,
-                                            'name': guid_to_name.get(guid, 'Unknown')
-                                        })
-                                try:
-                                    ambiguous_note.write_text(
-                                        orjson.dumps(
-                                            {
-                                                'source': str(command.target_movie_file),
-                                                'ambiguous_reason': ambiguous_reason or 'phash_decision_ambiguous',
-                                                'candidates': candidates_with_names,
-                                            },
-                                            option=orjson.OPT_INDENT_2,
-                                        ).decode('utf-8')
-                                    )
-                                    logger.info('Wrote ambiguous metadata to {}', ambiguous_note)
-                                except Exception as ambiguity_write_error:
-                                    logger.warning('Unable to write ambiguity metadata for {}: {}', moved.target_movie_file, ambiguity_write_error)
+                                write_ambiguous_metadata(
+                                    moved.target_movie_file,
+                                    command.target_movie_file,
+                                    ambiguous_reason,
+                                    candidate_ids,
+                                    search_results,
+                                )
                             return moved
             if search_results:
                 matched = search_results.get_match()
@@ -347,31 +367,14 @@ def process_file(command: Command) -> Optional[Command]:
                     if moved is not None:
                         if search_results is not None and moved.config.write_namer_failed_log:
                             write_log_file(moved.target_movie_file, search_results, moved.config)
-                        ambiguous_note = moved.target_movie_file.parent / f'{moved.target_movie_file.stem}.ambiguous.json'
                         if ambiguous_reason or candidate_guids:
-                            # Build candidate details with scene names
-                            candidates_with_names = []
-                            if search_results:
-                                guid_to_name = {r.looked_up.guid or r.looked_up.uuid: r.looked_up.name for r in search_results.results if r.looked_up and (r.looked_up.guid or r.looked_up.uuid)}
-                                for guid in candidate_guids:
-                                    candidates_with_names.append({
-                                        'guid': guid,
-                                        'name': guid_to_name.get(guid, 'Unknown')
-                                    })
-                            try:
-                                ambiguous_note.write_text(
-                                    orjson.dumps(
-                                        {
-                                            'source': str(command.target_movie_file),
-                                            'ambiguous_reason': ambiguous_reason,
-                                            'candidates': candidates_with_names if candidates_with_names else [{'guid': g, 'name': 'Unknown'} for g in candidate_guids],
-                                        },
-                                        option=orjson.OPT_INDENT_2,
-                                    ).decode('utf-8')
-                                )
-                                logger.info('Wrote ambiguous metadata to {}', ambiguous_note)
-                            except Exception as ambiguity_write_error:
-                                logger.warning('Unable to write ambiguity metadata for {}: {}', moved.target_movie_file, ambiguity_write_error)
+                            write_ambiguous_metadata(
+                                moved.target_movie_file,
+                                command.target_movie_file,
+                                ambiguous_reason,
+                                candidate_guids,
+                                search_results,
+                            )
                     return moved
 
                 logger.info('No metadata candidates for {}; routing to failed directory', command.target_movie_file)
