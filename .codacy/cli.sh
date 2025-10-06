@@ -88,7 +88,12 @@ download() {
     local url="$1"
     local output_folder="$2"
 
-    ( cd "$output_folder" && download_file "$url" )
+    if [ ! -d "$output_folder" ]; then
+        fatal "Download target directory does not exist: $output_folder"
+    fi
+    cd "$output_folder" || fatal "Failed to cd to $output_folder"
+    download_file "$url" || fatal "Failed to download $url"
+    cd - > /dev/null || true
 }
 
 download_cli() {
@@ -106,7 +111,7 @@ download_cli() {
         url="https://github.com/codacy/codacy-cli-v2/releases/download/${version}/${remote_file}"
 
         download "$url" "$bin_folder"
-        tar xzfv "${bin_folder}/${remote_file}" -C "${bin_folder}"
+        tar xzf "${bin_folder}/${remote_file}" -C "${bin_folder}"
     fi
 }
 

@@ -201,6 +201,8 @@ class ThePornDBProvider(BaseMetadataProvider):
         Search for metadata matches based on file name parts and/or perceptual hash using GraphQL.
         """
         results: List[LookedUpFileInfo] = []
+        ambiguous_reason: Optional[str] = None
+        ambiguous_candidates: List[str] = []
 
         if not file_name_parts and not phash:
             return ComparisonResults([], file_name_parts)
@@ -229,6 +231,20 @@ class ThePornDBProvider(BaseMetadataProvider):
                 # Mark as found via phash for scoring (helper flag used by downstream scoring logic)
                 file_info.set_found_via_phash(True)
                 results.append(file_info)
+
+            # If multiple PHASH results share similar distance with no clear consensus, mark ambiguous
+            if hash_results and len(results) > 1:
+                candidate_ids = []
+                for info in results:
+                    guid = info.guid if isinstance(info.guid, str) and info.guid.strip() else None
+                    uuid = info.uuid if isinstance(info.uuid, str) and info.uuid.strip() else None
+                    candidate = (guid or uuid or '').strip()
+                    if candidate:
+                        candidate_ids.append(candidate)
+                candidate_ids = list(dict.fromkeys(candidate_ids))
+                if candidate_ids:
+                    ambiguous_candidates = candidate_ids
+                    ambiguous_reason = 'phash_multiple_candidates'
 
         # Text-based search
         if search_terms:
@@ -269,7 +285,11 @@ class ThePornDBProvider(BaseMetadataProvider):
         if match_weight_func:
             comparison_results = sorted(comparison_results, key=match_weight_func, reverse=True)
 
-        return ComparisonResults(comparison_results, file_name_parts)
+        comparison_summary = ComparisonResults(comparison_results, file_name_parts)
+        if ambiguous_reason:
+            comparison_summary.mark_ambiguous(ambiguous_reason, ambiguous_candidates)
+
+        return comparison_summary
 
     def _search_scenes(self, query: str, scene_type: SceneType, config: NamerConfig, page: int = 1) -> List[Dict[str, Any]]:
         """
