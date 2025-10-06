@@ -94,18 +94,18 @@ class StashDBProvider(BaseMetadataProvider):
                                 threshold,
                             )
                             results.clear()
-                            scene_info: Optional[LookedUpFileInfo] = None
+                            matched_scene: Optional[LookedUpFileInfo] = None
                             for candidate in scenes_with_guid:
                                 if candidate.guid == most_common_guid:
-                                    scene_info = candidate
+                                    matched_scene = candidate
                                     break
-                            if not scene_info:
+                            if not matched_scene:
                                 logger.warning('PHASH threshold met but matching scene missing; treating results as ambiguous')
                                 for candidate in phash_results:
                                     comparison_result = self._build_phash_comparison(candidate, file_name_parts, phash)
                                     results.append(comparison_result)
                             else:
-                                comparison_result = self._build_phash_comparison(scene_info, file_name_parts, phash)
+                                comparison_result = self._build_phash_comparison(matched_scene, file_name_parts, phash)
                                 comparison_result.name_match = 100.0  # Force high name match for unique/majority phash
                                 comparison_result.date_match = True  # Force date match for unique/majority phash
                                 comparison_result.site_match = True  # Force site match for unique/majority phash
