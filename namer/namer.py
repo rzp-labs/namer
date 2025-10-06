@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import pathlib
 import secrets
 import string
+import uuid
 from pathlib import Path
 from typing import List, Optional
 
@@ -262,9 +263,10 @@ def process_file(command: Command) -> Optional[Command]:
                         # Route to ambiguous review directory (mirrors failed_dir handling)
                         if command.inplace is False:
                             ambiguous_dir.mkdir(parents=True, exist_ok=True)
-                            # Create subdirectory for this ambiguous file
+                            # Create subdirectory for this ambiguous file with unique identifier
                             file_stem = command.target_movie_file.stem
-                            ambiguous_subdir = ambiguous_dir / file_stem
+                            unique_id = str(uuid.uuid4())[:8]
+                            ambiguous_subdir = ambiguous_dir / f"{file_stem}_{unique_id}"
                             ambiguous_subdir.mkdir(parents=True, exist_ok=True)
                             logger.info('Routing to ambiguous_dir due to ambiguous decision -> {}', ambiguous_subdir)
                             moved = move_command_files(command, ambiguous_subdir)
@@ -360,22 +362,22 @@ def process_file(command: Command) -> Optional[Command]:
                         logger.info('Ambiguous routing fallback for {} (reason: {})', command.target_movie_file, ambiguous_reason)
                     else:
                         logger.info('Ambiguous routing fallback for {} (candidate GUIDs: {})', command.target_movie_file, ', '.join(candidate_guids))
-                    # Create subdirectory for this ambiguous file
+                    # Create subdirectory for this ambiguous file with unique identifier
                     file_stem = command.target_movie_file.stem
-                    ambiguous_subdir = ambiguous_dir / file_stem
+                    unique_id = str(uuid.uuid4())[:8]
+                    ambiguous_subdir = ambiguous_dir / f"{file_stem}_{unique_id}"
                     ambiguous_subdir.mkdir(parents=True, exist_ok=True)
                     moved = move_command_files(command, ambiguous_subdir)
                     if moved is not None:
                         if search_results is not None and moved.config.write_namer_failed_log:
                             write_log_file(moved.target_movie_file, search_results, moved.config)
-                        if ambiguous_reason or candidate_guids:
-                            write_ambiguous_metadata(
-                                moved.target_movie_file,
-                                command.target_movie_file,
-                                ambiguous_reason,
-                                candidate_guids,
-                                search_results,
-                            )
+                        write_ambiguous_metadata(
+                            moved.target_movie_file,
+                            command.target_movie_file,
+                            ambiguous_reason,
+                            candidate_guids,
+                            search_results,
+                        )
                     return moved
 
                 logger.info('No metadata candidates for {}; routing to failed directory', command.target_movie_file)
