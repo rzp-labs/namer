@@ -179,7 +179,7 @@ def _write_summary_file(movie_file: Path, summary: dict, namer_config: NamerConf
 
 def write_log_file(movie_file: Optional[Path], match_attempts: Optional[ComparisonResults], namer_config: NamerConfig) -> Optional[Path]:
     """
-    Given porndb scene results sorted by how closely they match a file,  write the contents
+    Writes scene results to a gzipped JSON log and a human-readable summary file.
     """
     log_name = None
     if movie_file:

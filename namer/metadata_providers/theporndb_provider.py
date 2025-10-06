@@ -242,7 +242,7 @@ class ThePornDBProvider(BaseMetadataProvider):
                     if candidate:
                         candidate_ids.append(candidate)
                 candidate_ids = list(dict.fromkeys(candidate_ids))
-                if candidate_ids:
+                if len(candidate_ids) > 1:
                     ambiguous_candidates = candidate_ids
                     ambiguous_reason = 'phash_multiple_candidates'
 

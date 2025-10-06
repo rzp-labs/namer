@@ -1,6 +1,8 @@
 services:
   namer:
-    image: nehpz/namer:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: namer
     restart: unless-stopped
     

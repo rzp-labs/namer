@@ -28,9 +28,9 @@ case "$arch" in
 esac
 
 if [ -z "$CODACY_CLI_V2_TMP_FOLDER" ]; then
-    if [ "$(uname)" = "Linux" ]; then
+    if [ "$os_name" = "Linux" ]; then
         CODACY_CLI_V2_TMP_FOLDER="$HOME/.cache/codacy/codacy-cli-v2"
-    elif [ "$(uname)" = "Darwin" ]; then
+    elif [ "$os_name" = "Darwin" ]; then
         CODACY_CLI_V2_TMP_FOLDER="$HOME/Library/Caches/Codacy/codacy-cli-v2"
     else
         CODACY_CLI_V2_TMP_FOLDER=".codacy-cli-v2"
@@ -73,7 +73,7 @@ get_latest_version() {
     fi
 
     # Check curl exit status
-    if [ $curl_exit_code -ne 0 ]; then
+    if [ "$curl_exit_code" -ne 0 ]; then
         echo "Error: Failed to fetch latest version from GitHub API (curl exit code: $curl_exit_code)" >&2
         echo "Response: $response" >&2
         fatal "Unable to determine latest Codacy CLI version"
