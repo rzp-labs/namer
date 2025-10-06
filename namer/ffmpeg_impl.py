@@ -657,7 +657,7 @@ class FFMpeg:
                     stderr=subprocess.DEVNULL,
                     text=True,
                     check=False,
-                    shell=False,
+                    shell=False,  # nosec B603
                 )
             except Exception as error:
                 logger.debug('Failed to query %s version via %s: %s', tool, executable, error)
