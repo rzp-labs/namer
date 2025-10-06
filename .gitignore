@@ -33,12 +33,14 @@ namer-prod.cfg
 .prod-files/
 
 # Test artifacts
-test/failed/
-test/watch/
-test/work/
-test/dest/
-test/ambiguous/
-test/**/*_namer.json.gz
+test/integration/database/*
+test/integration/logs/*
+test/integration/media/0-intake/*
+test/integration/media/1-watch/*
+test/integration/media/2-work/*
+test/integration/media/3-dest/*
+test/integration/media/4-failed/*
+test/integration/media/5-ambiguous/*
 
 # Ignore windsurf AI rules
 .windsurfrules
