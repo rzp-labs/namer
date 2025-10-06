@@ -109,9 +109,38 @@ download_cli() {
 
         remote_file="codacy-cli-v2_${version}_${suffix}_${arch}.tar.gz"
         url="https://github.com/codacy/codacy-cli-v2/releases/download/${version}/${remote_file}"
+        checksum_file="${remote_file}.sha256"
+        checksum_url="${url}.sha256"
 
+        # Download tarball
         download "$url" "$bin_folder"
-        tar xzf "${bin_folder}/${remote_file}" -C "${bin_folder}"
+
+        # Attempt to download checksum file
+        echo "🔐 Attempting to download checksum file..."
+        cd "$bin_folder" || fatal "Failed to cd to $bin_folder for checksum verification"
+        
+        if command -v curl > /dev/null 2>&1; then
+            curl -sSL "$checksum_url" -o "$checksum_file" 2>/dev/null || echo "⚠️  Warning: Could not download checksum file, skipping verification"
+        elif command -v wget > /dev/null 2>&1; then
+            wget -q "$checksum_url" -O "$checksum_file" 2>/dev/null || echo "⚠️  Warning: Could not download checksum file, skipping verification"
+        fi
+
+        # Verify checksum if file was downloaded
+        if [ -f "$checksum_file" ]; then
+            echo "🔍 Verifying checksum..."
+            if command -v sha256sum > /dev/null 2>&1; then
+                sha256sum -c "$checksum_file" || fatal "Checksum verification failed for $remote_file"
+            elif command -v shasum > /dev/null 2>&1; then
+                shasum -a 256 -c "$checksum_file" || fatal "Checksum verification failed for $remote_file"
+            else
+                echo "⚠️  Warning: No checksum tool available (sha256sum or shasum), skipping verification"
+            fi
+            echo "✅ Checksum verified successfully"
+        fi
+
+        # Extract tarball
+        tar xzf "$remote_file" -C "." || fatal "Failed to extract $remote_file"
+        cd - > /dev/null || true
     fi
 }
 
