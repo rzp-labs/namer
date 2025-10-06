@@ -131,8 +131,7 @@ def _build_summary(match_attempts: Optional[ComparisonResults]) -> dict:
                 'name': looked_up.name,
                 'site': looked_up.site,
                 'source_url': getattr(looked_up, 'source_url', None),
-                'original_query': getattr(looked_up, 'original_query', None),
-                'original_response': getattr(looked_up, 'original_response', None),
+                # original_query and original_response omitted to prevent redacted data leakage
             }
 
         summary_results.append(
