@@ -40,5 +40,18 @@ if ! command -v pnpm &> /dev/null; then
   exit 1
 fi
 
+# Check Node.js version compatibility
+if command -v node &> /dev/null; then
+  NODE_VERSION=$(node -v | cut -d 'v' -f 2)
+  MAJOR_VERSION=$(echo $NODE_VERSION | cut -d '.' -f 1)
+  
+  if [ "$MAJOR_VERSION" -lt 22 ]; then
+    echo "❌ Error: Node.js version $NODE_VERSION is not compatible."
+    echo "This project requires Node.js v22 or later."
+    echo "Please upgrade your Node.js version."
+    exit 1
+  fi
+fi
+
 echo "✅ pnpm check passed."
 exit 0
