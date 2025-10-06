@@ -25,6 +25,9 @@ case "$arch" in
 "aarch64"|"arm64")
   arch="arm64"
   ;;
+*)
+  fatal "Unsupported architecture: $arch"
+  ;;
 esac
 
 if [ -z "$CODACY_CLI_V2_TMP_FOLDER" ]; then
@@ -148,6 +151,11 @@ download_cli() {
     if [ ! -f "$bin_path" ]; then
         echo "📥 Downloading CLI version $version..."
 
+        # Validate version format to prevent path traversal
+        if ! echo "$version" | grep -qE '^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$'; then
+            fatal "Invalid version format: $version"
+        fi
+
         # Normalize version by stripping leading 'v' for asset filenames
         normalized_version="${version#v}"
         remote_file="codacy-cli-v2_${normalized_version}_${suffix}_${arch}.tar.gz"
@@ -162,10 +170,19 @@ download_cli() {
         echo "🔐 Attempting to download checksum file..."
         cd "$bin_folder" || fatal "Failed to cd to $bin_folder for checksum verification"
         
+        checksum_downloaded=false
         if command -v curl > /dev/null 2>&1; then
-            curl -sSL "$checksum_url" -o "$checksum_file" 2>/dev/null || echo "⚠️  Warning: Could not download checksum file, skipping verification"
+            if curl -sSL "$checksum_url" -o "$checksum_file" 2>/dev/null; then
+                checksum_downloaded=true
+            fi
         elif command -v wget > /dev/null 2>&1; then
-            wget -q "$checksum_url" -O "$checksum_file" 2>/dev/null || echo "⚠️  Warning: Could not download checksum file, skipping verification"
+            if wget -q "$checksum_url" -O "$checksum_file" 2>/dev/null; then
+                checksum_downloaded=true
+            fi
+        fi
+        
+        if [ "$checksum_downloaded" = false ]; then
+            echo "⚠️  Warning: Could not download checksum file, skipping verification"
         fi
 
         # Verify checksum if file was downloaded
