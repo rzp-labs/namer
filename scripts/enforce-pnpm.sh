@@ -31,6 +31,15 @@ if [ -f "yarn.lock" ]; then
   exit 1
 fi
 
+# Check if npm-shrinkwrap.json exists
+if [ -f "npm-shrinkwrap.json" ]; then
+  echo "❌ Error: npm-shrinkwrap.json detected. This project uses pnpm exclusively."
+  echo "Please remove npm-shrinkwrap.json and use pnpm instead:"
+  echo "  rm npm-shrinkwrap.json"
+  echo "  pnpm install"
+  exit 1
+fi
+
 # Ensure pnpm is installed
 if ! command -v pnpm &> /dev/null; then
   echo "❌ Error: pnpm is not installed."
