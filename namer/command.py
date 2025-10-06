@@ -118,7 +118,7 @@ def move_command_files(target: Optional[Command], new_target: Path, is_auto: boo
 
 def _build_summary(match_attempts: Optional[ComparisonResults]) -> dict:
     if not match_attempts:
-        return {'results': [], 'fileinfo': None, 'ambiguous_reason': None, 'ambiguous_candidates': []}
+        return {'results': [], 'fileinfo': None, 'ambiguous_reason': None, 'candidate_guids': []}
 
     summary_results = []
     for result in match_attempts.results:
@@ -160,7 +160,7 @@ def _build_summary(match_attempts: Optional[ComparisonResults]) -> dict:
         'results': summary_results,
         'fileinfo': fileinfo_summary,
         'ambiguous_reason': match_attempts.ambiguous_reason,
-        'ambiguous_candidates': match_attempts.candidate_guids,
+        'candidate_guids': match_attempts.candidate_guids,
     }
 
 

@@ -28,7 +28,7 @@ def test_flagged_wiring_routes_ambiguous(tmp_path, monkeypatch):
     summary_path = ambiguous_dir / f'{out.target_movie_file.stem}_namer_summary.json'
     summary = json.loads(summary_path.read_text())
     assert summary['ambiguous_reason'] == 'phash_decision_ambiguous'
-    assert summary['ambiguous_candidates'] == ['A', 'B']
+    assert summary['candidate_guids'] == ['A', 'B']
 
     # Ambiguity note should be created alongside the moved file
     note_path = ambiguous_dir / f'{out.target_movie_file.stem}.ambiguous.json'
@@ -38,7 +38,12 @@ def test_flagged_wiring_routes_ambiguous(tmp_path, monkeypatch):
 
     # Compressed log should contain the same metadata when decompressed
     log_path = ambiguous_dir / f'{out.target_movie_file.stem}_namer.json.gz'
-    with gzip.open(log_path, 'rt', encoding='utf-8') as compressed_log:
-        log_data = json.loads(compressed_log.read())
+    try:
+        with gzip.open(log_path, 'rt', encoding='utf-8') as compressed_log:
+            log_data = json.loads(compressed_log.read())
+    except (gzip.BadGzipFile, OSError) as gz_error:
+        raise AssertionError(f'Failed to decompress gzip log at {log_path}: {gz_error}') from gz_error
+    except json.JSONDecodeError as json_error:
+        raise AssertionError(f'Failed to parse JSON from gzip log at {log_path}: {json_error}') from json_error
     assert log_data['ambiguous_reason'] == 'phash_decision_ambiguous'
-    assert log_data['ambiguous_candidates'] == ['A', 'B']
+    assert log_data['candidate_guids'] == ['A', 'B']
