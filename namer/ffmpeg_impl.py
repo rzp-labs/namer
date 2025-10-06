@@ -33,7 +33,7 @@ from pathvalidate import ValidationError
 
 from namer.videophash.videophashstash import StashVideoPerceptualHash
 
-from namer.ffmpeg_common import QSVCodecMapper, FFProbeStream, FFProbeResults
+from namer.ffmpeg_common import QSVCodecMapper, FFProbeStream, FFProbeResults, FFProbeFormat
 
 __all__ = ['FFMpeg']
 
@@ -149,7 +149,15 @@ class FFMpeg:
 
             output.append(ff_stream)
 
-        return FFProbeResults(output, ffprobe_out.get('format', {}))
+        # Parse format data into FFProbeFormat object
+        format_data = ffprobe_out.get('format', {})
+        ff_format = FFProbeFormat()
+        ff_format.duration = float(format_data.get('duration', 0))
+        ff_format.size = int(format_data.get('size', 0))
+        ff_format.bit_rate = int(format_data.get('bit_rate', 0))
+        ff_format.tags = format_data.get('tags', {})
+
+        return FFProbeResults(output, ff_format)
 
     def _auto_detect_qsv_decoder(self, file: Path) -> Optional[str]:
         """
