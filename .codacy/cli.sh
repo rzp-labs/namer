@@ -42,8 +42,17 @@ version_file="$CODACY_CLI_V2_TMP_FOLDER/version.yaml"
 
 get_version_from_yaml() {
     if [ -f "$version_file" ]; then
-        local version=$(grep -o 'version: *"[^"]*"' "$version_file" | cut -d'"' -f2)
-        if [ -n "$version" ]; then
+        local version=""
+        # Try yq first if available
+        if command -v yq > /dev/null 2>&1; then
+            version=$(yq e '.version' "$version_file" 2>/dev/null)
+        fi
+        # Fallback to grep/awk with robust parsing
+        if [ -z "$version" ] || [ "$version" = "null" ]; then
+            # Match version: line and extract value, removing quotes
+            version=$(grep -E '^[[:space:]]*version[[:space:]]*:' "$version_file" | awk -F': *' '{print $2}' | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        fi
+        if [ -n "$version" ] && [ "$version" != "null" ]; then
             echo "$version"
             return 0
         fi
@@ -53,14 +62,46 @@ get_version_from_yaml() {
 
 get_latest_version() {
     local response
+    local curl_exit_code
+    
     if [ -n "$GH_TOKEN" ]; then
-        response=$(curl -Lq --header "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/codacy/codacy-cli-v2/releases/latest" 2>/dev/null)
+        response=$(curl -Lq --fail --header "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/codacy/codacy-cli-v2/releases/latest" 2>&1)
+        curl_exit_code=$?
     else
-        response=$(curl -Lq "https://api.github.com/repos/codacy/codacy-cli-v2/releases/latest" 2>/dev/null)
+        response=$(curl -Lq --fail "https://api.github.com/repos/codacy/codacy-cli-v2/releases/latest" 2>&1)
+        curl_exit_code=$?
     fi
 
+    # Check curl exit status
+    if [ $curl_exit_code -ne 0 ]; then
+        echo "Error: Failed to fetch latest version from GitHub API (curl exit code: $curl_exit_code)" >&2
+        echo "Response: $response" >&2
+        fatal "Unable to determine latest Codacy CLI version"
+    fi
+
+    # Check if response is empty
+    if [ -z "$response" ]; then
+        echo "Error: Empty response from GitHub API" >&2
+        fatal "Unable to determine latest Codacy CLI version"
+    fi
+
+    # Check for rate limit before parsing
     handle_rate_limit "$response"
-    local version=$(echo "$response" | grep -m 1 tag_name | cut -d'"' -f4)
+
+    # Validate response contains tag_name
+    if ! echo "$response" | grep -q '"tag_name"'; then
+        echo "Error: GitHub API response does not contain tag_name" >&2
+        echo "Response: $response" >&2
+        fatal "Invalid response from GitHub API"
+    fi
+
+    # Extract version
+    local version=$(echo "$response" | grep -m 1 '"tag_name"' | cut -d'"' -f4)
+    if [ -z "$version" ]; then
+        echo "Error: Failed to parse tag_name from GitHub API response" >&2
+        fatal "Unable to extract version from GitHub API"
+    fi
+
     echo "$version"
 }
 
