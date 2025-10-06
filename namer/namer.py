@@ -64,9 +64,9 @@ def write_ambiguous_metadata(
     candidates_with_names = []
     if search_results:
         guid_to_name = {
-            r.looked_up.guid or r.looked_up.uuid: r.looked_up.name
+            (r.looked_up.guid or r.looked_up.uuid): r.looked_up.name
             for r in search_results.results
-            if r.looked_up and (r.looked_up.guid or r.looked_up.uuid)
+            if r.looked_up and (r.looked_up.guid or r.looked_up.uuid) and r.looked_up.name
         }
         for guid in candidate_ids:
             candidates_with_names.append({'guid': guid, 'name': guid_to_name.get(guid, 'Unknown')})
@@ -84,7 +84,7 @@ def write_ambiguous_metadata(
             ).decode('utf-8')
         )
         logger.info('Wrote ambiguous metadata to {}', ambiguous_note)
-    except Exception as ambiguity_write_error:
+    except (OSError, IOError, orjson.JSONEncodeError) as ambiguity_write_error:
         logger.warning('Unable to write ambiguity metadata for {}: {}', target_file, ambiguity_write_error)
 
 

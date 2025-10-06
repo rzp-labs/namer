@@ -144,7 +144,7 @@ class StashDBProvider(BaseMetadataProvider):
         results = sorted(results, key=self._calculate_match_weight, reverse=True)
         comparison_results = ComparisonResults(results, file_name_parts)
         if ambiguous_reason:
-            deduped_candidates = [candidate for candidate in dict.fromkeys(c for c in ambiguous_candidates if c)]
+            deduped_candidates = list(dict.fromkeys(c for c in ambiguous_candidates if c))
             comparison_results.mark_ambiguous(ambiguous_reason, deduped_candidates)
 
         return comparison_results
