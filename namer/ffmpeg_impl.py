@@ -33,7 +33,7 @@ from pathvalidate import ValidationError
 
 from namer.videophash.videophashstash import StashVideoPerceptualHash
 
-from namer.ffmpeg_common import QSVCodecMapper, FFProbeStream, FFProbeFormat, FFProbeResults
+from namer.ffmpeg_common import QSVCodecMapper, FFProbeStream, FFProbeResults
 
 __all__ = ['FFMpeg']
 
