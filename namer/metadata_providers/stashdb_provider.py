@@ -94,7 +94,7 @@ class StashDBProvider(BaseMetadataProvider):
                                 threshold,
                             )
                             results.clear()
-                            scene_info = None
+                            scene_info: Optional[LookedUpFileInfo] = None
                             for candidate in scenes_with_guid:
                                 if candidate.guid == most_common_guid:
                                     scene_info = candidate
