@@ -410,6 +410,7 @@ field_info: Dict[str, Tuple[str, Optional[Callable[[Optional[str]], Any]], Optio
     'ffmpeg_hwaccel_backend': ('Phash', None, None),
     'ffmpeg_hwaccel_device': ('Phash', None, None),
     'ffmpeg_hwaccel_decoder': ('Phash', None, None),
+    'enabled_tagging': ('metadata', to_bool, from_bool),
     'enabled_poster': ('metadata', to_bool, from_bool),
     'download_type': ('metadata', to_str_list_lower, from_str_list_lower),
     'image_format': ('metadata', None, None),
