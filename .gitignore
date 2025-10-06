@@ -44,3 +44,4 @@ test/integration/media/5-ambiguous/*
 
 # Ignore windsurf AI rules
 .windsurfrules
+test/integration/config/namer.cfg.old
