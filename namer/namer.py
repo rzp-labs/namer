@@ -77,6 +77,7 @@ def write_ambiguous_metadata(
                     'source': str(source_file),
                     'ambiguous_reason': ambiguous_reason or 'phash_decision_ambiguous',
                     'candidates': candidates_with_names if candidates_with_names else [{'guid': g, 'name': 'Unknown'} for g in candidate_ids],
+                    'candidate_guids': candidate_ids,
                 },
                 option=orjson.OPT_INDENT_2,
             ).decode('utf-8')
