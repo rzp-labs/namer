@@ -51,7 +51,7 @@ fi
 
 # Check Node.js version compatibility
 if command -v node &> /dev/null; then
-  NODE_VERSION=$(node -v | cut -d 'v' -f 2)
+  NODE_VERSION=$(node -v | sed 's/^v//')
   MAJOR_VERSION=$(echo "$NODE_VERSION" | cut -d '.' -f 1)
 
   if [ "$MAJOR_VERSION" -lt 22 ]; then

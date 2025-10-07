@@ -155,14 +155,17 @@ class FFMpeg:
         try:
             ff_format.duration = float(format_data.get('duration', -1))
         except (TypeError, ValueError):
+            logger.debug('Unable to parse format duration: %s', format_data.get('duration'))
             ff_format.duration = -1.0
         try:
             ff_format.size = int(format_data.get('size', -1))
         except (TypeError, ValueError):
+            logger.debug('Unable to parse format size: %s', format_data.get('size'))
             ff_format.size = -1
         try:
             ff_format.bit_rate = int(format_data.get('bit_rate', -1))
         except (TypeError, ValueError):
+            logger.debug('Unable to parse format bit_rate: %s', format_data.get('bit_rate'))
             ff_format.bit_rate = -1
         ff_format.tags = format_data.get('tags', {}) or {}
 
