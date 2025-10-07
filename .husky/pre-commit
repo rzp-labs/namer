@@ -1,0 +1,11 @@
+#!/bin/sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Get the repository root directory
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Enforce pnpm usage
+"$REPO_ROOT/scripts/enforce-pnpm.sh"
+
+# Run lint-staged
+pnpm exec lint-staged

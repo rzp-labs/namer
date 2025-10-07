@@ -78,8 +78,9 @@ RUN set -eux; \
   apt-get install -y --no-install-recommends nodejs; \
   # Verify node version is >= 22
   node -v; \
-  # Install pnpm with scripts disabled to avoid executing arbitrary lifecycle scripts
-  npm i -g pnpm@10.0.0 --ignore-scripts; \
+  # Install pnpm directly using corepack
+  corepack enable;
+  corepack prepare pnpm@10.0.0 --activate; \
   rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 RUN mkdir /work/
