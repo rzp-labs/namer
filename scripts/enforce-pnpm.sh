@@ -41,7 +41,7 @@ if [ -f "npm-shrinkwrap.json" ]; then
 fi
 
 # Ensure pnpm is installed
-if ! command -v pnpm &> /dev/null; then
+if ! command -v pnpm &>/dev/null; then
   echo "❌ Error: pnpm is not installed."
   echo "Please install pnpm using corepack:"
   echo "  corepack enable"
@@ -50,7 +50,7 @@ if ! command -v pnpm &> /dev/null; then
 fi
 
 # Check Node.js version compatibility
-if command -v node &> /dev/null; then
+if command -v node &>/dev/null; then
   NODE_VERSION=$(node -v | sed 's/^v//')
   MAJOR_VERSION=$(echo "$NODE_VERSION" | cut -d '.' -f 1)
 
