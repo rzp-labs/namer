@@ -1,0 +1,5 @@
+# Ignore npm-specific files
+package-lock.json
+npm-debug.log
+.npm/
+
