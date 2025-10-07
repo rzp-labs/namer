@@ -1,8 +1,17 @@
 #!/bin/bash
 
 # Script to enforce pnpm usage and prevent npm usage
+#
+# To bypass this check in CI environments, set SKIP_PNPM_CHECK=1 before running:
+# SKIP_PNPM_CHECK=1 ./scripts/enforce-pnpm.sh
 
 set -e
+
+# Skip check if SKIP_PNPM_CHECK is set to 1
+if [ "${SKIP_PNPM_CHECK:-0}" = "1" ]; then
+  echo "⚠️ Skipping pnpm check as SKIP_PNPM_CHECK=1"
+  exit 0
+fi
 
 # Check if package-lock.json exists
 if [ -f "package-lock.json" ]; then
@@ -33,4 +42,3 @@ fi
 
 echo "✅ pnpm check passed."
 exit 0
-
