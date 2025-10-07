@@ -4,12 +4,12 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 ## Project Overview
 
-**Namer** is a Python application for renaming and tagging adult video files using metadata from ThePornDB. It operates in three main modes:
+**Namer** is a Python application for renaming and tagging adult video files using metadata from StashDB or ThePornDB. It operates in three main modes:
 - **Command-line tool**: Rename individual files or directories
 - **Watchdog service**: Monitor directories for new files and process them automatically  
 - **Web UI**: Manual matching interface for files that couldn't be auto-matched
 
-The application uses perceptual hashing and filename parsing to match video files against ThePornDB's database.
+The application uses perceptual hashing and filename parsing to match video files against metadata provider databases (StashDB by default, ThePornDB as alternative).
 
 ## Essential Development Commands
 
@@ -60,6 +60,12 @@ python -m namer url
 
 # Generate perceptual hash
 python -m namer hash -f /path/to/file.mp4
+
+# Clear cached hashes for files matching pattern
+python -m namer clear-cache <filename_pattern>
+
+# Use custom config file
+python -m namer --config /path/to/config.cfg watchdog
 ```
 
 ### Development Tools
@@ -85,8 +91,8 @@ poetry run coverage html
 ### Key Processing Flow
 1. **File Input** → Command object creation (`namer/command.py`)
 2. **Name Parsing** → Extract site, date, scene info (`namer/fileinfo.py`)
-3. **Hash Calculation** → Generate perceptual hashes (`namer/videophash/`)
-4. **API Matching** → Query ThePornDB via GraphQL (`namer/metadata_providers/theporndb_provider.py`)
+3. **Hash Calculation** → Generate perceptual hashes (`namer/videohashes.py`)
+4. **API Matching** → Query metadata provider via GraphQL (`namer/metadata_providers/`)
 5. **Result Comparison** → Rank matches by similarity (`namer/comparison_results.py`)
 6. **File Operations** → Rename, tag, move files (`namer/command.py`)
 
@@ -104,7 +110,8 @@ poetry run coverage html
 ### External Dependencies
 - **Videohashes**: Git submodule with Go tools for perceptual hashing
 - **FFmpeg**: External binary for video analysis via `namer/ffmpeg.py`
-- **ThePornDB GraphQL API**: Remote GraphQL service for metadata lookup (migrated from REST API)
+- **StashDB GraphQL API**: Primary metadata provider (recommended, default)
+- **ThePornDB GraphQL API**: Alternative metadata provider (opt-in via config)
 
 ## File Organization Patterns
 
@@ -115,15 +122,17 @@ namer/
 ├── namer.py                 # File processing core
 ├── watchdog.py              # Directory monitoring  
 ├── command.py               # File operations & Command dataclass
-├── configuration.py         # Config dataclass & validation
+├── configuration.py         # Config dataclass
+├── configuration_utils.py   # Config loading & validation
 ├── fileinfo.py              # Filename parsing logic
-├── metadataapi.py           # Legacy API routing (deprecated REST functions)
+├── metadataapi.py           # Legacy API utilities
 ├── metadata_providers/      # Metadata provider implementations
+│   ├── stashdb_provider.py  # StashDB GraphQL provider (default)
 │   ├── theporndb_provider.py # ThePornDB GraphQL provider
 │   ├── factory.py           # Provider factory
 │   └── provider.py          # Base provider interface
 ├── comparison_results.py    # Match ranking & results
-├── videophash/              # Perceptual hashing tools
+├── videohashes.py           # Perceptual hashing interface
 ├── web/                     # Flask web interface
 ├── models/                  # Database models (optional)
 └── tools/                   # External Go binaries (built)
@@ -146,9 +155,12 @@ namer/
 
 ### Essential Setup
 1. **Copy default config**: `cp namer/namer.cfg.default ~/.namer.cfg` 
-2. **Get API token**: Register at https://theporndb.net/register
-3. **Set directories**: Configure watch/work/failed/dest directories
-4. **Permissions**: Set appropriate file/directory permissions for your system
+2. **Get API token**: 
+   - StashDB (recommended): Register at https://stashdb.org/register
+   - ThePornDB (alternative): Register at https://theporndb.net/register
+3. **Set environment variable**: `export STASHDB_TOKEN=your_token` or `export TPDB_TOKEN=your_token`
+4. **Set directories**: Configure watch/work/failed/dest directories
+5. **Permissions**: Set appropriate file/directory permissions for your system
 
 ### Directory Structure (Watchdog Mode)
 - **watch_dir**: Where new files are detected
@@ -157,8 +169,8 @@ namer/
 - **dest_dir**: Final location for successfully processed files
 
 ### Critical Config Sections
-- **[namer]**: File naming templates and processing options
-- **[Phash]**: Perceptual hash settings (enabled by default)
+- **[namer]**: File naming templates, processing options, and metadata provider selection (`metadata_provider = stashdb` or `theporndb`)
+- **[Phash]**: Perceptual hash settings and disambiguation thresholds (enabled by default)
 - **[metadata]**: MP4 tagging and .nfo file generation
 - **[watchdog]**: Directory monitoring and web UI settings
 
@@ -243,8 +255,10 @@ poetry run pytest test/ -k "test_filename" -v
 - **Test cases**: `test/namer_file_parser_test.py`
 
 ### API Integration  
-- **Client**: `metadataapi.py` → `match()` function
-- **Caching**: HTTP request cache in `configuration.py`
+- **Provider Factory**: `metadata_providers/factory.py` → `get_metadata_provider()`
+- **StashDB Provider**: `metadata_providers/stashdb_provider.py`
+- **ThePornDB Provider**: `metadata_providers/theporndb_provider.py`
+- **Caching**: HTTP request cache configured in `configuration.py`
 - **Mock responses**: `test/*.json` files
 
 ### Web Interface
@@ -253,9 +267,9 @@ poetry run pytest test/ -k "test_filename" -v
 - **Frontend build**: Root `webpack.prod.js` and `package.json`
 
 ### Perceptual Hashing
-- **Python interface**: `videophash/videophash.py`
+- **Python interface**: `namer/videohashes.py`
 - **Go implementation**: `videohashes/` submodule  
-- **Alternative tools**: `videophash/videophashstash.py` for Stash integration
+- **Built binaries**: `namer/tools/` (copied during build)
 
 ### Configuration Management
 - **Loading**: `configuration_utils.py` → `default_config()`
