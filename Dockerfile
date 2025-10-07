@@ -77,7 +77,7 @@ RUN set -eux; \
   apt-get update; \
   apt-get install -y --no-install-recommends nodejs; \
   # Verify node version is >= 22
-  node -v; \
+  node -v && \
   # Install pnpm directly using corepack
   corepack enable && \
   corepack prepare pnpm@10.0.0 --activate && \
