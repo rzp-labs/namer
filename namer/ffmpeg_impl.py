@@ -33,7 +33,7 @@ from pathvalidate import ValidationError
 
 from namer.videophash.videophashstash import StashVideoPerceptualHash
 
-from namer.ffmpeg_common import QSVCodecMapper, FFProbeStream, FFProbeResults
+from namer.ffmpeg_common import QSVCodecMapper, FFProbeStream, FFProbeFormat, FFProbeResults
 
 __all__ = ['FFMpeg']
 
@@ -100,6 +100,7 @@ class FFMpeg:
         if not streams:
             return None
 
+        output = []
         for stream in streams:
             ff_stream = FFProbeStream()
             ff_stream.bit_rate = -1
@@ -146,7 +147,29 @@ class FFMpeg:
                 if numer != 0 and denom != 0:
                     ff_stream.avg_frame_rate = numer / denom
 
-            # This line was causing an undefined name error and was part of removed code
+            output.append(ff_stream)
+
+        # Create FFProbeFormat from format data
+        format_data = ffprobe_out.get('format', {})
+        ff_format = FFProbeFormat()
+        try:
+            ff_format.duration = float(format_data.get('duration', -1))
+        except (TypeError, ValueError):
+            logger.debug('Unable to parse format duration: %s', format_data.get('duration'))
+            ff_format.duration = -1.0
+        try:
+            ff_format.size = int(format_data.get('size', -1))
+        except (TypeError, ValueError):
+            logger.debug('Unable to parse format size: %s', format_data.get('size'))
+            ff_format.size = -1
+        try:
+            ff_format.bit_rate = int(format_data.get('bit_rate', -1))
+        except (TypeError, ValueError):
+            logger.debug('Unable to parse format bit_rate: %s', format_data.get('bit_rate'))
+            ff_format.bit_rate = -1
+        ff_format.tags = format_data.get('tags', {}) or {}
+
+        return FFProbeResults(output, ff_format)
 
     def _auto_detect_qsv_decoder(self, file: Path) -> Optional[str]:
         """

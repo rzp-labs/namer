@@ -5,6 +5,11 @@
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 
 # Enforce pnpm usage
+if [ ! -x "$REPO_ROOT/scripts/enforce-pnpm.sh" ]; then
+	echo "❌ Error: enforce-pnpm.sh not found or not executable"
+	exit 1
+fi
+
 "$REPO_ROOT/scripts/enforce-pnpm.sh"
 
 # Run lint-staged
