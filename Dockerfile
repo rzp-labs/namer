@@ -79,8 +79,8 @@ RUN set -eux; \
   # Verify node version is >= 22
   node -v; \
   # Install pnpm directly using corepack
-  corepack enable;
-  corepack prepare pnpm@10.0.0 --activate; \
+  corepack enable && \
+  corepack prepare pnpm@10.0.0 --activate && \
   rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 RUN mkdir /work/
