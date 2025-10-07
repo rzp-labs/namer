@@ -164,7 +164,7 @@ class ComparisonResult:
            raise FileNotFoundError(f"File not found: {file_path}")
 
        if not path_obj.is_file():
-           raise ValueError(f"Not a file: {file_path}")
+           raise FileNotFoundError(f"Not a file: {file_path}")
 
        # Store absolute path
        self.file_path = str(path_obj.resolve())
@@ -204,14 +204,14 @@ def test_comparison_result_validates_path(tmp_path):
     assert result.file_path == str(valid_file.resolve())
 
 def test_comparison_result_rejects_missing_file():
-    with pytest.raises(ValueError, match="File not found"):
+    with pytest.raises(FileNotFoundError, match="File not found"):
         ComparisonResult("/nonexistent/file.mp4", match_score=0.95)
 
 def test_comparison_result_rejects_directory(tmp_path):
     directory = tmp_path / "videos"
     directory.mkdir()
 
-    with pytest.raises(ValueError, match="Not a file"):
+    with pytest.raises(FileNotFoundError, match="Not a file"):
         ComparisonResult(str(directory), match_score=0.95)
 
 def test_comparison_result_stores_absolute_path(tmp_path):
@@ -518,7 +518,9 @@ grep "phash_confidence" test-output.log
 
 #### Confidence Formula Validation
 
-The confidence calculation formula must satisfy specific mathematical properties to ensure reliable phash matching:
+The confidence calculation formula must satisfy specific mathematical properties to ensure reliable phash matching.
+
+**Note:** The threshold parameter must be positive (>0). The function raises `ValueError` when `threshold <= 0`.
 
 **Required Properties:**
 
@@ -564,9 +566,12 @@ def test_confidence_formula_properties():
 
 def test_confidence_formula_edge_cases():
     """Test edge cases and boundary conditions."""
-    # Zero threshold (degenerate case)
-    assert calculate_phash_confidence(0, 0) == 1.0
-    assert calculate_phash_confidence(1, 0) == 0.0
+    # Zero threshold (invalid - must be positive)
+    with pytest.raises(ValueError, match="Threshold must be positive"):
+        calculate_phash_confidence(0, 0)
+    
+    with pytest.raises(ValueError, match="Threshold must be positive"):
+        calculate_phash_confidence(1, 0)
 
     # Very large threshold
     large_threshold = 1000
