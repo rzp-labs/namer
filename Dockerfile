@@ -108,31 +108,37 @@ RUN rm -rf /work/namer/__pycache__/ || true \
 # Build dependencies (node, optional submodule), then fetch videohashes binary, then build package
 RUN bash -lc "( Xvfb :99 & cd /work/ && poetry run poe build_deps )"
 # Build videohashes from git submodule
-# The videohashes submodule is already present in the build context from COPY
+# The submodule content is already present from COPY . /work
 RUN set -eux; \
   cd /work; \
   mkdir -p namer/tools; \
-  # Verify videohashes submodule is present
-  ls -la videohashes/; \
-  # Build videohashes for the current architecture
+  # Verify submodule is present
+  test -d videohashes/cmd || { echo "videohashes submodule missing" >&2; exit 1; }; \
+  # Determine architecture and set target file
   ARCH=$(dpkg --print-architecture); \
   case "$ARCH" in \
-  amd64) \
-    make -C ./videohashes linux-amd64; \
-    cp ./videohashes/dist/videohashes-amd64-linux ./namer/tools/; \
-    chmod +x ./namer/tools/videohashes-amd64-linux; \
-    # Sanity check the produced binary looks like an x86_64 ELF
-    file ./namer/tools/videohashes-amd64-linux | grep -E 'ELF 64-bit.*x86-64' >/dev/null; \
-    ;; \
-  arm64) \
-    make -C ./videohashes linux-arm64; \
-    cp ./videohashes/dist/videohashes-arm64-linux ./namer/tools/; \
-    chmod +x ./namer/tools/videohashes-arm64-linux; \
-    # Sanity check the produced binary looks like an aarch64 ELF
-    file ./namer/tools/videohashes-arm64-linux | grep -E 'ELF 64-bit.*aarch64' >/dev/null; \
-    ;; \
-  *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;; \
+    amd64) \
+      MAKE_TARGET="linux-amd64"; \
+      TARGET_FILE="videohashes-amd64-linux"; \
+      ELF_PATTERN="ELF 64-bit.*x86-64"; \
+      ;; \
+    arm64) \
+      MAKE_TARGET="linux-arm64"; \
+      TARGET_FILE="videohashes-arm64-linux"; \
+      ELF_PATTERN="ELF 64-bit.*aarch64"; \
+      ;; \
+    *) \
+      echo "Unsupported architecture: $ARCH" >&2; \
+      exit 1; \
+      ;; \
   esac; \
+  # Build videohashes
+  make -C ./videohashes "$MAKE_TARGET" || { echo "videohashes build failed" >&2; exit 1; }; \
+  # Copy and validate binary
+  cp "./videohashes/dist/$TARGET_FILE" "./namer/tools/" || { echo "Failed to copy $TARGET_FILE" >&2; exit 1; }; \
+  chmod +x "./namer/tools/$TARGET_FILE"; \
+  # Verify binary is correct ELF type
+  file "./namer/tools/$TARGET_FILE" | grep -E "$ELF_PATTERN" >/dev/null || { echo "Binary validation failed for $TARGET_FILE" >&2; exit 1; }; \
   ls -l namer/tools
 RUN bash -lc "( cd /work/ && poetry run poe build_namer )"
 FROM base
