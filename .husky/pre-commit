@@ -1,7 +1,10 @@
 #!/bin/sh
 
+# Get the repository root directory
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
 # Enforce pnpm usage
-./scripts/enforce-pnpm.sh
+"$REPO_ROOT/scripts/enforce-pnpm.sh"
 
 # Run lint-staged
 pnpm lint-staged
