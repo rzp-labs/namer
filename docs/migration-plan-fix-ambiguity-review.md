@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document outlines the migration strategy for incorporating 9 commits from the `fix/ambiguity-review` branch into `main`. The plan prioritizes **atomic PRs**, **parallel development**, and **minimal merge conflicts** by organizing work into independent workstreams.
+This document outlines the migration strategy for incorporating 10 commits from the `fix/ambiguity-review` branch into `main`. The plan prioritizes **atomic PRs**, **parallel development**, and **minimal merge conflicts** by organizing work into independent workstreams.
 
 **Key Metrics:**
 
@@ -22,7 +22,7 @@ This document outlines the migration strategy for incorporating 9 commits from t
 ```bash
 # Confirm branch exists and has expected commits
 git checkout fix/ambiguity-review
-git log --oneline main..fix/ambiguity-review | wc -l  # Should output: 9
+git log --oneline main..fix/ambiguity-review | wc -l  # Should output: 10
 
 # Record common ancestor
 git merge-base fix/ambiguity-review main
@@ -31,7 +31,7 @@ git merge-base fix/ambiguity-review main
 git diff main...fix/ambiguity-review --stat
 ```
 
-**Expected Output:** ~15-20 files changed across the 9 commits listed below.
+**Expected Output:** ~15-20 files changed across the 10 commits listed below.
 
 ### 2. Check for Overlapping Changes
 
