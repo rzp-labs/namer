@@ -81,8 +81,9 @@ build_node = { shell = "pnpm run build" }
 install_videohashes_src = { shell = "command -v git >/dev/null 2>&1 && git submodule update --init --recursive || echo 'Skipping git sub module update'" }
 build_videohashes = { shell = "ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && OS=$(uname -s | tr '[:upper:]' '[:lower:]') && if [ -d ./videohashes ] && [ -f ./videohashes/Makefile ]; then mkdir -p ./videohashes/dist && if [ \"$OS\" = \"darwin\" ]; then make macos-$ARCH -C ./videohashes; else make linux-$ARCH -C ./videohashes; fi; else echo 'Skipping videohashes build (submodule/Makefile not present)'; fi" }
 move_videohashes = { shell = "if [ -d ./videohashes/dist ]; then mkdir -p ./namer/tools && cp -r ./videohashes/dist/* ./namer/tools/; else echo 'Skipping copy (dist missing)'; fi" }
-build_namer = { shell = "poetry build" }
 build_deps = ["install_npm", "build_node", "install_videohashes_src", "build_videohashes", "move_videohashes"]
+# Docker builds use this variant since videohashes is built separately in a dedicated RUN step
+build_deps_no_videohashes = ["install_npm", "build_node"]
 test_format = { shell = "poetry run ruff check ." }
 test_namer = { shell = 'poetry run pytest --log-cli-level=info --capture=no -m "not slow"' }
 test_namer_slow = { shell = 'poetry run pytest --log-cli-level=info --capture=no -m "slow"' }

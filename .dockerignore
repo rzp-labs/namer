@@ -26,6 +26,8 @@ docs/
 # Development and build artifacts
 .git
 # Note: videohashes/ directory is NOT excluded - it's needed for Docker build
+# Explicitly allow videohashes submodule in build context
+!videohashes/
 *.pyc
 *.pyo
 *.pyd
