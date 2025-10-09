@@ -51,14 +51,17 @@ git push
 git tag v"${new_version}" main
 git push origin v"${new_version}"
 
-echo building docker image
-BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-GIT_HASH=$(git rev-parse --verify HEAD)
-docker build . --build-arg "BUILD_DATE=${BUILD_DATE}" --build-arg "GITHASH=${GIT_HASH}" -t "${repo}"/namer:"${new_version}"
-
 echo logging into ghcr.io
 gh auth token | docker login ghcr.io -u nehpz --password-stdin
-docker tag "${repo}"/namer:"${new_version}" ghcr.io/"${repo}"/namer:"${new_version}"
-docker tag "${repo}"/namer:"${new_version}" ghcr.io/"${repo}"/namer:latest
-docker push ghcr.io/"${repo}"/namer:"${new_version}"
-docker push ghcr.io/"${repo}"/namer:latest
+
+echo building and pushing multi-platform docker images
+BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+GIT_HASH=$(git rev-parse --verify HEAD)
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --build-arg "BUILD_DATE=${BUILD_DATE}" \
+  --build-arg "GITHASH=${GIT_HASH}" \
+  -t ghcr.io/"${repo}"/namer:"${new_version}" \
+  -t ghcr.io/"${repo}"/namer:latest \
+  --push \
+  .
