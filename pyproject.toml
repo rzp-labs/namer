@@ -84,6 +84,7 @@ move_videohashes = { shell = "if [ -d ./videohashes/dist ]; then mkdir -p ./name
 build_deps = ["install_npm", "build_node", "install_videohashes_src", "build_videohashes", "move_videohashes"]
 # Docker builds use this variant since videohashes is built separately in a dedicated RUN step
 build_deps_no_videohashes = ["install_npm", "build_node"]
+build_namer = { shell = "poetry build" }
 test_format = { shell = "poetry run ruff check ." }
 test_namer = { shell = 'poetry run pytest --log-cli-level=info --capture=no -m "not slow"' }
 test_namer_slow = { shell = 'poetry run pytest --log-cli-level=info --capture=no -m "slow"' }
