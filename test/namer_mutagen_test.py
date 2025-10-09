@@ -23,6 +23,7 @@ from test.namer_metadataapi_test import environment
 
 _SOURCE_SAMPLE = 'Site.22.01.01.painful.pun.XXX.720p.xpost.mp4'
 _POSTER_SAMPLE = 'poster.png'
+_TARGET_SAMPLE = 'EvilAngel.22.01.03.Carmela.Clutch.Fabulous.Anal.3-Way.XXX.mp4'
 
 
 def _prepare_sample(
@@ -31,6 +32,7 @@ def _prepare_sample(
     *,
     destination_name: str,
     include_poster: bool = True,
+    collect_info: bool = True,
 ):
     """Copy sample assets into temp_dir and return target path, poster, and match info."""
     test_dir = Path(__file__).resolve().parent
@@ -43,8 +45,10 @@ def _prepare_sample(
         poster = temp_dir / _POSTER_SAMPLE
         shutil.copy(test_dir / _POSTER_SAMPLE, poster)
 
-    name_parts = parse_file_name(target_file.name, config)
-    info = match(name_parts, config)
+    info = None
+    if collect_info:
+        name_parts = parse_file_name(target_file.name, config)
+        info = match(name_parts, config)
     return target_file, poster, info
 
 
@@ -94,7 +98,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             target_file, poster, info = _prepare_sample(
                 temp_dir,
                 config,
-                destination_name='EvilAngel.22.01.03.Carmela.Clutch.Fabulous.Anal.3-Way.XXX.mp4',
+                destination_name=_TARGET_SAMPLE,
             )
             ffprobe_results = FFMpeg(skip_validation=True).ffprobe(target_file)
             update_mp4_file(target_file, info.results[0].looked_up, poster, ffprobe_results, NamerConfig())
@@ -143,7 +147,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             target_file, _poster, info = _prepare_sample(
                 temp_dir,
                 config,
-                destination_name='EvilAngel.22.01.03.Carmela.Clutch.Fabulous.Anal.3-Way.XXX.mp4',
+                destination_name=_TARGET_SAMPLE,
                 include_poster=False,
             )
             ffprobe_results = FFMpeg(skip_validation=True).ffprobe(target_file)
@@ -156,7 +160,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
         available on scene requests to the porndb using uuid to request scene information.
         """
         with environment() as (temp_dir, _parrot, config):
-            targetfile = temp_dir / 'test' / 'EvilAngel.22.01.03.Carmela.Clutch.Fabulous.Anal.3-Way.XXX.mp4'
+            targetfile = temp_dir / 'test' / _TARGET_SAMPLE
             poster = None
             name_parts = parse_file_name(targetfile.name, config)
             info = match(name_parts, config)
@@ -174,7 +178,9 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             target_file, _poster, _info = _prepare_sample(
                 temp_dir / 'test',
                 NamerConfig(),
-                destination_name='EvilAngel.22.01.03.Carmela.Clutch.Fabulous.Anal.3-Way.XXX.mp4',
+                destination_name=_TARGET_SAMPLE,
+                collect_info=False,
+                include_poster=False,
             )
             info = LookedUpFileInfo()
             ffprobe_results = FFMpeg(skip_validation=True).ffprobe(target_file)
