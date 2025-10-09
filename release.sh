@@ -19,26 +19,9 @@ if [[ "$found" == false ]]; then
   exit 1
 fi
 
-source ./creds.sh
-
 CLEAN=$(git diff-index --quiet HEAD; echo $?)
 if [[ "${CLEAN}" != "0" ]]; then
   echo "Your git repo is not clean, can't release."
-  exit 1
-fi
-
-if [[ -z ${PYPI_TOKEN} ]]; then
-  echo "PYPI_TOKEN not set, make sure you have a token for this project set in a local creds.sh file (it's git ignored)"
-  exit 1
-fi
-
-if [[ -z ${GITHUB_TOKEN} ]]; then
-  echo "GITHUB_TOKEN not set, make sure you have a token for this project set in a local creds.sh file (it's git ignored)"
-  exit 1
-fi
-
-if [[ -z ${GITHUB_USERNAME} ]]; then
-  echo "GITHUB_USERNAME not set, make sure you have a username set in creds.sh"
   exit 1
 fi
 
@@ -62,22 +45,19 @@ pnpm run build
 
 poetry build
 
-echo build docker image before publishing pip
-BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-GIT_HASH=$(git rev-parse --verify HEAD)
-docker build . --build-arg "BUILD_DATE=${BUILD_DATE}" --build-arg "GITHASH=${GIT_HASH}" -t "${repo}"/namer:"${new_version}"
-
-echo publishing pip to poetry
-poetry config pypi-token.pypi "${PYPI_TOKEN}"
-poetry publish
-
 echo pushing new git tag v"${new_version}"
 git commit -m "prepare release v${new_version}"
 git push
 git tag v"${new_version}" main
 git push origin v"${new_version}"
 
-printf '%s' "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_USERNAME}" --password-stdin
+echo building docker image
+BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+GIT_HASH=$(git rev-parse --verify HEAD)
+docker build . --build-arg "BUILD_DATE=${BUILD_DATE}" --build-arg "GITHASH=${GIT_HASH}" -t "${repo}"/namer:"${new_version}"
+
+echo logging into ghcr.io
+gh auth token | docker login ghcr.io -u nehpz --password-stdin
 docker tag "${repo}"/namer:"${new_version}" ghcr.io/"${repo}"/namer:"${new_version}"
 docker tag "${repo}"/namer:"${new_version}" ghcr.io/"${repo}"/namer:latest
 docker push ghcr.io/"${repo}"/namer:"${new_version}"
