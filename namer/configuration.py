@@ -22,6 +22,36 @@ from namer.videophash.videophashstash import StashVideoPerceptualHash
 TPDB_TOKEN_MISSING_PLACEHOLDER = 'TPDB token not configured; visit https://theporndb.net/register to obtain one.'  # nosec B105
 STASHDB_TOKEN_MISSING_PLACEHOLDER = 'StashDB token not configured; add it in settings.'  # nosec B105
 
+# Truthy values for environment variable parsing
+_TRUTHY = {'1', 'true', 'yes', 'on'}
+
+
+def _env_truthy(name: str, default: str = 'false') -> bool:
+    """Check if an environment variable is set to a truthy value."""
+    return str(os.getenv(name, default)).strip().lower() in _TRUTHY
+
+
+def _ffmpeg_should_skip_validation() -> bool:
+    """
+    Determine if FFmpeg validation should be skipped.
+    
+    Primary control: NAMER_SKIP_FFMPEG_VALIDATION environment variable.
+    Conservative fallback: Detect pytest via process name (sys.argv[0]).
+    
+    Returns:
+        True if FFmpeg validation should be skipped, False otherwise.
+    """
+    # Explicit control for tests/CI
+    if _env_truthy('NAMER_SKIP_FFMPEG_VALIDATION'):
+        return True
+    
+    # Conservative best-effort: invoked via pytest
+    argv0 = os.path.basename(sys.argv[0] or '')
+    if argv0.startswith('pytest') or argv0.startswith('py.test'):
+        return True
+    
+    return False
+
 
 class ImageDownloadType(str, Enum):
     POSTER = 'poster'
@@ -572,9 +602,9 @@ class NamerConfig:
     if you are going to check an logs you share for your token.
     """
 
-    # Skip FFmpeg validation in test environments to avoid requiring ffmpeg binary during tests
-    # Can be overridden with NAMER_SKIP_FFMPEG_VALIDATION environment variable
-    ffmpeg: FFMpeg = FFMpeg(skip_validation=os.getenv('NAMER_SKIP_FFMPEG_VALIDATION', 'false').lower() == 'true' or 'pytest' in sys.modules)
+    # Skip FFmpeg validation primarily via NAMER_SKIP_FFMPEG_VALIDATION env var,
+    # with conservative best-effort pytest CLI detection. Avoids brittle sys.modules checks.
+    ffmpeg: FFMpeg = FFMpeg(skip_validation=_ffmpeg_should_skip_validation())
     vph: VideoPerceptualHash = StashVideoPerceptualHash()  # type: ignore
     vph_alt: VideoPerceptualHash = VideoPerceptualHash(ffmpeg)
     re_cleanup: List[Pattern] = field(init=False, default_factory=list)
