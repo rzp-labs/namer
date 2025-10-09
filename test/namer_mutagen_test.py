@@ -164,7 +164,8 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
             poster = None
             name_parts = parse_file_name(targetfile.name, config)
             info = match(name_parts, config)
-            ffprobe_results = FFMpeg(skip_validation=True).ffprobe(targetfile)
+            # Test with non-existent file - pass None for ffprobe_results
+            ffprobe_results = None
             update_mp4_file(targetfile, info.results[0].looked_up, poster, ffprobe_results, config)
             self.assertFalse(targetfile.exists())
 

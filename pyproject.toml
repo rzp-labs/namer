@@ -42,6 +42,8 @@ numpy = "^2.3"
 scipy = "^1.16"
 orjson = "^3.10"
 defusedxml = "^0.7"
+# Pin attrs/cattrs <25 due to breaking changes in serialization behavior with jsonpickle
+# See: https://github.com/python-attrs/attrs/releases/tag/25.0.0
 attrs = "<25.0.0"
 cattrs = "<25.0.0"
 

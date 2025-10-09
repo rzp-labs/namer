@@ -572,7 +572,9 @@ class NamerConfig:
     if you are going to check an logs you share for your token.
     """
 
-    ffmpeg: FFMpeg = FFMpeg(skip_validation='pytest' in sys.modules)
+    # Skip FFmpeg validation in test environments to avoid requiring ffmpeg binary during tests
+    # Can be overridden with NAMER_SKIP_FFMPEG_VALIDATION environment variable
+    ffmpeg: FFMpeg = FFMpeg(skip_validation=os.getenv('NAMER_SKIP_FFMPEG_VALIDATION', 'false').lower() == 'true' or 'pytest' in sys.modules)
     vph: VideoPerceptualHash = StashVideoPerceptualHash()  # type: ignore
     vph_alt: VideoPerceptualHash = VideoPerceptualHash(ffmpeg)
     re_cleanup: List[Pattern] = field(init=False, default_factory=list)
