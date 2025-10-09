@@ -25,6 +25,8 @@ docs/
 
 # Development and build artifacts
 .git/
+# EXCEPTION: Include videohashes submodule directory (needed for Docker build)
+!videohashes/
 *.pyc
 *.pyo
 *.pyd
