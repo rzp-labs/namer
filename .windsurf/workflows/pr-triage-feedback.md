@@ -1,5 +1,5 @@
 ---
-description: auto_execution_mode: 1
+description: "Trigger the review-pr-comments rule after PR review is complete"
 auto_execution_mode: 3
 ---
 
