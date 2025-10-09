@@ -112,7 +112,6 @@ jobs:
     name: Static Analysis
     runs-on: ubuntu-latest
     needs: validate
-    continue-on-error: true
     timeout-minutes: 25
     steps:
       - name: Checkout
@@ -192,6 +191,7 @@ jobs:
         with:
           dockerfile: Dockerfile
           output-file: hadolint.log
+          failure-threshold: error
 
       - name: Upload static analysis results
         if: always()
