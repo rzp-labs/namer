@@ -6,7 +6,7 @@ Historically this file duplicated the production implementation in
 related typed results for local development.
 """
 
-from namer.ffmpeg_impl import FFMpeg, FFProbeResults, FFProbeStream
-from namer.ffmpeg_common import FFProbeFormat
+from namer.ffmpeg_impl import FFMpeg
+from namer.ffmpeg_common import FFProbeFormat, FFProbeResults, FFProbeStream
 
 __all__ = ['FFMpeg', 'FFProbeResults', 'FFProbeStream', 'FFProbeFormat']
