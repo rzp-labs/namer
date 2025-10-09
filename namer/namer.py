@@ -24,7 +24,7 @@ from namer.configuration import ImageDownloadType, NamerConfig
 from namer.configuration_utils import default_config, verify_configuration
 from namer.command import make_command, move_command_files, move_to_final_location, set_permissions, write_log_file
 from namer.database import search_file_in_database, write_file_to_database
-from namer.ffmpeg import FFProbeResults, FFMpeg
+from namer.ffmpeg import FFProbeResults
 from namer.fileinfo import FileInfo
 from namer.http import Http
 import namer.metadataapi as metadataapi
@@ -208,7 +208,7 @@ def process_file(command: Command) -> Optional[Command]:
         # convert container type if requested.
         if command.config.convert_container_to and command.target_movie_file.suffix != command.config.convert_container_to:
             new_loc = command.target_movie_file.parent.joinpath(Path(command.target_movie_file.stem + '.' + command.config.convert_container_to))
-            if FFMpeg().convert(command.target_movie_file, new_loc):
+            if command.config.ffmpeg.convert(command.target_movie_file, new_loc):
                 command.target_movie_file = new_loc
                 if command.parsed_file:
                     command.parsed_file.extension = command.config.convert_container_to
