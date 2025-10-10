@@ -9,7 +9,7 @@
   "scripts": {
     "prepare": "husky",
     "build": "webpack --config webpack.prod.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"No JavaScript tests configured yet - use 'poetry run pytest' for Python tests\""
   },
   "dependencies": {
     "@popperjs/core": "^2.11.8",
@@ -60,5 +60,5 @@
     "node": "^22.0",
     "pnpm": "^10.0"
   },
-  "packageManager": "pnpm@10.0.0"
+  "packageManager": "pnpm@10.18.2"
 }

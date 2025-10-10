@@ -18,7 +18,6 @@ namer/web/templates
 namer/tools
 .flakeheaven_cache
 .ruff_cache
-database/
 .pytest_cache/
 test_config.cfg
 .coderabbit/
@@ -42,8 +41,19 @@ test/integration/media/3-dest/*
 test/integration/media/4-failed/*
 test/integration/media/5-ambiguous/*
 
-# Ignore windsurf AI rules
-.windsurfrules
+# Temporary files and debugging
+/temp/
+temp/
+**/temp/
+debug-*.js
+test-*.py
+analyze-*.sh
+*-debug.*
+*.debug
+
+# Claude settings
+.claude/settings.local.json
+
 test/integration/config/namer.cfg.old
 test/integration/config/namer.cfg
 
