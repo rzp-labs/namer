@@ -70,15 +70,15 @@ Examples:
 
 ## Example Configuration
 
+Add the timeout settings to your `.claude/settings.json`:
+
 ```json
 {
   "env": {
     "BASH_DEFAULT_TIMEOUT_MS": "600000",
     "BASH_MAX_TIMEOUT_MS": "1200000"
   },
-  "hooks": {
-    // existing hooks configuration...
-  }
+  "hooks": {}
 }
 ```
 

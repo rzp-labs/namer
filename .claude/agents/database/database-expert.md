@@ -189,7 +189,7 @@ Based on detected environment, I'll provide database-specific solutions:
 
 ### MySQL Focus Areas:
 - InnoDB optimization and buffer pool tuning
-- Query cache configuration
+- Performance Schema and monitoring for query diagnostics
 - Replication and clustering
 - Storage engine selection
 

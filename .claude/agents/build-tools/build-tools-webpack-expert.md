@@ -491,6 +491,7 @@ function processSourceAsync(source, options) {
 ```javascript
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 const SpeedMeasurePlugin = require('speed-measure-webpack-plugin');
+const CompressionPlugin = require('compression-webpack-plugin');
 
 const smp = new SpeedMeasurePlugin();
 

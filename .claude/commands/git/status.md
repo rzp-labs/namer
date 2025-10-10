@@ -15,9 +15,9 @@ Be concise. Skip verbose explanations of what commands you're running. Focus on 
 ## Instructions for Claude:
 
 1. Run all git commands in a single bash call for speed:
-!git status --porcelain=v1 && echo "---" && git diff --stat 2>/dev/null && echo "---" && git branch -vv | grep "^\*" && echo "---" && git log --oneline -1 && echo "---" && git diff --cached --stat 2>/dev/null
+git status --porcelain=v1 && echo "---" && git diff --stat 2>/dev/null && echo "---" && git branch -vv | grep "^\*" && echo "---" && (git log --oneline -1 2>/dev/null || echo "(no commits yet)") && echo "---" && git diff --cached --stat 2>/dev/null
 
-Note: The output will be separated by "---" markers. Parse each section accordingly.
+2. Note: The output will be separated by "---" markers. Parse each section accordingly.
 
 3. Provide results directly without explaining the process:
    - **Summary**: Brief overview of the current state

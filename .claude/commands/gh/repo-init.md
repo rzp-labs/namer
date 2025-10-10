@@ -43,9 +43,9 @@ echo "A new repository created with GitHub CLI." >> README.md
 git add README.md
 git commit -m "Initial commit"
 
-# Add remote origin (using SSH)
-git remote add origin "git@github.com:$(gh api user --jq .login)/$ARGUMENTS.git"
-
+# Add or update remote origin (using SSH)
+git remote set-url origin "git@github.com:$(gh api user --jq .login)/$ARGUMENTS.git" 2>/dev/null || \
+  git remote add origin "git@github.com:$(gh api user --jq .login)/$ARGUMENTS.git"
 # Push to GitHub
 git branch -M main
 git push -u origin main

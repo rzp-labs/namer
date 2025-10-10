@@ -1,7 +1,7 @@
 ---
 description: Create a git stash checkpoint with optional description
 category: workflow
-allowed-tools: Bash(git stash:*), Bash(git add:*), Bash(git status:*)
+allowed-tools: Bash(git stash:*), Bash(git add:*), Bash(git status:*), Bash(git reset:*)
 argument-hint: "[optional description]"
 ---
 

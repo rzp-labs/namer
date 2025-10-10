@@ -330,7 +330,7 @@ git show :3:<file>  # Their version (merging branch)
 
 # Custom merge strategies
 git merge -s ours <branch>      # Keep our version completely
-git merge -s theirs <branch>    # Keep their version completely
+git merge -X theirs <branch>    # Keep their version on conflicts
 git merge -s recursive -X patience <branch>  # Better for large changes
 ```
 

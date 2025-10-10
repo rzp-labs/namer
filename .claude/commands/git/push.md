@@ -15,7 +15,7 @@ Be concise. Use single bash calls where possible. Skip verbose explanations and 
 ## Instructions for Claude:
 
 1. Run safety checks in a single bash call:
-!git status --porcelain=v1 && echo "---" && git branch -vv | grep "^\*" && echo "---" && git remote -v | head -2 && echo "---" && git log --oneline @{u}..HEAD 2>/dev/null
+!git status --porcelain=v1; echo "---"; git branch -vv | grep "^\*"; echo "---"; git remote -v | head -2; echo "---"; git log --oneline @{u}..HEAD 2>/dev/null
 
 Parse output to check:
 - Any uncommitted changes (warn if present)

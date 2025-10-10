@@ -348,7 +348,7 @@ module.exports = {
     return {
       TryStatement(node) {
         if (!node.handler) {
-          context.report(node, 'Try statement must have catch block')
+          context.report({ node, message: 'Try statement must have catch block' })
         }
       }
     }
