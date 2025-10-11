@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal, Optional, cast
 
 import numpy
 import scipy.fft
@@ -35,7 +35,9 @@ class ImageHash:
         if self.hash.size != other.hash.size:
             raise TypeError('ImageHashes must be of the same shape.', self.hash.shape, other.hash.shape)
 
-        return numpy.count_nonzero(self.hash.flatten() != other.hash.flatten())
+        # Use cast for type checking without runtime overhead
+        count = numpy.count_nonzero(self.hash.flatten() != other.hash.flatten())
+        return cast(int, count)
 
     def __eq__(self, other: object) -> bool:
         if other is None:

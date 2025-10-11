@@ -14,8 +14,11 @@ from typing import Any, Dict, List, Optional
 
 try:  # pragma: no cover - optional dependency
     import orjson  # type: ignore[import]  # Optional dependency for performance
+    HAS_ORJSON = True
 except ImportError:  # pragma: no cover - optional dependency
     orjson = None  # type: ignore[assignment]
+    HAS_ORJSON = False
+
 import jsonpickle  # type: ignore[import]  # No type stubs available
 from werkzeug.routing import Rule
 
@@ -30,23 +33,21 @@ from namer.metadata_providers.factory import get_metadata_provider
 
 
 def _orjson_loads(value: str) -> Any:
-    if orjson is not None:
-        loads = getattr(orjson, 'loads', None)
-        if loads is not None:
-            return loads(value)
+    """Load JSON using orjson if available, otherwise use stdlib json."""
+    if HAS_ORJSON:
+        return orjson.loads(value)
     return json.loads(value)
 
 
 def _orjson_dumps(value: Any, *, sort_keys: bool = False, indent: int = 2) -> str:
-    if orjson is not None:
-        dumps = getattr(orjson, 'dumps', None)
-        if dumps is not None:
-            option = 0
-            if indent:
-                option |= getattr(orjson, 'OPT_INDENT_2', 0)
-            if sort_keys:
-                option |= getattr(orjson, 'OPT_SORT_KEYS', 0)
-            return dumps(value, option=option).decode('UTF-8')
+    """Dump JSON using orjson if available, otherwise use stdlib json."""
+    if HAS_ORJSON:
+        option = 0
+        if indent:
+            option |= orjson.OPT_INDENT_2
+        if sort_keys:
+            option |= orjson.OPT_SORT_KEYS
+        return orjson.dumps(value, option=option).decode('UTF-8')
 
     return json.dumps(value, sort_keys=sort_keys, indent=indent if indent else None)
 

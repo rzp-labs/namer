@@ -27,5 +27,17 @@ def main(args_list: List[str]):
         level = 'DEBUG' if config.debug else 'INFO'
         logger.add(sys.stdout, format=config.console_format, level=level, diagnose=config.diagnose_errors)
 
-    file_hash = calculate_phash(args.file.resolve(), config)
-    print(file_hash.to_dict())
+    try:
+        file_hash = calculate_phash(args.file.resolve(), config)
+        if file_hash is None:
+            logger.error('Unable to calculate perceptual hash for %s: no hash returned', args.file)
+            sys.exit(1)
+        print(file_hash.to_dict())
+    except FileNotFoundError:
+        logger.error('File not found: %s', args.file)
+        sys.exit(1)
+    except Exception as e:
+        logger.error('Error calculating perceptual hash for %s: %s', args.file, e)
+        if config.diagnose_errors:
+            raise
+        sys.exit(1)
