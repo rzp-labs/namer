@@ -101,13 +101,21 @@ class ThePornDBProvider(BaseMetadataProvider):
         file_info.uuid = f'scenes/{numeric_id}'
         file_info.guid = scene_data.get('id', '')  # Keep GUID as the full UUID
         file_info.name = scene_data.get('title', '')
-        file_info.description = scene_data.get('description', '')
+        file_info.description = scene_data.get('description') or scene_data.get('details') or ''
         file_info.date = scene_data.get('date', '')
-        # Handle both old 'url' field and new 'urls' structure
-        if 'urls' in scene_data and scene_data['urls']:
-            file_info.source_url = scene_data['urls'].get('view', '')
-        else:
-            file_info.source_url = scene_data.get('url', '')
+
+        urls_field = scene_data.get('urls')
+        source_url = scene_data.get('url', '')
+        if isinstance(urls_field, dict):
+            source_url = urls_field.get('url', '') or source_url
+        elif isinstance(urls_field, list):
+            for url_entry in urls_field:
+                if isinstance(url_entry, dict):
+                    candidate = url_entry.get('url') or url_entry.get('view')
+                    if candidate:
+                        source_url = candidate
+                        break
+        file_info.source_url = source_url
         file_info.duration = scene_data.get('duration')
 
         # External ID
@@ -115,8 +123,13 @@ class ThePornDBProvider(BaseMetadataProvider):
             file_info.external_id = scene_data['external_id']
 
         # Image URLs
-        if 'poster' in scene_data:
+        if scene_data.get('poster'):
             file_info.poster_url = scene_data['poster']
+        elif isinstance(scene_data.get('images'), list):
+            for image_entry in scene_data['images']:
+                if isinstance(image_entry, dict) and image_entry.get('url'):
+                    file_info.poster_url = image_entry.get('url', '')
+                    break
 
         if 'background' in scene_data and scene_data['background']:
             if isinstance(scene_data['background'], dict):
@@ -128,44 +141,68 @@ class ThePornDBProvider(BaseMetadataProvider):
             file_info.trailer_url = scene_data['trailer']
 
         # Site information
-        if 'site' in scene_data and scene_data['site']:
-            site = scene_data['site']
-            file_info.site = site.get('name', '')
+        studio_info = scene_data.get('site') or scene_data.get('studio')
+        if isinstance(studio_info, dict):
+            file_info.site = studio_info.get('name', '')
 
-            # Parent and network information
-            if 'parent' in site and site['parent']:
-                file_info.parent = site['parent'].get('name', '')
+            parent_info = studio_info.get('parent')
+            if isinstance(parent_info, dict):
+                file_info.parent = parent_info.get('name', '')
 
-            if 'network' in site and site['network']:
-                file_info.network = site['network'].get('name', '')
+            network_info = studio_info.get('network')
+            if isinstance(network_info, dict):
+                file_info.network = network_info.get('name', '')
 
         # Performers
-        if 'performers' in scene_data:
-            for perf_data in scene_data['performers']:
-                performer_name = perf_data.get('name', '')
-                if not performer_name:
-                    continue
+        performers_data = scene_data.get('performers') or []
+        for appearance in performers_data:
+            appearance_info = appearance if isinstance(appearance, dict) else {}
+            performer_info = appearance_info.get('performer') if isinstance(appearance_info.get('performer'), dict) else None
 
-                # Use parent name if available
-                if 'parent' in perf_data and perf_data['parent'] and 'name' in perf_data['parent']:
-                    performer_name = perf_data['parent']['name']
+            performer_name = None
+            if performer_info:
+                performer_name = performer_info.get('name')
+            if not performer_name:
+                performer_name = appearance_info.get('name')
+            if not performer_name:
+                continue
 
-                performer = Performer(performer_name)
-                performer.alias = perf_data.get('name', '')
+            performer = Performer(performer_name)
 
-                # Gender information
-                if 'parent' in perf_data and perf_data['parent'] and 'extras' in perf_data['parent']:
-                    performer.role = perf_data['parent']['extras'].get('gender', '')
-                elif 'extras' in perf_data:
-                    performer.role = perf_data['extras'].get('gender', '')
+            aliases_source = None
+            if performer_info and performer_info.get('aliases'):
+                aliases_source = performer_info['aliases']
+            elif appearance_info.get('aliases'):
+                aliases_source = appearance_info['aliases']
+            if aliases_source:
+                performer.alias = ', '.join(aliases_source) if isinstance(aliases_source, list) else str(aliases_source)
 
-                # Image information
-                if 'parent' in perf_data and perf_data['parent'] and 'image' in perf_data['parent']:
-                    performer.image = perf_data['parent']['image']
-                elif 'image' in perf_data:
-                    performer.image = perf_data['image']
+            gender = None
+            if performer_info:
+                gender = performer_info.get('gender')
+                extras = performer_info.get('extras') if isinstance(performer_info.get('extras'), dict) else None
+                if isinstance(extras, dict) and extras.get('gender'):
+                    gender = gender or extras.get('gender')
+            extras_fallback = appearance_info.get('extras') if isinstance(appearance_info.get('extras'), dict) else None
+            if isinstance(extras_fallback, dict) and extras_fallback.get('gender'):
+                gender = gender or extras_fallback.get('gender')
+            if gender:
+                performer.role = gender
 
-                file_info.performers.append(performer)
+            image_url = None
+            if performer_info and isinstance(performer_info.get('images'), list):
+                for image_entry in performer_info['images']:
+                    if isinstance(image_entry, dict) and image_entry.get('url'):
+                        image_url = image_entry['url']
+                        break
+            if not image_url and performer_info and isinstance(performer_info.get('image'), str):
+                image_url = performer_info.get('image')
+            if not image_url and isinstance(appearance_info.get('image'), str):
+                image_url = appearance_info.get('image')
+            if image_url:
+                performer.image = image_url
+
+            file_info.performers.append(performer)
 
         # Tags (deduplicated and sorted to match legacy behavior)
         if 'tags' in scene_data:
@@ -174,17 +211,22 @@ class ThePornDBProvider(BaseMetadataProvider):
             file_info.tags = sorted(list(dict.fromkeys(tag_names)))
 
         # Hashes
-        if 'hashes' in scene_data:
-            for hash_data in scene_data['hashes']:
-                hash_type = HashType.PHASH  # Default, should map from hash_data['type']
-                if 'type' in hash_data:
-                    try:
-                        hash_type = HashType[hash_data['type'].upper()]
-                    except KeyError:
-                        hash_type = HashType.PHASH
+        fingerprints = scene_data.get('fingerprints')
+        hashes = scene_data.get('hashes')
+        hash_sources = fingerprints if isinstance(fingerprints, list) else hashes if isinstance(hashes, list) else []
+        for hash_entry in hash_sources:
+            if not isinstance(hash_entry, dict):
+                continue
+            hash_type_value = hash_entry.get('algorithm') or hash_entry.get('type') or ''
+            hash_type = HashType.PHASH
+            if isinstance(hash_type_value, str):
+                try:
+                    hash_type = HashType[hash_type_value.upper()]
+                except KeyError:
+                    hash_type = HashType.PHASH
 
-                scene_hash = SceneHash(hash_data.get('hash', ''), hash_type, hash_data.get('duration'))
-                file_info.hashes.append(scene_hash)
+            scene_hash = SceneHash(hash_entry.get('hash', ''), hash_type, hash_entry.get('duration'))
+            file_info.hashes.append(scene_hash)
 
         # Set original query/response for compatibility
         file_info.original_query = original_query

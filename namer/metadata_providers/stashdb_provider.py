@@ -206,14 +206,10 @@ class StashDBProvider(BaseMetadataProvider):
                         id
                         title
                         date
-                        urls {
-                            url
-                        }
+                        urls
                         details
                         duration
-                        images {
-                            url
-                        }
+                        images
                         studio {
                             name
                             parent {
@@ -224,9 +220,7 @@ class StashDBProvider(BaseMetadataProvider):
                             performer {
                                 name
                                 aliases
-                                images {
-                                    url
-                                }
+                                image
                                 gender
                             }
                         }
@@ -240,7 +234,8 @@ class StashDBProvider(BaseMetadataProvider):
                         }
                     }
                 }
-            """,
+            """
+,
             'variables': {
                 'id': uuid.split('/')[-1]  # Extract ID from UUID
             },
@@ -273,14 +268,10 @@ class StashDBProvider(BaseMetadataProvider):
                         id
                         title
                         date
-                        urls {
-                            url
-                        }
+                        urls
                         details
                         duration
-                        images {
-                            url
-                        }
+                        images
                         studio {
                             name
                             parent {
@@ -291,9 +282,7 @@ class StashDBProvider(BaseMetadataProvider):
                             performer {
                                 name
                                 aliases
-                                images {
-                                    url
-                                }
+                                image
                                 gender
                             }
                         }
@@ -307,7 +296,8 @@ class StashDBProvider(BaseMetadataProvider):
                         }
                     }
                 }
-            """,
+            """
+,
             'variables': {'term': query},
         }
 
@@ -428,9 +418,17 @@ class StashDBProvider(BaseMetadataProvider):
         file_info.description = scene.get('details', '')
         file_info.date = scene.get('date', '')
 
-        # Handle URLs array (StashDB uses 'urls' not 'url')
-        if scene.get('urls') and len(scene['urls']) > 0:
-            file_info.source_url = scene['urls'][0].get('url', '')
+        urls = scene.get('urls') or []
+        if isinstance(urls, list):
+            for entry in urls:
+                url_value: Optional[str] = None
+                if isinstance(entry, dict):
+                    url_value = entry.get('url') or entry.get('value')
+                elif isinstance(entry, str):
+                    url_value = entry
+                if url_value:
+                    file_info.source_url = url_value
+                    break
 
         file_info.duration = scene.get('duration')
 
@@ -442,8 +440,17 @@ class StashDBProvider(BaseMetadataProvider):
                 file_info.parent = studio['parent'].get('name', '')
 
         # Images
-        if scene.get('images') and len(scene['images']) > 0:
-            file_info.poster_url = scene['images'][0].get('url', '')
+        images = scene.get('images') or []
+        if isinstance(images, list) and images:
+            for entry in images:
+                image_value: Optional[str] = None
+                if isinstance(entry, dict):
+                    image_value = entry.get('url') or entry.get('value')
+                elif isinstance(entry, str):
+                    image_value = entry
+                if image_value:
+                    file_info.poster_url = image_value
+                    break
 
         # Performers
         if scene.get('performers'):
@@ -455,11 +462,27 @@ class StashDBProvider(BaseMetadataProvider):
 
                     # Handle aliases
                     if performer_info.get('aliases'):
-                        performer.alias = ', '.join(performer_info['aliases'])
+                        aliases = performer_info['aliases']
+                        if isinstance(aliases, list):
+                            performer.alias = ', '.join(aliases)
+                        else:
+                            performer.alias = str(aliases)
 
                     # Handle images
-                    if performer_info.get('images') and len(performer_info['images']) > 0:
-                        performer.image = performer_info['images'][0].get('url', '')
+                    performer_image: Optional[str] = None
+                    images_field = performer_info.get('images')
+                    if isinstance(images_field, list):
+                        for entry in images_field:
+                            if isinstance(entry, dict) and entry.get('url'):
+                                performer_image = entry['url']
+                                break
+                            if isinstance(entry, str) and entry:
+                                performer_image = entry
+                                break
+                    if not performer_image and isinstance(performer_info.get('image'), str):
+                        performer_image = performer_info['image']
+                    if performer_image:
+                        performer.image = performer_image
 
                     file_info.performers.append(performer)
 
@@ -470,10 +493,16 @@ class StashDBProvider(BaseMetadataProvider):
         # Hashes/Fingerprints
         if scene.get('fingerprints'):
             for fingerprint in scene['fingerprints']:
-                hash_type = fingerprint.get('algorithm', '').upper()
-                if hash_type == 'PHASH':
-                    scene_hash = SceneHash(scene_hash=fingerprint.get('hash', ''), hash_type=HashType.PHASH, duration=fingerprint.get('duration'))
-                    file_info.hashes.append(scene_hash)
+                algorithm = (fingerprint.get('algorithm') or '').upper()
+                hash_type = HashType.PHASH
+                if algorithm:
+                    try:
+                        hash_type = HashType[algorithm]
+                    except KeyError:
+                        if algorithm != 'PHASH':
+                            continue
+                scene_hash = SceneHash(scene_hash=fingerprint.get('hash', ''), hash_type=hash_type, duration=fingerprint.get('duration'))
+                file_info.hashes.append(scene_hash)
 
         if original_query is not None:
             file_info.original_query = original_query
