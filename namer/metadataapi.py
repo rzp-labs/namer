@@ -148,16 +148,18 @@ def __evaluate_match(name_parts: Optional[FileInfo], looked_up: LookedUpFileInfo
 def __update_results(results: List[ComparisonResult], name_parts: Optional[FileInfo], namer_config: NamerConfig, skip_date: bool = False, skip_name: bool = False, scene_type: SceneType = SceneType.SCENE, phash: Optional[PerceptualHash] = None):
     if not results or not results[0].is_match():
         seen = {res.looked_up.uuid for res in results}
+        # First pass: search with phash
         for match_attempt in __get_metadataapi_net_fileinfo(name_parts, namer_config, skip_date, skip_name, scene_type=scene_type, phash=phash):
             if match_attempt.uuid not in seen:
-                evaluated_result: ComparisonResult = __evaluate_match(name_parts, match_attempt, namer_config, phash)
-                results.append(evaluated_result)
+                phash_result: ComparisonResult = __evaluate_match(name_parts, match_attempt, namer_config, phash)
+                results.append(phash_result)
                 seen.add(match_attempt.uuid)
 
+        # Second pass: search without phash
         for match_attempt in __get_metadataapi_net_fileinfo(name_parts, namer_config, skip_date, skip_name, scene_type=scene_type):
             if match_attempt.uuid not in seen:
-                evaluated_result = __evaluate_match(name_parts, match_attempt, namer_config, phash)
-                results.append(evaluated_result)
+                fallback_result: ComparisonResult = __evaluate_match(name_parts, match_attempt, namer_config, phash)
+                results.append(fallback_result)
                 seen.add(match_attempt.uuid)
 
         results = sorted(results, key=__match_weight, reverse=True)
