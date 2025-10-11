@@ -20,6 +20,17 @@ from namer.metadata_providers.provider import BaseMetadataProvider
 from namer.videophash import PerceptualHash, imagehash
 
 
+# Consolidate orjson import at module level
+try:
+    import orjson
+    HAS_ORJSON = True
+    JSONDecodeErrorType: Type[Exception] = getattr(orjson, 'JSONDecodeError', json.JSONDecodeError)
+except ImportError:  # pragma: no cover - orjson optional dependency
+    orjson = None  # type: ignore[assignment]
+    HAS_ORJSON = False
+    JSONDecodeErrorType = json.JSONDecodeError
+
+
 class Serializer(Protocol):
     """Protocol for JSON serialization."""
     
@@ -40,9 +51,7 @@ def _get_serializer() -> Serializer:
     
     Returns orjson-based serializer if available, otherwise falls back to stdlib json.
     """
-    try:
-        import orjson
-        
+    if HAS_ORJSON and orjson is not None:
         class OrjsonSerializer:
             """Serializer using orjson for better performance."""
             
@@ -55,7 +64,7 @@ def _get_serializer() -> Serializer:
                 return orjson.loads(data)
         
         return OrjsonSerializer()
-    except ImportError:  # pragma: no cover - orjson optional dependency
+    else:
         class JsonSerializer:
             """Fallback serializer using stdlib json."""
             
@@ -84,14 +93,6 @@ def _deserialize(data: bytes) -> Any:
     return _SERIALIZER.loads(data)
 
 
-# Determine the appropriate JSON decode error type
-try:
-    import orjson
-    JSONDecodeErrorType: Type[Exception] = getattr(orjson, 'JSONDecodeError', json.JSONDecodeError)
-except ImportError:
-    JSONDecodeErrorType = json.JSONDecodeError
-
-
 class StashDBProvider(BaseMetadataProvider):
     """
     StashDB GraphQL metadata provider.
@@ -105,6 +106,7 @@ class StashDBProvider(BaseMetadataProvider):
         if orjson is None:
             logger.debug('StashDBProvider running without orjson; falling back to json module')
 
+    @logger.catch(reraise=True)
     def match(self, file_name_parts: Optional[FileInfo], config: NamerConfig, phash: Optional[PerceptualHash] = None) -> ComparisonResults:
         """
         Search for metadata matches based on file name parts and/or perceptual hash.
@@ -267,6 +269,7 @@ class StashDBProvider(BaseMetadataProvider):
 
         return None, None
 
+    @logger.catch(reraise=True)
     def get_complete_info(self, file_name_parts: Optional[FileInfo], uuid: str, config: NamerConfig) -> Optional[LookedUpFileInfo]:
         """
         Get complete metadata information for a specific item by UUID.
@@ -329,6 +332,7 @@ class StashDBProvider(BaseMetadataProvider):
 
         return None
 
+    @logger.catch(reraise=True)
     def search(self, query: str, scene_type: SceneType, config: NamerConfig, page: int = 1) -> List[LookedUpFileInfo]:
         """
         Search for metadata by text query.
@@ -625,6 +629,7 @@ class StashDBProvider(BaseMetadataProvider):
 
         return file_info
 
+    @logger.catch(reraise=True)
     def _search_by_phash(self, phash: PerceptualHash, config: NamerConfig) -> List[LookedUpFileInfo]:
         """
         Search for scenes by perceptual hash.

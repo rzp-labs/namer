@@ -313,6 +313,11 @@ def process_file(command: Command) -> Optional[Command]:
             if command.config.manual_mode and command.is_auto:
                 failed_dir = command.config.failed_dir
                 if failed_dir is None:
+                    logger.error(
+                        'Cannot process file {} in manual_mode: NamerConfig.failed_dir is not configured. '
+                        'Manual mode requires failed_dir to be set.',
+                        command.input_file
+                    )
                     raise ValueError('NamerConfig.failed_dir must be set when manual_mode is enabled')
                 failed = move_command_files(command, failed_dir)
                 if failed is not None and search_results is not None and failed.config.write_namer_failed_log:
@@ -355,6 +360,11 @@ def process_file(command: Command) -> Optional[Command]:
         elif command.inplace is False:
             failed_dir = command.config.failed_dir
             if failed_dir is None:
+                logger.error(
+                    'Cannot process file {} with inplace=False: NamerConfig.failed_dir is not configured. '
+                    'Non-inplace mode requires failed_dir to be set for failed matches.',
+                    command.input_file
+                )
                 raise ValueError('NamerConfig.failed_dir must be configured when inplace is False')
 
             # Ensure failed_dir exists before moving files
