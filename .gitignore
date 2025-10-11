@@ -13,6 +13,7 @@ init
 .python-version
 node_modules
 .env
+.venv
 namer/web/public/assets
 namer/web/templates
 namer/tools
