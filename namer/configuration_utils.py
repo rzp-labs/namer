@@ -230,10 +230,11 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
     Verify metadata provider configuration settings.
     """
     success = True
+    metadata_provider_lower = config.metadata_provider.lower()
 
     # Validate provider selection
     supported_providers = ['theporndb', 'stashdb']
-    if config.metadata_provider.lower() not in supported_providers:
+    if metadata_provider_lower not in supported_providers:
         logger.error(f'Unsupported metadata provider: "{config.metadata_provider}". Supported: {supported_providers}')
         success = False
 
@@ -241,7 +242,7 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
     # NamerConfig always defines these attributes; check if any are set (not None)
     if config.watch_dir is not None or config.dest_dir is not None or config.work_dir is not None:
         # Validate provider-specific settings for real configurations
-        if config.metadata_provider.lower() == 'theporndb':
+        if metadata_provider_lower == 'theporndb':
             if not config.porndb_token or config.porndb_token.strip() == '':
                 logger.error('ThePornDB provider requires a porndb_token. Sign up at https://theporndb.net/register')
                 success = False
@@ -249,7 +250,7 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
             if not config.override_tpdb_address:
                 logger.info('Using default ThePornDB endpoint; override_tpdb_address not set')
 
-        elif config.metadata_provider.lower() == 'stashdb':
+        elif metadata_provider_lower == 'stashdb':
             # Endpoint is built-in; override is optional and primarily used by advanced deployments
             if not config.stashdb_endpoint or config.stashdb_endpoint.strip() == '':
                 logger.info('Using default StashDB endpoint; stashdb_endpoint not set')
@@ -258,9 +259,9 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
                 logger.warning('StashDB provider works better with an API token (stashdb_token)')
     else:
         # For test configurations without directories, just warn about missing tokens
-        if config.metadata_provider.lower() == 'theporndb' and (not config.porndb_token or config.porndb_token.strip() == ''):
+        if metadata_provider_lower == 'theporndb' and (not config.porndb_token or config.porndb_token.strip() == ''):
             logger.warning('ThePornDB provider would require a porndb_token in production')
-        elif config.metadata_provider.lower() == 'stashdb' and (not config.stashdb_endpoint or config.stashdb_endpoint.strip() == ''):
+        elif metadata_provider_lower == 'stashdb' and (not config.stashdb_endpoint or config.stashdb_endpoint.strip() == ''):
             logger.warning('StashDB provider would require stashdb_endpoint in production')
 
     return success
