@@ -51,7 +51,7 @@ def _get_serializer() -> Serializer:
     
     Returns orjson-based serializer if available, otherwise falls back to stdlib json.
     """
-    if HAS_ORJSON and orjson is not None:
+    if HAS_ORJSON:
         class OrjsonSerializer:
             """Serializer using orjson for better performance."""
             
