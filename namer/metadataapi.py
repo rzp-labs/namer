@@ -156,7 +156,7 @@ def __update_results(results: List[ComparisonResult], name_parts: Optional[FileI
 
         for match_attempt in __get_metadataapi_net_fileinfo(name_parts, namer_config, skip_date, skip_name, scene_type=scene_type):
             if match_attempt.uuid not in seen:
-                evaluated_result: ComparisonResult = __evaluate_match(name_parts, match_attempt, namer_config, phash)
+                evaluated_result = __evaluate_match(name_parts, match_attempt, namer_config, phash)
                 results.append(evaluated_result)
                 seen.add(match_attempt.uuid)
 
