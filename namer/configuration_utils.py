@@ -7,7 +7,7 @@ import secrets
 import re
 import shutil
 from importlib import resources
-from typing import Dict, List, Optional, Callable, Pattern, Any, Tuple
+from typing import Dict, List, Optional, Callable, Pattern, Any, Tuple, TypeVar
 from configupdater import ConfigUpdater
 from pathlib import Path
 
@@ -18,6 +18,50 @@ from namer import database
 from namer.configuration import NamerConfig
 from namer.ffmpeg import FFMpeg
 from namer.name_formatter import PartialFormatter
+
+T = TypeVar('T')
+
+
+def require_not_none(value: Optional[T], name: str, context: str = '') -> T:
+    """
+    Validate that a value is not None.
+    
+    Args:
+        value: The value to check
+        name: Name of the value for error message
+        context: Additional context for when this is required
+    
+    Returns:
+        The value if not None
+    
+    Raises:
+        ValueError: If value is None
+    """
+    if value is None:
+        message = f'{name} must be configured'
+        if context:
+            message += f' {context}'
+        raise ValueError(message)
+    return value
+
+
+def require_config_path(config: NamerConfig, attr_name: str, context: str = '') -> Path:
+    """
+    Validate that a required config path is set.
+    
+    Args:
+        config: Configuration object
+        attr_name: Name of the path attribute (e.g., 'dest_dir')
+        context: Description of when this is required
+    
+    Returns:
+        The validated Path
+    
+    Raises:
+        ValueError: If the path is None with detailed message
+    """
+    path = getattr(config, attr_name, None)
+    return require_not_none(path, f'NamerConfig.{attr_name}', context)
 
 
 def __verify_naming_config(config: NamerConfig, formatter: PartialFormatter) -> bool:

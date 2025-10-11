@@ -8,7 +8,7 @@ metadata for adult content, mapping results to namer's data structures.
 import json
 import os
 from collections import Counter
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Tuple, Type
 
 from loguru import logger
 
@@ -20,26 +20,76 @@ from namer.metadata_providers.provider import BaseMetadataProvider
 from namer.videophash import PerceptualHash, imagehash
 
 
+class Serializer(Protocol):
+    """Protocol for JSON serialization."""
+    
+    @staticmethod
+    def dumps(data: Any) -> bytes:
+        """Serialize data to bytes."""
+        ...
+    
+    @staticmethod
+    def loads(data: bytes) -> Any:
+        """Deserialize bytes to data."""
+        ...
+
+
+def _get_serializer() -> Serializer:
+    """
+    Get the appropriate JSON serializer implementation.
+    
+    Returns orjson-based serializer if available, otherwise falls back to stdlib json.
+    """
+    try:
+        import orjson
+        
+        class OrjsonSerializer:
+            """Serializer using orjson for better performance."""
+            
+            @staticmethod
+            def dumps(data: Any) -> bytes:
+                return orjson.dumps(data)
+            
+            @staticmethod
+            def loads(data: bytes) -> Any:
+                return orjson.loads(data)
+        
+        return OrjsonSerializer()
+    except ImportError:  # pragma: no cover - orjson optional dependency
+        class JsonSerializer:
+            """Fallback serializer using stdlib json."""
+            
+            @staticmethod
+            def dumps(data: Any) -> bytes:
+                return json.dumps(data, separators=(',', ':')).encode('utf-8')
+            
+            @staticmethod
+            def loads(data: bytes) -> Any:
+                return json.loads(data.decode('utf-8'))
+        
+        return JsonSerializer()
+
+
+# Module-level serializer instance
+_SERIALIZER = _get_serializer()
+
+
+def _serialize(data: Any) -> bytes:
+    """Serialize data to bytes using the configured serializer."""
+    return _SERIALIZER.dumps(data)
+
+
+def _deserialize(data: bytes) -> Any:
+    """Deserialize bytes to data using the configured serializer."""
+    return _SERIALIZER.loads(data)
+
+
+# Determine the appropriate JSON decode error type
 try:
     import orjson
-
-    def _serialize(data: Any) -> bytes:
-        return orjson.dumps(data)
-
-    def _deserialize(data: bytes) -> Any:
-        return orjson.loads(data)
-
-    JSONDecodeError = getattr(orjson, 'JSONDecodeError', json.JSONDecodeError)
-except ImportError:  # pragma: no cover - orjson optional dependency
-    orjson = None  # type: ignore[assignment]
-
-    def _serialize(data: Any) -> bytes:
-        return json.dumps(data, separators=(",", ":")).encode('utf-8')
-
-    def _deserialize(data: bytes) -> Any:
-        return json.loads(data.decode('utf-8'))
-
-    JSONDecodeError = json.JSONDecodeError
+    JSONDecodeErrorType: Type[Exception] = getattr(orjson, 'JSONDecodeError', json.JSONDecodeError)
+except ImportError:
+    JSONDecodeErrorType = json.JSONDecodeError
 
 
 class StashDBProvider(BaseMetadataProvider):
@@ -159,7 +209,7 @@ class StashDBProvider(BaseMetadataProvider):
                             results.append(comparison_result)
                         ambiguous_reason = 'phash_missing_guids'
                         ambiguous_candidates = [scene_info.name for scene_info in phash_results if scene_info.name]
-            except (OSError, ValueError, JSONDecodeError, RuntimeError) as exc:
+            except (OSError, ValueError, JSONDecodeErrorType, RuntimeError) as exc:
                 logger.debug('Phash search failed: %s', exc, exc_info=True)
 
         # Sort results by quality
@@ -260,8 +310,7 @@ class StashDBProvider(BaseMetadataProvider):
                         }
                     }
                 }
-            """
-,
+            """,
             'variables': {
                 'id': uuid.split('/')[-1]  # Extract ID from UUID
             },
@@ -325,8 +374,7 @@ class StashDBProvider(BaseMetadataProvider):
                         }
                     }
                 }
-            """
-,
+            """,
             'variables': {'term': query},
         }
 
@@ -498,7 +546,7 @@ class StashDBProvider(BaseMetadataProvider):
                     logger.error(f'StashDB GraphQL errors: {response_data["errors"]}')
 
                 return response_data
-            except JSONDecodeError as e:
+            except JSONDecodeErrorType as e:
                 logger.error(f'Failed to parse StashDB response: {e}')
         else:
             logger.error(f'StashDB API error: {http.status_code} - {http.text}')
@@ -520,7 +568,7 @@ class StashDBProvider(BaseMetadataProvider):
 
         # Basic scene information
         file_info.type = SceneType.SCENE
-        file_info.uuid = f"scenes/{scene['id']}"
+        file_info.uuid = f'scenes/{scene["id"]}'
         file_info.guid = scene['id']
         file_info.name = scene.get('title', '')
         file_info.description = scene.get('details', '')

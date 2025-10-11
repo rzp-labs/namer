@@ -311,7 +311,10 @@ def process_file(command: Command) -> Optional[Command]:
                 if not parsed_extension or parsed_extension != actual_extension:
                     new_metadata.original_parsed_filename.extension = actual_extension
             if command.config.manual_mode and command.is_auto:
-                failed = move_command_files(command, command.config.failed_dir)
+                failed_dir = command.config.failed_dir
+                if failed_dir is None:
+                    raise ValueError('NamerConfig.failed_dir must be set when manual_mode is enabled')
+                failed = move_command_files(command, failed_dir)
                 if failed is not None and search_results is not None and failed.config.write_namer_failed_log:
                     write_log_file(failed.target_movie_file, search_results, failed.config)
             else:
@@ -337,9 +340,11 @@ def process_file(command: Command) -> Optional[Command]:
                         scene_hash = SceneHash(phash.oshash, HashType.OSHASH, phash.duration)
                         metadataapi.share_hash(new_metadata, scene_hash, command.config)
 
-                log_file = command.config.failed_dir / (command.input_file.stem + '_namer.json.gz')
-                if log_file.is_file():
-                    log_file.unlink()
+                failed_dir = command.config.failed_dir
+                if failed_dir is not None:
+                    log_file = failed_dir / (command.input_file.stem + '_namer.json.gz')
+                    if log_file.is_file():
+                        log_file.unlink()
 
                 target = move_to_final_location(command, new_metadata)
                 tag_in_place(target.target_movie_file, command.config, new_metadata, ffprobe_results)
@@ -348,8 +353,12 @@ def process_file(command: Command) -> Optional[Command]:
                 logger.success('Done processing file: {}, moved to {}', command.target_movie_file, target.target_movie_file)
                 return target
         elif command.inplace is False:
+            failed_dir = command.config.failed_dir
+            if failed_dir is None:
+                raise ValueError('NamerConfig.failed_dir must be configured when inplace is False')
+
             # Ensure failed_dir exists before moving files
-            ensure_directory(command.config.failed_dir, 'Unable to create failed directory {}: {}')
+            ensure_directory(failed_dir, 'Unable to create failed directory {}: {}')
             # If disambiguation is enabled and an ambiguous_dir is configured, prefer routing there over failed
             ambiguous_dir = getattr(command.config, 'ambiguous_dir', None) if getattr(command.config, 'enable_disambiguation', False) else None
             if ambiguous_dir:
@@ -381,7 +390,7 @@ def process_file(command: Command) -> Optional[Command]:
                     return moved
 
                 logger.info('No metadata candidates for {}; routing to failed directory', command.target_movie_file)
-            failed = move_command_files(command, command.config.failed_dir)
+            failed = move_command_files(command, failed_dir)
             if failed is not None and search_results is not None and failed.config.write_namer_failed_log:
                 write_log_file(failed.target_movie_file, search_results, failed.config)
             return failed

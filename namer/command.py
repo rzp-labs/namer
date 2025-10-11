@@ -8,18 +8,18 @@ import json
 import os
 import shutil
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from numbers import Number
 from pathlib import Path
 from platform import system
 from typing import Iterable, List, Optional, Sequence, Tuple
 
-import jsonpickle
+import jsonpickle  # type: ignore[import]
 from loguru import logger
 
 from namer.comparison_results import ComparisonResults, LookedUpFileInfo, SceneType
 from namer.configuration import NamerConfig
-from namer.configuration_utils import default_config
+from namer.configuration_utils import default_config, require_config_path
 from namer.ffmpeg import FFProbeResults
 from namer.fileinfo import FileInfo, parse_file_name
 
@@ -27,6 +27,7 @@ from namer.fileinfo import FileInfo, parse_file_name
 # noinspection PyDataclass
 @dataclass(init=False, repr=False, eq=True, order=False, unsafe_hash=True, frozen=False)
 class Command:
+    # Required fields without defaults (must come first)
     input_file: Path
     """
     This is the original user/machine input of a target path.
@@ -37,12 +38,14 @@ class Command:
     """
     The movie file this name is targeting.
     """
+    
+    # Optional fields with defaults (must come after required fields)
     target_directory: Optional[Path] = None
     """
     The containing directory of a File.  This may be the immediate parent directory, or higher up, depending
     on whether a directory was selected as the input to a naming process.
     """
-    parsed_dir_name: bool
+    parsed_dir_name: bool = False
     """
     Was the input file a directory and is parsing directory names configured?
     """
@@ -50,28 +53,23 @@ class Command:
     """
     The parsed file name.
     """
-
     inplace: bool = False
     """
     Was the command told to keep the files in place.
     """
-
     write_from_nfos: bool = False
     """
     Should .nfo files be used as a source of metadata and writen into file tag info and used for naming.
     """
-
     tpdb_id: Optional[str] = None
     """
     The _id used to identify video in tpdb
     """
-
     is_auto: bool = True
     """
     If False then it means command was from web ui
     """
-
-    config: NamerConfig
+    config: NamerConfig = field(default_factory=default_config)
 
     def get_command_target(self):
         return str(self.target_movie_file.resolve())
@@ -330,8 +328,9 @@ def move_to_final_location(command: Command, new_metadata: LookedUpFileInfo) -> 
         target_dir = command.target_directory.parent
 
     if not command.inplace:
+        dest_dir = require_config_path(command.config, 'dest_dir', 'when inplace is False')
         name_template = get_new_relative_path_name_template_by_type(command.config, new_metadata.type)
-        target_dir = command.config.dest_dir
+        target_dir = dest_dir
 
     infix = 0
     # Find non-conflicting movie name.
@@ -407,6 +406,9 @@ def move_to_final_location(command: Command, new_metadata: LookedUpFileInfo) -> 
         output.target_directory = containing_dir
         output.input_file = containing_dir
 
+    output.config = command.config
+    output.inplace = command.inplace
+
     if command.target_directory and not is_relative_to(output.target_directory, command.target_directory):
         shutil.rmtree(command.target_directory)
 
@@ -440,8 +442,11 @@ def gather_target_files_from_dir(dir_to_scan: Path, config: NamerConfig) -> Iter
     """
     if dir_to_scan and dir_to_scan.is_dir() and dir_to_scan.exists():
         logger.info('Scanning dir {} for sub-dirs/files to process', dir_to_scan)
-        mapped: Iterable = map(lambda file: make_command((dir_to_scan / file), config), dir_to_scan.iterdir())
-        filtered: Iterable[Command] = filter(lambda file: file is not None, mapped)  # type: ignore
+        mapped: Iterable[Optional[Command]] = (
+            make_command(dir_to_scan / file, config)
+            for file in dir_to_scan.iterdir()
+        )
+        filtered: List[Command] = [command for command in mapped if command is not None]
         return filtered
 
     return []
@@ -478,7 +483,11 @@ def find_target_file(root_dir: Path, config: NamerConfig) -> Optional[Path]:
     file = None
     if list_of_files:
         for target_ext in config.target_extensions:
-            filtered = list(filter(lambda o, ext=target_ext: o.suffix and o.suffix.lower()[1:] == ext, list_of_files))
+            filtered = [
+                candidate
+                for candidate in list_of_files
+                if candidate.suffix and candidate.suffix.lower()[1:] == target_ext
+            ]
             if not file and filtered:
                 file = max(filtered, key=lambda x: x.stat().st_size)
 
