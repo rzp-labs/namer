@@ -2,9 +2,9 @@
 A wrapper allowing shutdown of a Flask server.
 """
 
-import datetime
 import logging
 import mimetypes
+from datetime import datetime, timedelta
 from queue import Queue
 from threading import Thread
 from typing import Any, List, Optional, Union
@@ -13,12 +13,12 @@ import numpy
 import orjson
 from flask import Blueprint, Flask, jsonify, render_template, request
 from flask.json.provider import _default, JSONProvider
-from flask_compress import Compress
-from flask_wtf.csrf import CSRFError, CSRFProtect, generate_csrf
+from flask_compress import Compress  # type: ignore[import]  # No type stubs available
+from flask_wtf.csrf import CSRFError, CSRFProtect, generate_csrf  # type: ignore[import]  # Incomplete type stubs
 from loguru import logger
-from waitress import create_server
-from waitress.server import BaseWSGIServer, MultiSocketServer
 from werkzeug.middleware.proxy_fix import ProxyFix
+from waitress import create_server as waitress_create_server  # type: ignore[attr-defined]  # Incomplete type stubs
+from waitress.server import BaseWSGIServer, MultiSocketServer  # type: ignore[import]  # Incomplete type stubs
 
 from namer.configuration import NamerConfig
 from namer.configuration_utils import from_str_list_lower
@@ -79,7 +79,7 @@ class GenericWebServer:
     def __make_server(self):
         self.__app.wsgi_app = ProxyFix(self.__app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
         self.__compress.init_app(self.__app)
-        self.__server = create_server(self.__app, host=self.__host, port=self.__port, clear_untrusted_proxy_headers=True)
+        self.__server = waitress_create_server(self.__app, host=self.__host, port=self.__port, clear_untrusted_proxy_headers=True)
         self.__thread = Thread(target=self.__run, daemon=True)
 
     def __register_blueprints(self):
@@ -122,7 +122,7 @@ class GenericWebServer:
         self.__app.json.mimetype = 'application/json; charset=utf-8'  # type: ignore
 
         for mime, ext in self.__mime_types.items():
-            test_mime, test_ext = mimetypes.guess_type(f'0{ext}')
+            test_mime, _ = mimetypes.guess_type(f'0{ext}')
             if test_mime is None:
                 mimetypes.add_type(mime, ext)
 
@@ -202,11 +202,11 @@ class GenericWebServer:
 
     @staticmethod
     def timestamp_to_datetime(item: int) -> datetime:
-        return datetime.datetime.fromtimestamp(item)
+        return datetime.fromtimestamp(item)
 
     @staticmethod
     def seconds_to_format(item: int) -> str:
-        return str(datetime.timedelta(seconds=item))
+        return str(timedelta(seconds=item))
 
     @staticmethod
     def strftime(item: datetime, datetime_format: str) -> str:

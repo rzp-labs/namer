@@ -6,9 +6,9 @@ or used in renaming the video file.
 
 from pathlib import Path
 
-from typing import Any, Optional, List
-from defusedxml.minidom import parseString
-from xml.dom.minidom import Document, Element  # nosec B408: Using defusedxml for parsing
+from typing import Optional, List, Union, Sequence, cast
+from defusedxml.minidom import parseString  # type: ignore[import]  # Incomplete type stubs
+from xml.dom.minidom import CharacterData, Document, Element, Node  # nosec B408: Using defusedxml for parsing
 
 from namer.configuration import NamerConfig
 from namer.command import set_permissions
@@ -16,21 +16,58 @@ from namer.comparison_results import LookedUpFileInfo, Performer
 from namer.videophash import PerceptualHash
 
 
-def get_childnode(node: Element, name: str) -> Element:
-    return node.getElementsByTagName(name)[0]
+NodeHost = Union[Document, Element]
 
 
-def get_all_childnode(node: Element, name: str) -> List[Element]:
-    return node.getElementsByTagName(name)
+def _first_element(nodes: Sequence[Node]) -> Optional[Element]:
+    for candidate in nodes:
+        if isinstance(candidate, Element):
+            return candidate
+    return None
 
 
-def get_childnode_text(node: Element, name: str) -> Optional[str]:
-    node = node.getElementsByTagName(name)
-    return node[0].childNodes[0].data if node else None
+def get_childnode(node: NodeHost, name: str) -> Optional[Element]:
+    """Get child node, returns None if not found."""
+    return _first_element(node.getElementsByTagName(name))
 
 
-def get_all_childnode_text(node: Element, name: str) -> List[str]:
-    return [x.childNodes[0].data for x in node.getElementsByTagName(name)]
+def require_childnode(node: NodeHost, name: str) -> Element:
+    """
+    Get child node, raises ValueError if not found.
+    
+    Use this for required XML elements that must be present.
+    """
+    element = get_childnode(node, name)
+    if element is None:
+        raise ValueError(f"Required XML element '{name}' not found")
+    return element
+
+
+def get_all_childnode(node: NodeHost, name: str) -> List[Element]:
+    return [child for child in node.getElementsByTagName(name) if isinstance(child, Element)]
+
+
+def _text_from_children(children: Sequence[Node]) -> Optional[str]:
+    for child in children:
+        if isinstance(child, CharacterData):
+            return child.data
+    return None
+
+
+def get_childnode_text(node: NodeHost, name: str) -> Optional[str]:
+    element = get_childnode(node, name)
+    if element is None:
+        return None
+    return _text_from_children(element.childNodes)
+
+
+def get_all_childnode_text(node: NodeHost, name: str) -> List[str]:
+    results: List[str] = []
+    for element in get_all_childnode(node, name):
+        text = _text_from_children(element.childNodes)
+        if text is not None:
+            results.append(text)
+    return results
 
 
 def parse_movie_xml_file(xml_file: Path) -> LookedUpFileInfo:
@@ -39,14 +76,15 @@ def parse_movie_xml_file(xml_file: Path) -> LookedUpFileInfo:
     """
     content = xml_file.read_text(encoding='UTF-8')
 
-    movie: Any = parseString(bytes(content, encoding='UTF-8'))
+    movie: Document = cast(Document, parseString(bytes(content, encoding='UTF-8')))
     info = LookedUpFileInfo()
     info.name = get_childnode_text(movie, 'title')
-    info.site = get_all_childnode_text(movie, 'studio')[0]
+    studios = get_all_childnode_text(movie, 'studio')
+    info.site = studios[0] if studios else None
     info.date = get_childnode_text(movie, 'releasedate')
     info.description = get_childnode_text(movie, 'plot')
     art = get_childnode(movie, 'art')
-    info.poster_url = get_childnode_text(art, 'poster')
+    info.poster_url = get_childnode_text(art, 'poster') if art else None
 
     info.performers = []
     for actor in get_all_childnode(movie, 'actor'):

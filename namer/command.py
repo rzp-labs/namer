@@ -14,7 +14,7 @@ from pathlib import Path
 from platform import system
 from typing import Iterable, List, Optional, Sequence, Tuple
 
-import jsonpickle  # type: ignore[import]
+import jsonpickle  # type: ignore[import]  # No type stubs available
 from loguru import logger
 
 from namer.comparison_results import ComparisonResults, LookedUpFileInfo, SceneType
@@ -442,12 +442,12 @@ def gather_target_files_from_dir(dir_to_scan: Path, config: NamerConfig) -> Iter
     """
     if dir_to_scan and dir_to_scan.is_dir() and dir_to_scan.exists():
         logger.info('Scanning dir {} for sub-dirs/files to process', dir_to_scan)
-        mapped: Iterable[Optional[Command]] = (
-            make_command(dir_to_scan / file, config)
-            for file in dir_to_scan.iterdir()
-        )
-        filtered: List[Command] = [command for command in mapped if command is not None]
-        return filtered
+        commands: List[Command] = []
+        for file in dir_to_scan.iterdir():
+            cmd = make_command(dir_to_scan / file, config)
+            if cmd is not None:
+                commands.append(cmd)
+        return commands
 
     return []
 
