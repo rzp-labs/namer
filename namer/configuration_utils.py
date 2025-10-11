@@ -237,7 +237,7 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
         success = False
 
     # Only validate provider-specific settings if directories are configured (indicates real usage vs test)
-    if hasattr(config, 'watch_dir') or hasattr(config, 'dest_dir') or hasattr(config, 'work_dir'):
+    if config.watch_dir is not None or config.dest_dir is not None or config.work_dir is not None:
         # Validate provider-specific settings for real configurations
         if config.metadata_provider.lower() == 'theporndb':
             if not config.porndb_token or config.porndb_token.strip() == '':

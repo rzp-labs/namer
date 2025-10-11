@@ -7,7 +7,7 @@ This provider uses ThePornDB's GraphQL endpoint.
 import os
 import orjson
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 from loguru import logger
 
 from namer.comparison_results import ComparisonResults, LookedUpFileInfo, SceneType, HashType, Performer, SceneHash
@@ -156,7 +156,7 @@ class ThePornDBProvider(BaseMetadataProvider):
         # Performers
         performers_data = scene_data.get('performers') or []
 
-        def _extract_gender(*sources: dict) -> Optional[str]:
+        def _extract_gender(*sources: Mapping[str, Any]) -> Optional[str]:
             def _from_dict(payload: dict) -> Optional[str]:
                 gender_value = payload.get('gender')
                 if gender_value:
@@ -202,7 +202,12 @@ class ThePornDBProvider(BaseMetadataProvider):
             if aliases_source:
                 performer.alias = ', '.join(aliases_source) if isinstance(aliases_source, list) else str(aliases_source)
 
-            gender = _extract_gender(performer_info, appearance_info)
+            gender_sources: List[Mapping[str, Any]] = []
+            if performer_info:
+                gender_sources.append(performer_info)
+            if appearance_info:
+                gender_sources.append(appearance_info)
+            gender = _extract_gender(*gender_sources) if gender_sources else None
             if gender:
                 performer.role = gender
 
@@ -230,17 +235,28 @@ class ThePornDBProvider(BaseMetadataProvider):
         # Hashes
         fingerprints = scene_data.get('fingerprints')
         hashes = scene_data.get('hashes')
-        hash_sources = fingerprints if isinstance(fingerprints, list) else hashes if isinstance(hashes, list) else []
+        hash_sources: List[Dict[str, Any]] = []
+        if isinstance(fingerprints, list):
+            hash_sources.extend(fingerprints)
+        if isinstance(hashes, list):
+            hash_sources.extend(hashes)
+
         for hash_entry in hash_sources:
             if not isinstance(hash_entry, dict):
                 continue
             hash_type_value = hash_entry.get('algorithm') or hash_entry.get('type') or ''
-            hash_type = HashType.PHASH
-            if isinstance(hash_type_value, str):
-                try:
-                    hash_type = HashType[hash_type_value.upper()]
-                except KeyError:
-                    hash_type = HashType.PHASH
+            # Normalize the algorithm name
+            algorithm = 'PHASH'  # default
+            if isinstance(hash_type_value, str) and hash_type_value.strip():
+                algorithm = hash_type_value.strip().upper()
+
+            # Try to map to HashType enum
+            try:
+                hash_type = HashType[algorithm]
+            except KeyError:
+                logger.debug("Skipping unknown hash algorithm: %s (valid: %s)",
+                             algorithm, ', '.join(t.name for t in HashType))
+                continue
 
             raw_hash = hash_entry.get('hash', '')
             hash_value = raw_hash.strip() if isinstance(raw_hash, str) else str(raw_hash).strip()

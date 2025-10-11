@@ -2,6 +2,7 @@
 Namer Configuration readers/verifier
 """
 
+import json
 import os
 import re
 import secrets
@@ -11,7 +12,14 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import ClassVar, Dict, List, Optional, Pattern, Sequence, Set
-import orjson
+
+try:
+    import orjson
+    HAS_ORJSON = True
+except ImportError:
+    orjson = None  # type: ignore[assignment]
+    HAS_ORJSON = False
+
 from configupdater import ConfigUpdater
 from requests_cache import CachedSession
 from namer import database
@@ -491,9 +499,10 @@ class NamerConfig:
     or attempt to move them to a subdirectory specified in new_relative_path_name, if one exist.
     """
 
-    # Note: watch_dir/work_dir/failed_dir/dest_dir are intentionally not defined
-    # as dataclass fields by default. They are optional settings that may be
-    # provided via config file. Tests expect these to be absent on defaults.
+    watch_dir: Optional[Path] = field(default=None, repr=False)
+    work_dir: Optional[Path] = field(default=None, repr=False)
+    dest_dir: Optional[Path] = field(default=None, repr=False)
+    failed_dir: Optional[Path] = field(default=None, repr=False)
 
     ambiguous_dir: Optional[Path] = None
     """
@@ -623,10 +632,9 @@ class NamerConfig:
 
         # Resolve configured directories if present (only when non-empty)
         for _attr in ('watch_dir', 'work_dir', 'dest_dir', 'failed_dir'):
-            if hasattr(self, _attr):
-                val = getattr(self, _attr)
-                if val:
-                    setattr(self, _attr, Path(val).expanduser().resolve())
+            val = getattr(self, _attr, None)
+            if val:
+                setattr(self, _attr, Path(val).expanduser().resolve())
 
         # Resolve optional paths if explicitly set
         val = getattr(self, 'ambiguous_dir', None)
@@ -688,7 +696,9 @@ class NamerConfig:
 
     def to_json(self):
         config = self.to_dict()
-        return orjson.dumps(config, option=orjson.OPT_INDENT_2).decode('UTF-8')
+        if HAS_ORJSON and orjson is not None:
+            return orjson.dumps(config, option=orjson.OPT_INDENT_2).decode('UTF-8')
+        return json.dumps(config, indent=2)
 
     def to_dict(self) -> dict:
         # Dynamic metadata provider information
