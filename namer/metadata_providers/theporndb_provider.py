@@ -157,23 +157,23 @@ class ThePornDBProvider(BaseMetadataProvider):
         performers_data = scene_data.get('performers') or []
 
         def _extract_gender(*sources: Mapping[str, Any]) -> Optional[str]:
-            def _from_dict(payload: dict) -> Optional[str]:
+            def _from_dict(payload: Mapping[str, Any]) -> Optional[str]:
                 gender_value = payload.get('gender')
                 if gender_value:
                     return gender_value
                 for key in ('extra', 'extras'):
                     nested = payload.get(key)
-                    if isinstance(nested, dict):
+                    if isinstance(nested, Mapping):
                         nested_gender = nested.get('gender')
                         if nested_gender:
                             return nested_gender
                 parent_payload = payload.get('parent')
-                if isinstance(parent_payload, dict):
+                if isinstance(parent_payload, Mapping):
                     return _from_dict(parent_payload)
                 return None
 
             for source in sources:
-                if isinstance(source, dict):
+                if isinstance(source, Mapping):
                     gender_value = _from_dict(source)
                     if gender_value:
                         return gender_value

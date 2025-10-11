@@ -696,7 +696,7 @@ class NamerConfig:
 
     def to_json(self):
         config = self.to_dict()
-        if HAS_ORJSON and orjson is not None:
+        if HAS_ORJSON:
             return orjson.dumps(config, option=orjson.OPT_INDENT_2).decode('UTF-8')
         return json.dumps(config, indent=2)
 

@@ -224,6 +224,7 @@ def __verify_ffmpeg(ffmpeg: FFMpeg) -> bool:
     return None not in versions.values()
 
 
+@logger.catch(reraise=True)
 def __verify_metadata_provider_config(config: NamerConfig) -> bool:
     """
     Verify metadata provider configuration settings.
@@ -237,6 +238,7 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
         success = False
 
     # Only validate provider-specific settings if directories are configured (indicates real usage vs test)
+    # NamerConfig always defines these attributes; check if any are set (not None)
     if config.watch_dir is not None or config.dest_dir is not None or config.work_dir is not None:
         # Validate provider-specific settings for real configurations
         if config.metadata_provider.lower() == 'theporndb':
