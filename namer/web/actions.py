@@ -301,8 +301,12 @@ def delete_file(file_name_str: str, config: NamerConfig) -> bool:
     failed_dir = _require_path(config.failed_dir, 'failed_dir')
     failed_dir_resolved = failed_dir.resolve()
     
+    # Sanitize user input: remove any path traversal sequences
+    # This prevents ../../../etc/passwd style attacks
+    sanitized_name = Path(file_name_str).as_posix().replace('..', '').lstrip('/')
+    
     # Normalize and resolve the target path (validated below with relative_to)
-    file_name = (failed_dir / Path(file_name_str)).resolve()  # nosec: validated with relative_to() check below
+    file_name = (failed_dir / sanitized_name).resolve()
     
     # Verify target is strictly within failed_dir (path traversal protection)
     try:
@@ -333,8 +337,8 @@ def delete_file(file_name_str: str, config: NamerConfig) -> bool:
         shutil.rmtree(target_name)
     else:
         # Preserve directory structure when computing log file path
-        # file_name.parent is safe because file_name was validated above
-        log_file = file_name.parent / (file_name.stem + '_namer.json.gz')  # nosec: file_name already validated
+        # file_name.parent is safe because file_name was sanitized and validated above
+        log_file = file_name.parent / (file_name.stem + '_namer.json.gz')
         # Verify log file is also within failed_dir
         try:
             log_file.resolve().relative_to(failed_dir_resolved)
