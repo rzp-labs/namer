@@ -535,9 +535,8 @@ class NamerConfig:
     Secret key used for Flask session and CSRF protection. If empty, a random value will be generated at runtime.
     """
 
-    # Note: watch_dir/work_dir/failed_dir/dest_dir are intentionally not defined
-    # as dataclass fields by default. They are optional settings that may be
-    # provided via config file. Tests expect these to be absent on defaults.
+    # Note: watch_dir/work_dir/failed_dir/dest_dir default to None and are resolved
+    # to absolute paths in __init__ when set via config file.
 
     web: bool = False
     """

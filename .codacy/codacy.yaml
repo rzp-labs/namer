@@ -1,5 +1,5 @@
 engines:
-    pylint@3.3.6:
+    pylintpython3:
         exclude_paths:
             - Dockerfile*
 runtimes:
