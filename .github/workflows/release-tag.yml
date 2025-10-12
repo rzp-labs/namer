@@ -1,0 +1,135 @@
+name: Create Release Tag on Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  tag-release:
+    # Only run if PR was merged (not just closed) and has the 'release' label
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
+    runs-on: ubuntu-latest
+    # Prevent multiple tag creation workflows from running simultaneously
+    # Use single shared group to prevent race conditions across all release PRs
+    concurrency:
+      group: release-tag-creation
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          # Use the PR merge commit SHA, with fallback to head SHA or github.sha
+          # merge_commit_sha can be null in edge cases, so we provide fallbacks
+          # Edge case: Force-push between merge and workflow execution could cause fallback
+          # to point to wrong commit, but this is extremely rare and the concurrency group
+          # (release-tag-creation) prevents concurrent executions, reducing this risk further
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log checkout details for debugging
+        run: |
+          echo "🔍 Checkout details:"
+          echo "  Current SHA: $(git rev-parse HEAD)"
+          echo "  Current branch/ref: $(git rev-parse --abbrev-ref HEAD || echo 'detached')"
+          echo "  PR merge_commit_sha: ${{ github.event.pull_request.merge_commit_sha }}"
+          echo "  PR head.sha: ${{ github.event.pull_request.head.sha }}"
+          echo "  github.sha: ${{ github.sha }}"
+          echo ""
+          echo "✅ Using commit: $(git rev-parse HEAD)"
+
+      - name: Set up Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: |
+          # Note: No caching here - this workflow runs infrequently (only on release merges)
+          # Cache hit rate would be very low. Poetry dependency cache is in pr-validate.yml
+          # where it's effective (runs on every PR). Simplicity > marginal time savings here.
+          python -m pip install --upgrade pip
+          pip install poetry
+
+      - name: Extract version from pyproject.toml
+        id: version
+        run: |
+          set -euo pipefail
+          
+          # Extract version with proper error handling
+          # Use temp file to cleanly separate stdout from stderr
+          if ! poetry version -s > version.txt; then
+            echo "❌ Error: Poetry command failed"
+            echo "This may indicate a malformed pyproject.toml or Poetry installation issue"
+            exit 1
+          fi
+          
+          VERSION="$(cat version.txt)"
+          rm -f version.txt
+          
+          # Validate version was extracted successfully
+          if [ -z "$VERSION" ]; then
+            echo "❌ Error: Failed to extract version from pyproject.toml"
+            echo "Poetry returned an empty version string"
+            exit 1
+          fi
+          
+          # Validate version format (semantic versioning: X.Y.Z only, no suffixes)
+          # Requires exact match: digits.digits.digits with no pre-release or build metadata
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "❌ Error: Invalid version format: $VERSION (expected X.Y.Z)"
+            echo "Version must be exactly three numeric components (e.g., 1.23.0)"
+            echo "Pre-release suffixes like -rc1, -alpha, -beta are not allowed"
+            exit 1
+          fi
+          
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "✅ Extracted version: $VERSION"
+
+      - name: Check if tag already exists and fail if it does
+        run: |
+          set -euo pipefail
+          
+          TAG="v${{ steps.version.outputs.version }}"
+          
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "❌ Error: Tag $TAG already exists"
+            echo "This indicates the version in pyproject.toml was not bumped"
+            echo "Please increment the version and create a new release PR"
+            echo ""
+            echo "To fix:"
+            echo "  1. Run the release-bump workflow again with appropriate bump type"
+            echo "  2. Or manually update pyproject.toml with a new version"
+            exit 1
+          fi
+          
+          echo "✅ Tag $TAG does not exist, proceeding with creation"
+
+      - name: Create and push tag
+        run: |
+          set -euo pipefail
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          TAG="v${{ steps.version.outputs.version }}"
+          echo "📦 Creating annotated tag: $TAG"
+          git tag -a "$TAG" -m "Release $TAG"
+          
+          echo "⬆️  Pushing tag to origin"
+          if ! git push origin "$TAG" 2>&1; then
+            echo "❌ Failed to push tag $TAG to remote"
+            echo "This may be due to:"
+            echo "  - Network connectivity issues"
+            echo "  - Permission problems (check GITHUB_TOKEN permissions)"
+            echo "  - Repository protection rules"
+            exit 1
+          fi
+          
+          echo "✅ Tag $TAG created and pushed successfully"
+          echo "🐳 Docker build will be triggered automatically"
