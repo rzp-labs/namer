@@ -91,7 +91,8 @@ class ThePornDBProvider(BaseMetadataProvider):
         source_url = scene_data.get('url', '')
 
         if isinstance(urls_field, dict):
-            source_url = urls_field.get('url', '') or source_url
+            # Try 'url' first, then 'view', then fallback to existing source_url
+            source_url = urls_field.get('url') or urls_field.get('view') or source_url
         elif isinstance(urls_field, list):
             for url_entry in urls_field:
                 if isinstance(url_entry, dict):

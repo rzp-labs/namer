@@ -396,9 +396,9 @@ class StashDBProvider(BaseMetadataProvider):
             if not isinstance(scenes, list):
                 scenes = [scenes]
 
-            serialized_query = _serialize(graphql_query).decode('utf-8')
+            serialized_query = _serialize_to_str(graphql_query)
             for scene in scenes:
-                serialized_scene = _serialize(scene).decode('utf-8')
+                serialized_scene = _serialize_to_str(scene)
                 file_info = self._map_stashdb_scene_to_fileinfo(
                     scene,
                     original_query=serialized_query,
@@ -692,9 +692,9 @@ class StashDBProvider(BaseMetadataProvider):
                 if not isinstance(scenes, list):
                     scenes = [scenes]
 
-                serialized_query = _serialize(query).decode('utf-8')
+                serialized_query = _serialize_to_str(query)
                 for scene in scenes:
-                    serialized_scene = _serialize(scene).decode('utf-8')
+                    serialized_scene = _serialize_to_str(scene)
                     file_info = self._map_stashdb_scene_to_fileinfo(
                         scene,
                         original_query=serialized_query,

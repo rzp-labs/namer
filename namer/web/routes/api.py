@@ -4,10 +4,11 @@ Defines the api routes of a Flask webserver for namer.
 
 from pathlib import Path
 from queue import Queue
-from typing import Any
+from typing import Any, Union
 
 from flask import Blueprint, jsonify, render_template, request
 from flask.wrappers import Response
+from loguru import logger
 
 from namer.command import make_command_relative_to, move_command_files
 from namer.configuration import NamerConfig
@@ -24,7 +25,7 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
     def render() -> Response:
         data = request.json
 
-        res: Any = False
+        res: Union[bool, dict[str, Any]] = False
         if data:
             template: str = data.get('template')
             client_data = data.get('data')
@@ -75,6 +76,7 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
         return jsonify(res)
 
     @blueprint.route('/v1/get_queue', methods=['POST'])
+    @logger.catch
     def get_queue() -> Response:
         queue_size = get_queue_size(command_queue)
         res = human_format(queue_size)
