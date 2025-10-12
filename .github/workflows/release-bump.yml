@@ -65,12 +65,16 @@ jobs:
             Automated version bump to v${{ steps.bump.outputs.new_version }}.
 
             - Bumps `pyproject.toml` version using Poetry
-            - On merge, CI will build and push GHCR image tags:
-              - `v${{ steps.bump.outputs.new_version }}`
-              - `${{ steps.bump.outputs.major_minor }}`
-              - `sha-*`
-              - `latest` (on default branch)
-            - Optionally tag the merge commit `v${{ steps.bump.outputs.new_version }}` to trigger semver tags on the Docker workflow for the tag event.
+            - On merge, the following happens automatically:
+              1. `release-tag.yml` creates Git tag `v${{ steps.bump.outputs.new_version }}`
+              2. `docker-build.yml` builds and pushes GHCR image tags:
+                 - `v${{ steps.bump.outputs.new_version }}`
+                 - `${{ steps.bump.outputs.major_minor }}`
+                 - `main`
+                 - `latest`
+                 - `sha-*`
+            
+            No manual steps required after merge - everything is automated!
           commit-message: "chore(release): bump version to ${{ steps.bump.outputs.new_version }}"
           labels: release
           draft: false
