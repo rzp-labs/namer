@@ -46,7 +46,6 @@ def _orjson_dumps(value: Any, *, sort_keys: bool = False, indent: int = 2) -> st
     if HAS_ORJSON:
         # orjson only supports indent=2 via OPT_INDENT_2; validate parameter
         if indent not in (0, 2):
-            logger.error('Invalid indent parameter for orjson: {}. Only 0 (no indent) or 2 are supported.', indent)
             raise ValueError(f'orjson only supports indent=0 or indent=2, got indent={indent}')
 
         option = 0

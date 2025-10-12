@@ -216,6 +216,7 @@ def write_log_file(movie_file: Optional[Path], match_attempts: Optional[Comparis
     with open(log_name, 'wb') as log_file:
         if match_attempts:
             redacted: List[Tuple[LookedUpFileInfo, Optional[str], Optional[str]]] = []
+            json_out: Optional[str] = None
             try:
                 for result in match_attempts.results or []:
                     looked_up = getattr(result, 'looked_up', None)

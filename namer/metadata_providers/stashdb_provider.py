@@ -106,6 +106,7 @@ class StashDBProvider(BaseMetadataProvider):
     and maps results to namer's existing data structures.
     """
 
+    @logger.catch
     def __init__(self) -> None:
         """Initialize provider and validate optional dependencies."""
         if orjson is None:
