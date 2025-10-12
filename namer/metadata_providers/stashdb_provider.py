@@ -218,7 +218,7 @@ class StashDBProvider(BaseMetadataProvider):
                         ambiguous_reason = 'phash_missing_guids'
                         ambiguous_candidates = [scene_info.name for scene_info in phash_results if scene_info.name]
             except (OSError, ValueError, JSONDecodeErrorType, RuntimeError) as exc:
-                logger.debug('Phash search failed: %s', exc, exc_info=True)
+                logger.debug('Phash search failed: {}', exc, exc_info=True)
 
         # Sort results by quality
         results = sorted(results, key=self._calculate_match_weight, reverse=True)

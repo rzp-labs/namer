@@ -9,6 +9,7 @@ import os
 import shutil
 import sys
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from numbers import Integral, Number
 from pathlib import Path
 from platform import system
@@ -115,29 +116,47 @@ def move_command_files(target: Optional[Command], new_target: Path, is_auto: boo
     return output
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def _json_safe(value):
+    """
+    Convert value to JSON-safe type, handling common non-JSON types explicitly.
+    Raises exceptions for truly problematic types rather than silently returning them.
+    """
     if isinstance(value, dict):
         return {key: _json_safe(val) for key, val in value.items()}
     if isinstance(value, (list, tuple, set)):
         return [_json_safe(item) for item in value]
     if isinstance(value, bool):
         return value
+    if isinstance(value, str):
+        return value
     if isinstance(value, Number):
         # Keep integers as integers to avoid corruption of large IDs
         # Check for integral types first to avoid float round-trip corruption
         if isinstance(value, Integral):
             return int(value)
-        # Only convert non-integral numbers to float
-        try:
-            as_float = float(value)
-        except (TypeError, ValueError, OverflowError):
-            return value
+        # Convert non-integral numbers to float, let errors propagate
+        as_float = float(value)
         # For floats that happen to be whole numbers, convert to int
         if as_float.is_integer():
             return int(as_float)
         return as_float
-    return value
+    # Handle common non-JSON types explicitly
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, bytes):
+        try:
+            return value.decode('utf-8')
+        except UnicodeDecodeError:
+            return value.hex()
+    if value is None:
+        return None
+    
+    # Unknown type - log warning and convert to string
+    logger.warning('Encountered non-JSON-serializable type {} for value, converting to string: {}', type(value).__name__, repr(value)[:100])
+    return str(value)
 
 
 def _build_summary(match_attempts: Optional[ComparisonResults]) -> dict:

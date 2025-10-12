@@ -86,19 +86,25 @@ class ThePornDBProvider(BaseMetadataProvider):
         - dict: urls_field.get('url') or fallback
         - list: iterate entries, return first 'url' or 'view' found
         - fallback: scene_data.get('url', '')
+        
+        Always returns a string (empty string if no URL found).
         """
         urls_field = scene_data.get('urls')
-        source_url = scene_data.get('url', '')
+        # Normalize base URL to string, coerce None to empty string
+        source_url = scene_data.get('url') or ''
+        source_url = str(source_url) if source_url else ''
 
         if isinstance(urls_field, dict):
             # Try 'url' first, then 'view', then fallback to existing source_url
-            source_url = urls_field.get('url') or urls_field.get('view') or source_url
+            candidate = urls_field.get('url') or urls_field.get('view')
+            if candidate:
+                source_url = str(candidate)
         elif isinstance(urls_field, list):
             for url_entry in urls_field:
                 if isinstance(url_entry, dict):
                     candidate = url_entry.get('url') or url_entry.get('view')
                     if candidate:
-                        source_url = candidate
+                        source_url = str(candidate)
                         break
 
         return source_url

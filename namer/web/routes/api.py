@@ -76,7 +76,7 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
         return jsonify(res)
 
     @blueprint.route('/v1/get_queue', methods=['POST'])
-    @logger.catch
+    @logger.catch(reraise=True)
     def get_queue() -> Response:
         queue_size = get_queue_size(command_queue)
         res = human_format(queue_size)
@@ -84,7 +84,7 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
         return jsonify(res)
 
     @blueprint.route('/v1/rename', methods=['POST'])
-    @logger.catch
+    @logger.catch(reraise=True)
     def rename() -> Response:
         data = request.json
 
