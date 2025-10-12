@@ -48,10 +48,16 @@ def get_all_childnode(node: NodeHost, name: str) -> List[Element]:
 
 
 def _text_from_children(children: Sequence[Node]) -> Optional[str]:
+    """Collect and concatenate text from all CharacterData nodes."""
+    text_parts = []
     for child in children:
         if isinstance(child, CharacterData):
-            return child.data
-    return None
+            text_parts.append(child.data)
+    
+    if not text_parts:
+        return None
+    
+    return ''.join(text_parts)
 
 
 def get_childnode_text(node: NodeHost, name: str) -> Optional[str]:
@@ -89,7 +95,7 @@ def parse_movie_xml_file(xml_file: Path) -> LookedUpFileInfo:
     info.performers = []
     for actor in get_all_childnode(movie, 'actor'):
         name = get_childnode_text(actor, 'name')
-        if actor and name:
+        if name:
             performer = Performer(name)
             performer.alias = get_childnode_text(actor, 'alias')
             performer.role = get_childnode_text(actor, 'role')
