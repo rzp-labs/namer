@@ -66,9 +66,12 @@ jobs:
             exit 1
           fi
           
-          # Validate version format (semantic versioning: X.Y.Z)
-          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+          # Validate version format (semantic versioning: X.Y.Z only, no suffixes)
+          # Requires exact match: digits.digits.digits with no pre-release or build metadata
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "❌ Error: Invalid version format: $VERSION (expected X.Y.Z)"
+            echo "Version must be exactly three numeric components (e.g., 1.23.0)"
+            echo "Pre-release suffixes like -rc1, -alpha, -beta are not allowed"
             exit 1
           fi
           
