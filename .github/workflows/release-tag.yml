@@ -22,10 +22,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          # Use the PR merge commit SHA to tag the exact merge commit
-          # merge_commit_sha is guaranteed to exist when merged == true
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          # Use the PR merge commit SHA, with fallback to head SHA or github.sha
+          # merge_commit_sha can be null in edge cases, so we provide fallbacks
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+          fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
@@ -51,13 +52,14 @@ jobs:
         run: |
           set -euo pipefail
           
-          # Extract version with explicit error handling
-          if ! VERSION=$(poetry version -s 2>&1); then
+          # Extract version with proper error handling
+          # Capture output but fail on non-zero exit code
+          VERSION=$(poetry version -s 2>&1) || {
             echo "❌ Error: Poetry command failed"
             echo "Output: $VERSION"
             echo "This may indicate a malformed pyproject.toml or Poetry installation issue"
             exit 1
-          fi
+          }
           
           # Validate version was extracted successfully
           if [ -z "$VERSION" ]; then
