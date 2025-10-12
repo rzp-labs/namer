@@ -113,12 +113,30 @@ def retry_failed(namer_config: NamerConfig):
     logger.info('Retry failed items:')
 
     # remove all old namer log files and summaries
+    cleanup_failures = 0
     for log_file in failed_dir.rglob('**/*_namer.json.gz'):
-        log_file.unlink()
+        try:
+            log_file.unlink()
+        except OSError as e:
+            logger.warning('Failed to delete log file %s: %s', log_file, e)
+            cleanup_failures += 1
+    
     for summary_file in failed_dir.rglob('**/*_namer_summary.json'):
-        summary_file.unlink()
+        try:
+            summary_file.unlink()
+        except OSError as e:
+            logger.warning('Failed to delete summary file %s: %s', summary_file, e)
+            cleanup_failures += 1
+    
     for note_file in failed_dir.rglob('**/*.ambiguous.json'):
-        note_file.unlink()
+        try:
+            note_file.unlink()
+        except OSError as e:
+            logger.warning('Failed to delete ambiguous note file %s: %s', note_file, e)
+            cleanup_failures += 1
+    
+    if cleanup_failures > 0:
+        logger.warning('Failed to delete %d file(s) during cleanup', cleanup_failures)
 
     # move all files back to watch dir.
     for file in gather_target_files_from_dir(failed_dir, namer_config):

@@ -20,6 +20,7 @@ except ImportError:  # pragma: no cover - optional dependency
     HAS_ORJSON = False
 
 import jsonpickle  # type: ignore[import]  # No type stubs available
+from loguru import logger
 from werkzeug.routing import Rule
 
 from namer.comparison_results import ComparisonResults, SceneType
@@ -39,12 +40,12 @@ def _orjson_loads(value: str) -> Any:
     return json.loads(value)
 
 
+@logger.catch(reraise=True)
 def _orjson_dumps(value: Any, *, sort_keys: bool = False, indent: int = 2) -> str:
     """Dump JSON using orjson if available, otherwise use stdlib json."""
     if HAS_ORJSON:
         # orjson only supports indent=2 via OPT_INDENT_2; validate parameter
         if indent not in (0, 2):
-            from loguru import logger
             logger.error('Invalid indent parameter for orjson: {}. Only 0 (no indent) or 2 are supported.', indent)
             raise ValueError(f'orjson only supports indent=0 or indent=2, got indent={indent}')
 
@@ -65,6 +66,7 @@ class SearchType(str, Enum):
     JAV = 'JAV'
 
 
+@logger.catch(reraise=True)
 def _require_path(path: Optional[Path], name: str) -> Path:
     if path is None:
         raise ValueError(f'NamerConfig.{name} must be configured')
