@@ -5,9 +5,10 @@ or used in renaming the video file.
 """
 
 from pathlib import Path
-
 from typing import Optional, List, Union, Sequence, cast
+
 from defusedxml.minidom import parseString  # type: ignore[import]  # Incomplete type stubs
+from loguru import logger
 from xml.dom.minidom import CharacterData, Document, Element, Node  # nosec B408: Using defusedxml for parsing
 
 from namer.configuration import NamerConfig
@@ -31,6 +32,7 @@ def get_childnode(node: NodeHost, name: str) -> Optional[Element]:
     return _first_element(node.getElementsByTagName(name))
 
 
+@logger.catch(reraise=True)
 def require_childnode(node: NodeHost, name: str) -> Element:
     """
     Get child node, raises ValueError if not found.

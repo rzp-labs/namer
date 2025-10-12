@@ -240,6 +240,11 @@ def get_search_results(query: str, search_type: SearchType, file: str, config: N
 def get_phash_results(file: str, _search_type: SearchType, config: NamerConfig) -> Dict:
     """
     Search results by phash for user selection using the configured metadata provider.
+    
+    Args:
+        file: The filename to search for
+        _search_type: Reserved for future filtering by content type (currently unused)
+        config: Namer configuration
     """
     failed_dir = _require_path(config.failed_dir, 'failed_dir')
     phash_file = failed_dir / file

@@ -261,8 +261,8 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
         # For test configurations without directories, just warn about missing tokens
         if metadata_provider_lower == 'theporndb' and (not config.porndb_token or config.porndb_token.strip() == ''):
             logger.warning('ThePornDB provider would require a porndb_token in production')
-        elif metadata_provider_lower == 'stashdb' and (not config.stashdb_endpoint or config.stashdb_endpoint.strip() == ''):
-            logger.warning('StashDB provider would require stashdb_endpoint in production')
+        elif metadata_provider_lower == 'stashdb' and (not config.stashdb_token or config.stashdb_token.strip() == ''):
+            logger.warning('StashDB provider would benefit from an API token (stashdb_token) in production')
 
     return success
 

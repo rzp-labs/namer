@@ -1,7 +1,7 @@
 engines:
     pylint@3.3.6:
         exclude_paths:
-            - Dockerfile
+            - Dockerfile*
 runtimes:
     - dart@3.7.2
     - go@1.22.3

@@ -283,9 +283,16 @@ class ThePornDBProvider(BaseMetadataProvider):
                              algorithm, ', '.join(t.name for t in HashType))
                 continue
 
-            raw_hash = hash_entry.get('hash', '')
+            raw_hash = hash_entry.get('hash')
+            # Skip if hash is None, empty, or would stringify to invalid value
+            if raw_hash is None or raw_hash == '':
+                logger.debug("Skipping hash entry with missing/empty hash value")
+                continue
+            
+            # Normalize hash value
             hash_value = raw_hash.strip() if isinstance(raw_hash, str) else str(raw_hash).strip()
-            if not hash_value:
+            if not hash_value or hash_value.lower() == 'none':
+                logger.debug("Skipping invalid hash value: %s", raw_hash)
                 continue
 
             scene_hash = SceneHash(hash_value, hash_type, hash_entry.get('duration'))

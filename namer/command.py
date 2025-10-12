@@ -9,7 +9,7 @@ import os
 import shutil
 import sys
 from dataclasses import dataclass, field
-from numbers import Number
+from numbers import Integral, Number
 from pathlib import Path
 from platform import system
 from typing import Iterable, List, Optional, Sequence, Tuple
@@ -125,9 +125,8 @@ def _json_safe(value):
         return value
     if isinstance(value, Number):
         # Keep integers as integers to avoid corruption of large IDs
-        import numbers
         # Check for integral types first to avoid float round-trip corruption
-        if isinstance(value, numbers.Integral):
+        if isinstance(value, Integral):
             return int(value)
         # Only convert non-integral numbers to float
         try:

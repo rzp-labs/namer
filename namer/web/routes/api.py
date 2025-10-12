@@ -84,6 +84,7 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
         return jsonify(res)
 
     @blueprint.route('/v1/rename', methods=['POST'])
+    @logger.catch
     def rename() -> Response:
         data = request.json
 
