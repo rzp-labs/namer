@@ -213,9 +213,14 @@ class MovieEventHandler(PatternMatchingEventHandler):
         command = make_command_relative_to(input_dir=path, relative_to=self.__watch_dir, config=self.__namer_config)
         working_command = move_command_files(command, self.__work_dir)
         if working_command is not None:
+            # Verify the file exists at its new location after the move.
+            # This check is necessary because move_command_files may succeed but
+            # the command object might not have a valid target_movie_file in edge cases.
             if working_command.target_movie_file and working_command.target_movie_file.is_file():
                 working_command.config = self.__namer_config
                 self.__enqueue_work_fn(working_command)
+            else:
+                logger.warning('File not found after move: {}', working_command.target_movie_file if working_command.target_movie_file else 'None')
 
 
 class MovieWatcher:
@@ -232,10 +237,21 @@ class MovieWatcher:
     def enqueue_work(self, command: Command):
         queue_items = list(self.__command_queue.queue)
         items = list(map(lambda x: x.get_command_target(), filter(lambda i: i is not None, queue_items)))
-        if not self.__stopped and (command is None or command.get_command_target() not in items):
+
+        # Allow None commands (shutdown signal) to always be enqueued
+        if command is None:
             self.__command_queue.put(command)
-        else:
+            return
+
+        # Check if server is stopped
+        if self.__stopped:
             raise RuntimeError('Command not added to work queue, server is stopping')
+
+        # Check for duplicate commands
+        if command.get_command_target() in items:
+            raise RuntimeError(f"Duplicate command: '{command.get_command_target()}' is already in the queue")
+
+        self.__command_queue.put(command)
 
     def __processing_thread(self):
         while True:
