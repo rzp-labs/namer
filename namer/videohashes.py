@@ -28,7 +28,10 @@ def main(args_list: List[str]):
         level = 'DEBUG' if config.debug else 'INFO'
         logger.add(sys.stdout, format=config.console_format, level=level, diagnose=config.diagnose_errors)
 
-    # Handle specific expected errors explicitly, let @logger.catch handle unexpected ones
+    # Handle specific expected errors explicitly for user-friendly CLI messages.
+    # FileNotFoundError is caught here (not by @logger.catch) to provide a clean
+    # error message without stack trace for this common user error. The logger.error
+    # call still provides context. Unexpected errors bubble up to @logger.catch.
     try:
         file_hash = calculate_phash(args.file.resolve(), config)
     except FileNotFoundError:
