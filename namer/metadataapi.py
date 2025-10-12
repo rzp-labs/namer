@@ -148,19 +148,28 @@ def __evaluate_match(name_parts: Optional[FileInfo], looked_up: LookedUpFileInfo
 def __update_results(results: List[ComparisonResult], name_parts: Optional[FileInfo], namer_config: NamerConfig, skip_date: bool = False, skip_name: bool = False, scene_type: SceneType = SceneType.SCENE, phash: Optional[PerceptualHash] = None):
     if not results or not results[0].is_match():
         seen = {res.looked_up.uuid for res in results}
-        # First pass: search with phash
-        for match_attempt in __get_metadataapi_net_fileinfo(name_parts, namer_config, skip_date, skip_name, scene_type=scene_type, phash=phash):
-            if match_attempt.uuid not in seen:
-                phash_result: ComparisonResult = __evaluate_match(name_parts, match_attempt, namer_config, phash)
-                results.append(phash_result)
-                seen.add(match_attempt.uuid)
 
-        # Second pass: search without phash
-        for match_attempt in __get_metadataapi_net_fileinfo(name_parts, namer_config, skip_date, skip_name, scene_type=scene_type):
-            if match_attempt.uuid not in seen:
-                fallback_result: ComparisonResult = __evaluate_match(name_parts, match_attempt, namer_config, phash)
-                results.append(fallback_result)
-                seen.add(match_attempt.uuid)
+        # First pass: search with phash (only if phash is available)
+        if phash is not None:
+            for match_attempt in __get_metadataapi_net_fileinfo(name_parts, namer_config, skip_date, skip_name, scene_type=scene_type, phash=phash):
+                if match_attempt.uuid not in seen:
+                    phash_result: ComparisonResult = __evaluate_match(name_parts, match_attempt, namer_config, phash)
+                    results.append(phash_result)
+                    seen.add(match_attempt.uuid)
+
+            # Second pass: fallback search without phash (only if first pass with phash was performed)
+            for match_attempt in __get_metadataapi_net_fileinfo(name_parts, namer_config, skip_date, skip_name, scene_type=scene_type):
+                if match_attempt.uuid not in seen:
+                    fallback_result: ComparisonResult = __evaluate_match(name_parts, match_attempt, namer_config, phash)
+                    results.append(fallback_result)
+                    seen.add(match_attempt.uuid)
+        else:
+            # When phash is None, only do name-based search once
+            for match_attempt in __get_metadataapi_net_fileinfo(name_parts, namer_config, skip_date, skip_name, scene_type=scene_type):
+                if match_attempt.uuid not in seen:
+                    result: ComparisonResult = __evaluate_match(name_parts, match_attempt, namer_config, phash)
+                    results.append(result)
+                    seen.add(match_attempt.uuid)
 
         results = sorted(results, key=__match_weight, reverse=True)
 

@@ -17,7 +17,7 @@ from flask_compress import Compress  # type: ignore[import]  # No type stubs ava
 from flask_wtf.csrf import CSRFError, CSRFProtect, generate_csrf  # type: ignore[import]  # Incomplete type stubs
 from loguru import logger
 from werkzeug.middleware.proxy_fix import ProxyFix
-from waitress import create_server as waitress_create_server  # type: ignore[attr-defined]  # Incomplete type stubs
+from waitress import create_server  # type: ignore[attr-defined]  # Incomplete type stubs
 from waitress.server import BaseWSGIServer, MultiSocketServer  # type: ignore[import]  # Incomplete type stubs
 
 from namer.configuration import NamerConfig
@@ -79,7 +79,7 @@ class GenericWebServer:
     def __make_server(self):
         self.__app.wsgi_app = ProxyFix(self.__app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
         self.__compress.init_app(self.__app)
-        self.__server = waitress_create_server(self.__app, host=self.__host, port=self.__port, clear_untrusted_proxy_headers=True)
+        self.__server = create_server(self.__app, host=self.__host, port=self.__port, clear_untrusted_proxy_headers=True)
         self.__thread = Thread(target=self.__run, daemon=True)
 
     def __register_blueprints(self):

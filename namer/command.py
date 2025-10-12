@@ -124,10 +124,17 @@ def _json_safe(value):
     if isinstance(value, bool):
         return value
     if isinstance(value, Number):
+        # Keep integers as integers to avoid corruption of large IDs
+        import numbers
+        # Check for integral types first to avoid float round-trip corruption
+        if isinstance(value, numbers.Integral):
+            return int(value)
+        # Only convert non-integral numbers to float
         try:
             as_float = float(value)
         except (TypeError, ValueError, OverflowError):
             return value
+        # For floats that happen to be whole numbers, convert to int
         if as_float.is_integer():
             return int(as_float)
         return as_float
@@ -444,7 +451,8 @@ def gather_target_files_from_dir(dir_to_scan: Path, config: NamerConfig) -> Iter
         logger.info('Scanning dir {} for sub-dirs/files to process', dir_to_scan)
         commands: List[Command] = []
         for file in dir_to_scan.iterdir():
-            cmd = make_command(dir_to_scan / file, config)
+            # iterdir() yields full Path objects (already absolute), pass directly
+            cmd = make_command(file, config)
             if cmd is not None:
                 commands.append(cmd)
         return commands

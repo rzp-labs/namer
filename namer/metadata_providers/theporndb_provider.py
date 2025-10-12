@@ -78,6 +78,30 @@ class ThePornDBProvider(BaseMetadataProvider):
             logger.error(f'GraphQL request failed: {e}')
             return None
 
+    def _extract_source_url(self, scene_data: Dict[str, Any]) -> str:
+        """
+        Extract source URL from scene data.
+
+        Handles multiple URL field formats:
+        - dict: urls_field.get('url') or fallback
+        - list: iterate entries, return first 'url' or 'view' found
+        - fallback: scene_data.get('url', '')
+        """
+        urls_field = scene_data.get('urls')
+        source_url = scene_data.get('url', '')
+
+        if isinstance(urls_field, dict):
+            source_url = urls_field.get('url', '') or source_url
+        elif isinstance(urls_field, list):
+            for url_entry in urls_field:
+                if isinstance(url_entry, dict):
+                    candidate = url_entry.get('url') or url_entry.get('view')
+                    if candidate:
+                        source_url = candidate
+                        break
+
+        return source_url
+
     def _graphql_scene_to_fileinfo(self, scene_data: Dict[str, Any], original_query: str, original_response: str, name_parts: Optional[FileInfo]) -> LookedUpFileInfo:
         """
         Convert GraphQL scene data to LookedUpFileInfo object.
@@ -103,19 +127,7 @@ class ThePornDBProvider(BaseMetadataProvider):
         file_info.name = scene_data.get('title', '')
         file_info.description = scene_data.get('description') or scene_data.get('details') or ''
         file_info.date = scene_data.get('date', '')
-
-        urls_field = scene_data.get('urls')
-        source_url = scene_data.get('url', '')
-        if isinstance(urls_field, dict):
-            source_url = urls_field.get('url', '') or source_url
-        elif isinstance(urls_field, list):
-            for url_entry in urls_field:
-                if isinstance(url_entry, dict):
-                    candidate = url_entry.get('url') or url_entry.get('view')
-                    if candidate:
-                        source_url = candidate
-                        break
-        file_info.source_url = source_url
+        file_info.source_url = self._extract_source_url(scene_data)
         file_info.duration = scene_data.get('duration')
 
         # External ID
@@ -157,7 +169,13 @@ class ThePornDBProvider(BaseMetadataProvider):
         performers_data = scene_data.get('performers') or []
 
         def _extract_gender(*sources: Mapping[str, Any]) -> Optional[str]:
-            def _from_dict(payload: Mapping[str, Any]) -> Optional[str]:
+            def _from_dict(payload: Mapping[str, Any], visited: set[int]) -> Optional[str]:
+                # Prevent infinite recursion on circular parent references
+                payload_id = id(payload)
+                if payload_id in visited:
+                    return None
+                visited.add(payload_id)
+
                 gender_value = payload.get('gender')
                 if gender_value:
                     return gender_value
@@ -169,12 +187,12 @@ class ThePornDBProvider(BaseMetadataProvider):
                             return nested_gender
                 parent_payload = payload.get('parent')
                 if isinstance(parent_payload, Mapping):
-                    return _from_dict(parent_payload)
+                    return _from_dict(parent_payload, visited)
                 return None
 
             for source in sources:
                 if isinstance(source, Mapping):
-                    gender_value = _from_dict(source)
+                    gender_value = _from_dict(source, set())
                     if gender_value:
                         return gender_value
             return None
@@ -192,15 +210,18 @@ class ThePornDBProvider(BaseMetadataProvider):
                 continue
 
             performer = Performer(performer_name)
-            performer.alias = performer_name
 
+            # Set alias from aliases_source if available, otherwise fallback to performer_name
             aliases_source = None
             if performer_info and performer_info.get('aliases'):
                 aliases_source = performer_info['aliases']
             elif appearance_info.get('aliases'):
                 aliases_source = appearance_info['aliases']
+
             if aliases_source:
                 performer.alias = ', '.join(aliases_source) if isinstance(aliases_source, list) else str(aliases_source)
+            else:
+                performer.alias = performer_name
 
             gender_sources: List[Mapping[str, Any]] = []
             if performer_info:
@@ -244,11 +265,14 @@ class ThePornDBProvider(BaseMetadataProvider):
         for hash_entry in hash_sources:
             if not isinstance(hash_entry, dict):
                 continue
-            hash_type_value = hash_entry.get('algorithm') or hash_entry.get('type') or ''
-            # Normalize the algorithm name
-            algorithm = 'PHASH'  # default
-            if isinstance(hash_type_value, str) and hash_type_value.strip():
-                algorithm = hash_type_value.strip().upper()
+
+            # Get and normalize the algorithm name
+            hash_type_value = hash_entry.get('algorithm') or hash_entry.get('type')
+            if not hash_type_value or not isinstance(hash_type_value, str) or not hash_type_value.strip():
+                logger.debug("Skipping hash entry with missing or empty algorithm field")
+                continue
+
+            algorithm = hash_type_value.strip().upper()
 
             # Try to map to HashType enum
             try:

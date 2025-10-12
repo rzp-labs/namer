@@ -1,4 +1,4 @@
-from typing import Literal, Optional, cast
+from typing import Literal, Optional
 
 import numpy
 import scipy.fft
@@ -36,9 +36,9 @@ class ImageHash:
         if self.hash.size != other.hash.size:
             raise TypeError('ImageHashes must be of the same shape.', self.hash.shape, other.hash.shape)
 
-        # Use cast for type checking without runtime overhead
+        # Convert numpy int to native Python int for runtime type safety
         count = numpy.count_nonzero(self.hash.flatten() != other.hash.flatten())
-        return cast(int, count)
+        return int(count)
 
     def __eq__(self, other: object) -> bool:
         if other is None:
@@ -61,6 +61,7 @@ class ImageHash:
         return self.hash.size
 
 
+@logger.catch(reraise=True)
 def _binary_array_to_hex(arr):
     """
     internal function to make a hex string out of a binary array.

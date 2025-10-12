@@ -69,6 +69,7 @@ class StashVideoPerceptualHash:
         logger.info(f'Calculating phash for file "{file}"')
         return self.__execute_stash_phash(file)
 
+    @logger.catch
     def __execute_stash_phash(self, file: Optional[Path] = None) -> Optional[PerceptualHash]:
         output = None
         if not self.__phash_path:
@@ -85,18 +86,14 @@ class StashVideoPerceptualHash:
                 '--video', str(file)
             ])
 
-        try:
-            completed = subprocess.run(  # nosec B603: fixed executable path without user input
-                args,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                check=False,
-                shell=False,
-            )
-        except Exception as error:  # pragma: no cover - defensive logging
-            logger.error('Failed to execute videohash binary %s: %s', args[0], error)
-            return output
+        completed = subprocess.run(  # nosec B603: fixed executable path without user input
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+            shell=False,
+        )
 
         stdout = completed.stdout.strip()
         stderr = completed.stderr.strip()
@@ -115,12 +112,8 @@ class StashVideoPerceptualHash:
 
         return output
 
+    @logger.catch
     def is_binary_available(self) -> bool:
         binary_path = self.__phash_path / self.__phash_name
-        try:
-            if not binary_path.exists():
-                return False
-            return os.access(binary_path, os.X_OK)
-        except Exception as error:  # pragma: no cover - defensive logging
-            logger.error('Failed to verify videohashes binary %s: %s', binary_path, error)
-            return False
+        # No need for exists() check - os.access handles non-existent files gracefully
+        return os.access(binary_path, os.X_OK)

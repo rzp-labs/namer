@@ -42,6 +42,12 @@ def _orjson_loads(value: str) -> Any:
 def _orjson_dumps(value: Any, *, sort_keys: bool = False, indent: int = 2) -> str:
     """Dump JSON using orjson if available, otherwise use stdlib json."""
     if HAS_ORJSON:
+        # orjson only supports indent=2 via OPT_INDENT_2; validate parameter
+        if indent not in (0, 2):
+            from loguru import logger
+            logger.error('Invalid indent parameter for orjson: {}. Only 0 (no indent) or 2 are supported.', indent)
+            raise ValueError(f'orjson only supports indent=0 or indent=2, got indent={indent}')
+
         option = 0
         if indent:
             option |= orjson.OPT_INDENT_2

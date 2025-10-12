@@ -271,6 +271,7 @@ def process_file(command: Command) -> Optional[Command]:
                             logger.info('Routing to ambiguous_dir due to ambiguous decision -> {}', ambiguous_subdir)
                             moved = move_command_files(command, ambiguous_subdir)
                             if moved is not None:
+                                assert moved.target_movie_file is not None  # Type narrowing for mypy
                                 if search_results is not None and moved.config.write_namer_failed_log:
                                     write_log_file(moved.target_movie_file, search_results, moved.config)
                                 # Write ambiguous metadata file for manual review
@@ -305,6 +306,7 @@ def process_file(command: Command) -> Optional[Command]:
             # Ensure the original parsed filename extension matches the current file extension
             # This handles both container conversion and cases where filename parsing failed to extract extension
             if new_metadata.original_parsed_filename and command.target_movie_file:
+                assert command.target_movie_file is not None  # Type narrowing for mypy
                 actual_extension = command.target_movie_file.suffix.lower()[1:]
                 parsed_extension = new_metadata.original_parsed_filename.extension
                 # Update if extension is None, empty, or different from actual file extension
@@ -319,8 +321,10 @@ def process_file(command: Command) -> Optional[Command]:
                         command.input_file
                     )
                     raise ValueError('NamerConfig.failed_dir must be set when manual_mode is enabled')
+                assert failed_dir is not None  # Type narrowing for mypy after None check
                 failed = move_command_files(command, failed_dir)
                 if failed is not None and search_results is not None and failed.config.write_namer_failed_log:
+                    assert failed.target_movie_file is not None  # Type narrowing for mypy
                     write_log_file(failed.target_movie_file, search_results, failed.config)
             else:
                 ffprobe_results = command.config.ffmpeg.ffprobe(command.target_movie_file)
