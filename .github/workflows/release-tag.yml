@@ -22,7 +22,8 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           # Use the PR merge commit SHA to tag the exact merge commit
-          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          # merge_commit_sha is guaranteed to exist when merged == true
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -40,8 +41,21 @@ jobs:
         id: version
         run: |
           VERSION=$(poetry version -s)
+          
+          # Validate version was extracted successfully
+          if [ -z "$VERSION" ]; then
+            echo "❌ Error: Failed to extract version from pyproject.toml"
+            exit 1
+          fi
+          
+          # Validate version format (semantic versioning: X.Y.Z)
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "❌ Error: Invalid version format: $VERSION (expected X.Y.Z)"
+            exit 1
+          fi
+          
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Extracted version: $VERSION"
+          echo "✅ Extracted version: $VERSION"
 
       - name: Check if tag already exists
         id: check_tag
