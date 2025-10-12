@@ -44,9 +44,9 @@ def _orjson_loads(value: str) -> Any:
 def _orjson_dumps(value: Any, *, sort_keys: bool = False, indent: int = 2) -> str:
     """Dump JSON using orjson if available, otherwise use stdlib json."""
     if HAS_ORJSON:
-        # orjson only supports indent=2 via OPT_INDENT_2; validate parameter
+        # orjson only supports indent=2 via OPT_INDENT_2; fallback to json.dumps for other values
         if indent not in (0, 2):
-            raise ValueError(f'orjson only supports indent=0 or indent=2, got indent={indent}')
+            return json.dumps(value, sort_keys=sort_keys, indent=indent if indent else None)
 
         option = 0
         if indent:
@@ -312,13 +312,21 @@ def delete_file(file_name_str: str, config: NamerConfig) -> bool:
         return False
 
     if config.del_other_files and file_name.is_dir():
-        # Verify directory is within failed_dir before removing
-        target_name = (failed_dir / Path(file_name_str).parts[0]).resolve()
+        # Use the already-resolved full path to delete exact directory
+        target_name = file_name  # Already resolved and validated above
+        
+        # Prevent deleting the root failed_dir itself
+        if target_name == failed_dir_resolved:
+            logger.warning('Attempted to delete root failed_dir itself: %s', target_name)
+            return False
+        
+        # Double-check it's still within failed_dir (should always pass)
         try:
             target_name.relative_to(failed_dir_resolved)
         except ValueError:
             logger.warning('Path traversal attempt detected in directory delete: %s', target_name)
             return False
+        
         shutil.rmtree(target_name)
     else:
         # Preserve directory structure when computing log file path

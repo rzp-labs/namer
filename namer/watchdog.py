@@ -215,7 +215,7 @@ class MovieEventHandler(PatternMatchingEventHandler):
         if working_command is not None:
             if path.is_file():
                 working_command.config = self.__namer_config
-            self.__enqueue_work_fn(working_command)
+                self.__enqueue_work_fn(working_command)
 
 
 class MovieWatcher:
