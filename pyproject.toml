@@ -1,6 +1,6 @@
 [project]
 name = "namer"
-version = "1.23.0"
+version = "1.23.1"
 description = "A namer of video files based on metadata from the porndb."
 readme = "readme.rst"
 authors = [{ name = "nehpz", email = "admin@rzp.one" }]
@@ -10,22 +10,22 @@ requires-python = ">=3.11,<3.15"
 [tool.poetry]
 package-mode = true
 include = [
-    { path = "namer/web/public/assets/**/*", format = [
-        "sdist",
-        "wheel",
-    ] },
-    { path = "namer/web/templates/**/*", format = [
-        "sdist",
-        "wheel",
-    ] },
-    { path = "namer/tools/videohashes*", format = [
-        "sdist",
-        "wheel",
-    ] },
-    { path = "namer/namer.cfg.default", format = [
-        "sdist",
-        "wheel",
-    ] },
+  { path = "namer/web/public/assets/**/*", format = [
+    "sdist",
+    "wheel",
+  ] },
+  { path = "namer/web/templates/**/*", format = [
+    "sdist",
+    "wheel",
+  ] },
+  { path = "namer/tools/videohashes*", format = [
+    "sdist",
+    "wheel",
+  ] },
+  { path = "namer/namer.cfg.default", format = [
+    "sdist",
+    "wheel",
+  ] },
 ]
 
 [tool.poetry.dependencies]
@@ -74,15 +74,15 @@ types-waitress = "^3.0.1.20250801"
 
 [tool.ruff]
 exclude = [
-    ".git",
-    "__pycache__",
-    "docs/source/conf.py",
-    "old",
-    "build",
-    "dist",
-    "*migrations*",
-    "init",
-    "node_modules",
+  ".git",
+  "__pycache__",
+  "docs/source/conf.py",
+  "old",
+  "build",
+  "dist",
+  "*migrations*",
+  "init",
+  "node_modules",
 ]
 line-length = 320
 indent-width = 4
@@ -104,11 +104,11 @@ install_videohashes_src = { shell = "if command -v git >/dev/null 2>&1; then git
 build_videohashes = { shell = "ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && OS=$(uname -s | tr '[:upper:]' '[:lower:]') && if [ -d ./videohashes ] && [ -f ./videohashes/Makefile ]; then mkdir -p ./videohashes/dist && if [ \"$OS\" = \"darwin\" ]; then make macos-$ARCH -C ./videohashes; else make linux-$ARCH -C ./videohashes; fi; else echo 'Skipping videohashes build (submodule/Makefile not present)'; fi" }
 move_videohashes = { shell = "if [ -d ./videohashes/dist ]; then mkdir -p ./namer/tools && cp -r ./videohashes/dist/* ./namer/tools/; else echo 'Skipping copy (dist missing)'; fi" }
 build_deps = [
-    "install_npm",
-    "build_node",
-    "install_videohashes_src",
-    "build_videohashes",
-    "move_videohashes",
+  "install_npm",
+  "build_node",
+  "install_videohashes_src",
+  "build_videohashes",
+  "move_videohashes",
 ]
 # Docker builds use this variant since videohashes is built separately in a dedicated RUN step
 build_deps_no_videohashes = ["install_npm", "build_node"]
