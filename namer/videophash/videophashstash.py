@@ -69,7 +69,7 @@ class StashVideoPerceptualHash:
         logger.info(f'Calculating phash for file "{file}"')
         return self.__execute_stash_phash(file)
 
-    @logger.catch
+    @logger.catch(reraise=True)
     def __execute_stash_phash(self, file: Optional[Path] = None) -> Optional[PerceptualHash]:
         output = None
         if not self.__phash_path:
@@ -112,7 +112,7 @@ class StashVideoPerceptualHash:
 
         return output
 
-    @logger.catch
+    @logger.catch(reraise=True)
     def is_binary_available(self) -> bool:
         binary_path = self.__phash_path / self.__phash_name
         # No need for exists() check - os.access handles non-existent files gracefully
