@@ -38,6 +38,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
     config = sample_config()
     __generator = VideoPerceptualHash(config.ffmpeg)
     __stash_generator = StashVideoPerceptualHash()
+    _stash_binary_available = __stash_generator.is_binary_available()
 
     def test_get_phash(self):
         """
@@ -59,7 +60,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
                 self.assertEqual(res.oshash, expected_oshash)
                 self.assertEqual(res.duration, expected_duration)
 
-    @unittest.skipIf(True, 'StashVideoPerceptualHash requires external binary not available in test environment')
+    @unittest.skipUnless(_stash_binary_available, 'StashVideoPerceptualHash binary not available in test environment')
     def test_get_stash_phash(self):
         """
         Test phash calculation.

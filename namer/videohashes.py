@@ -9,6 +9,7 @@ from namer.configuration_utils import default_config
 from namer.namer import calculate_phash
 
 
+@logger.catch(reraise=True)
 def main(args_list: List[str]):
     """
     Command line interface to calculate hashes for a file.
@@ -27,5 +28,10 @@ def main(args_list: List[str]):
         level = 'DEBUG' if config.debug else 'INFO'
         logger.add(sys.stdout, format=config.console_format, level=level, diagnose=config.diagnose_errors)
 
+    # All errors bubble up to @logger.catch for proper logging with context
     file_hash = calculate_phash(args.file.resolve(), config)
+    
+    if file_hash is None:
+        raise RuntimeError(f'Unable to calculate perceptual hash for {args.file}: no hash returned')
+
     print(file_hash.to_dict())

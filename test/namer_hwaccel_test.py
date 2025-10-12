@@ -19,7 +19,6 @@ from loguru import logger
 
 from namer.videophash import imagehash
 from namer.videophash.videophash import VideoPerceptualHash
-
 from test import utils
 from test.utils import sample_config
 

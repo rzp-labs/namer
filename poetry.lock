@@ -2172,6 +2172,30 @@ trio = ">=0.11"
 wsproto = ">=0.14"
 
 [[package]]
+name = "types-assertpy"
+version = "1.1.0.20250502"
+description = "Typing stubs for assertpy"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "types_assertpy-1.1.0.20250502-py3-none-any.whl", hash = "sha256:dc025f53b74b7bd75ecb830755af10261908c57fb20df38fd42caaca427c5aac"},
+    {file = "types_assertpy-1.1.0.20250502.tar.gz", hash = "sha256:7735027f3e63f91a1f3a24819024991358f083a40aceb5dd117e5691e9d4a0de"},
+]
+
+[[package]]
+name = "types-waitress"
+version = "3.0.1.20250801"
+description = "Typing stubs for waitress"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "types_waitress-3.0.1.20250801-py3-none-any.whl", hash = "sha256:17830a3bf096a967368cfc4dfaf19e2ab6cde8ac880747ebb47c01ca85704d9f"},
+    {file = "types_waitress-3.0.1.20250801.tar.gz", hash = "sha256:f919fda09e44798771d8ac54bb8573c165f1a1bc1aa9bfbf4296603db59455be"},
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.14.1"
 description = "Backported and Experimental Type Hints for Python 3.9+"
@@ -2381,4 +2405,4 @@ email = ["email-validator"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.15"
-content-hash = "122e3fdb21706409d785366e7344cb596560cd66bd202befac6f110867dc069c"
+content-hash = "b0d82f919aee97445c11d6821662f4c3eb738730526e0d859679d4a7ce00908e"

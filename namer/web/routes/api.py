@@ -4,9 +4,11 @@ Defines the api routes of a Flask webserver for namer.
 
 from pathlib import Path
 from queue import Queue
+from typing import Any, Union
 
 from flask import Blueprint, jsonify, render_template, request
 from flask.wrappers import Response
+from loguru import logger
 
 from namer.command import make_command_relative_to, move_command_files
 from namer.configuration import NamerConfig
@@ -23,7 +25,7 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
     def render() -> Response:
         data = request.json
 
-        res = False
+        res: Union[bool, dict[str, Any]] = False
         if data:
             template: str = data.get('template')
             client_data = data.get('data')
@@ -56,7 +58,7 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
     def get_search() -> Response:
         data = request.json
 
-        res = False
+        res: Any = False
         if data:
             page = data['page'] if 'page' in data else 1
             res = get_search_results(data['query'], data['type'], data['file'], config, page=page)
@@ -67,29 +69,35 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
     def get_phash() -> Response:
         data = request.json
 
-        res = False
+        res: Any = False
         if data:
             res = get_phash_results(data['file'], data['type'], config)
 
         return jsonify(res)
 
     @blueprint.route('/v1/get_queue', methods=['POST'])
+    @logger.catch(reraise=True)
     def get_queue() -> Response:
-        res = get_queue_size(command_queue)
-        res = human_format(res)
+        queue_size = get_queue_size(command_queue)
+        res = human_format(queue_size)
 
         return jsonify(res)
 
     @blueprint.route('/v1/rename', methods=['POST'])
+    @logger.catch(reraise=True)
     def rename() -> Response:
         data = request.json
 
-        res = False
+        res: Any = False
         if data:
-            res = False
-            movie = config.failed_dir / Path(data['file'])
-            command = make_command_relative_to(movie, config.failed_dir, config=config, is_auto=False)
-            moved_command = move_command_files(command, config.work_dir, is_auto=False)
+            failed_dir = config.failed_dir
+            work_dir = config.work_dir
+            if failed_dir is None or work_dir is None:
+                raise ValueError('NamerConfig.failed_dir and work_dir must be configured for rename operations')
+
+            movie = failed_dir / Path(data['file'])
+            command = make_command_relative_to(movie, failed_dir, config=config, is_auto=False)
+            moved_command = move_command_files(command, work_dir, is_auto=False)
             if moved_command:
                 moved_command.tpdb_id = data['scene_id']
                 command_queue.put(moved_command)  # Todo pass selection
@@ -100,7 +108,7 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
     def delete() -> Response:
         data = request.json
 
-        res = False
+        res: Any = False
         if data:
             res = delete_file(data['file'], config)
 
@@ -110,7 +118,7 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
     def read_failed_log() -> Response:
         data = request.json
 
-        res = False
+        res: Any = False
         if data:
             # fmt: off
             res = {

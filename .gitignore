@@ -13,6 +13,7 @@ init
 .python-version
 node_modules
 .env
+.venv
 namer/web/public/assets
 namer/web/templates
 namer/tools
@@ -30,9 +31,12 @@ namer-prod.cfg
 *.backup
 .github/workflows/*.backup
 .github/workflows/ci.yml.backup
-.prod-files/
+namer/tools/*
 
 # Test artifacts
+test/failed/
+test/integration/config/namer.cfg.old
+test/integration/config/namer.cfg
 test/integration/database/*
 test/integration/logs/*
 test/integration/media/0-intake/*
@@ -44,8 +48,8 @@ test/integration/media/5-ambiguous/*
 
 # Ignore windsurf AI rules
 .windsurfrules
-test/integration/config/namer.cfg.old
-test/integration/config/namer.cfg
+.mcp.json
+.agent/
 
 # npm artifacts
 package-lock.json

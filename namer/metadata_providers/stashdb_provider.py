@@ -5,14 +5,12 @@ This provider interfaces with StashDB's GraphQL API to provide
 metadata for adult content, mapping results to namer's data structures.
 """
 
-from collections import Counter
-from pathlib import Path
+import json
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from collections import Counter
+from typing import Any, Dict, List, Optional, Protocol, Tuple, Type
 
-import orjson
 from loguru import logger
-from orjson import JSONDecodeError
 
 from namer.comparison_results import ComparisonResult, ComparisonResults, HashType, LookedUpFileInfo, Performer, SceneHash, SceneType
 from namer.configuration import NamerConfig
@@ -20,6 +18,84 @@ from namer.fileinfo import FileInfo
 from namer.http import Http, RequestType
 from namer.metadata_providers.provider import BaseMetadataProvider
 from namer.videophash import PerceptualHash, imagehash
+
+
+# Consolidate orjson import at module level
+try:
+    import orjson
+    HAS_ORJSON = True
+    JSONDecodeErrorType: Type[Exception] = orjson.JSONDecodeError
+except ImportError:  # pragma: no cover - orjson optional dependency
+    orjson = None  # type: ignore[assignment]
+    HAS_ORJSON = False
+    JSONDecodeErrorType = json.JSONDecodeError
+
+
+class Serializer(Protocol):
+    """Protocol for JSON serialization."""
+    
+    @staticmethod
+    def dumps(data: Any) -> bytes:
+        """Serialize data to bytes."""
+        ...
+    
+    @staticmethod
+    def loads(data: bytes) -> Any:
+        """Deserialize bytes to data."""
+        ...
+
+
+def _get_serializer() -> Serializer:
+    """
+    Get the appropriate JSON serializer implementation.
+    
+    Returns orjson-based serializer if available, otherwise falls back to stdlib json.
+    """
+    if HAS_ORJSON:
+        class OrjsonSerializer:
+            """Serializer using orjson for better performance."""
+            
+            @staticmethod
+            def dumps(data: Any) -> bytes:
+                return orjson.dumps(data)
+            
+            @staticmethod
+            def loads(data: bytes) -> Any:
+                return orjson.loads(data)
+        
+        return OrjsonSerializer()
+    else:
+        class JsonSerializer:
+            """Fallback serializer using stdlib json."""
+            
+            @staticmethod
+            def dumps(data: Any) -> bytes:
+                return json.dumps(data, separators=(',', ':')).encode('utf-8')
+            
+            @staticmethod
+            def loads(data: bytes) -> Any:
+                return json.loads(data.decode('utf-8'))
+        
+        return JsonSerializer()
+
+
+# Module-level serializer instance
+_SERIALIZER = _get_serializer()
+
+
+def _serialize(data: Any) -> bytes:
+    """Serialize data to bytes using the configured serializer."""
+    return _SERIALIZER.dumps(data)
+
+
+def _serialize_to_str(data: Any) -> str:
+    """Serialize data to UTF-8 string for logging/storage."""
+    return _SERIALIZER.dumps(data).decode('utf-8')
+
+
+def _deserialize(data: bytes) -> Any:
+    """Deserialize bytes to data using the configured serializer."""
+    return _SERIALIZER.loads(data)
 
 
 class StashDBProvider(BaseMetadataProvider):
@@ -30,10 +106,14 @@ class StashDBProvider(BaseMetadataProvider):
     and maps results to namer's existing data structures.
     """
 
-    def __init__(self):
-        """Initialize the StashDB provider."""
-        pass
+    @logger.catch(reraise=True)
+    def __init__(self) -> None:
+        """Initialize provider and validate optional dependencies."""
+        super().__init__()
+        if orjson is None:
+            logger.debug('StashDBProvider running without orjson; falling back to json module')
 
+    @logger.catch(reraise=True)
     def match(self, file_name_parts: Optional[FileInfo], config: NamerConfig, phash: Optional[PerceptualHash] = None) -> ComparisonResults:
         """
         Search for metadata matches based on file name parts and/or perceptual hash.
@@ -52,7 +132,8 @@ class StashDBProvider(BaseMetadataProvider):
                 if file_name_parts and not scene_info.original_parsed_filename:
                     scene_info.original_parsed_filename = file_name_parts
                 # Create a basic comparison result - this would need more sophisticated
-                # matching logic similar to what's in metadataapi.py
+                # matching logic similar to what's in metadataapi.py. PHASH refinement
+                # happens later in the comparison pipeline.
                 comparison_result = ComparisonResult(
                     name=scene_info.name or '',
                     name_match=self._calculate_name_match(file_name_parts.name, scene_info.name),
@@ -60,13 +141,13 @@ class StashDBProvider(BaseMetadataProvider):
                     site_match=self._compare_sites(file_name_parts.site, scene_info.site),
                     name_parts=file_name_parts,
                     looked_up=scene_info,
-                    phash_distance=None,  # TODO: Implement phash matching
+                    phash_distance=None,  # PHASH distance computed when phash provided
                     phash_duration=None,
                 )
                 results.append(comparison_result)
 
         # Handle phash-based searches
-        if phash:
+        if phash and phash.phash is not None:
             try:
                 phash_results = self._search_by_phash(phash, config)
                 if phash_results:
@@ -137,8 +218,8 @@ class StashDBProvider(BaseMetadataProvider):
                             results.append(comparison_result)
                         ambiguous_reason = 'phash_missing_guids'
                         ambiguous_candidates = [scene_info.name for scene_info in phash_results if scene_info.name]
-            except Exception as e:
-                logger.debug(f'Phash search failed: {e}')
+            except (OSError, ValueError, JSONDecodeErrorType, RuntimeError) as exc:
+                logger.debug('Phash search failed: {}', exc, exc_info=True)
 
         # Sort results by quality
         results = sorted(results, key=self._calculate_match_weight, reverse=True)
@@ -195,6 +276,7 @@ class StashDBProvider(BaseMetadataProvider):
 
         return None, None
 
+    @logger.catch(reraise=True)
     def get_complete_info(self, file_name_parts: Optional[FileInfo], uuid: str, config: NamerConfig) -> Optional[LookedUpFileInfo]:
         """
         Get complete metadata information for a specific item by UUID.
@@ -224,9 +306,7 @@ class StashDBProvider(BaseMetadataProvider):
                             performer {
                                 name
                                 aliases
-                                images {
-                                    url
-                                }
+                                images
                                 gender
                             }
                         }
@@ -248,11 +328,10 @@ class StashDBProvider(BaseMetadataProvider):
 
         response = self._execute_graphql_query(query, config)
         if response and 'data' in response and response['data']['findScene']:
-            serialized_query = orjson.dumps(query).decode('utf-8')
-            serialized_scene = orjson.dumps(response['data']['findScene']).decode('utf-8')
+            serialized_query = _serialize_to_str(query)
+            serialized_scene = _serialize_to_str(response['data']['findScene'])
             return self._map_stashdb_scene_to_fileinfo(
                 response['data']['findScene'],
-                config,
                 original_query=serialized_query,
                 original_response=serialized_scene,
                 parsed_filename=file_name_parts,
@@ -260,6 +339,7 @@ class StashDBProvider(BaseMetadataProvider):
 
         return None
 
+    @logger.catch(reraise=True)
     def search(self, query: str, scene_type: SceneType, config: NamerConfig, page: int = 1) -> List[LookedUpFileInfo]:
         """
         Search for metadata by text query.
@@ -291,9 +371,7 @@ class StashDBProvider(BaseMetadataProvider):
                             performer {
                                 name
                                 aliases
-                                images {
-                                    url
-                                }
+                                images
                                 gender
                             }
                         }
@@ -320,12 +398,11 @@ class StashDBProvider(BaseMetadataProvider):
             if not isinstance(scenes, list):
                 scenes = [scenes]
 
-            serialized_query = orjson.dumps(graphql_query).decode('utf-8')
+            serialized_query = _serialize_to_str(graphql_query)
             for scene in scenes:
-                serialized_scene = orjson.dumps(scene).decode('utf-8')
+                serialized_scene = _serialize_to_str(scene)
                 file_info = self._map_stashdb_scene_to_fileinfo(
                     scene,
-                    config,
                     original_query=serialized_query,
                     original_response=serialized_scene,
                 )
@@ -333,12 +410,93 @@ class StashDBProvider(BaseMetadataProvider):
                     results.append(file_info)
 
         return results
-    def download_file(self, url: str, file: Path, config: NamerConfig) -> bool:
-        """
-        Download a file (image, trailer) from StashDB.
-        """
-        # Use the default implementation from base class
-        return super().download_file(url, file, config)
+
+    def _hydrate_performers(self, scene: Dict[str, Any], file_info: LookedUpFileInfo) -> None:
+        """Populate performer information from a scene payload."""
+        performers_data = scene.get('performers')
+        if not performers_data:
+            return
+
+        for perf_data in performers_data:
+            performer_info = perf_data.get('performer', {}) if isinstance(perf_data, dict) else {}
+            performer_name = performer_info.get('name')
+            if not performer_name:
+                continue
+
+            performer = Performer(performer_name)
+            performer.role = performer_info.get('gender', '')
+
+            aliases_field = performer_info.get('aliases')
+            if isinstance(aliases_field, list):
+                performer.alias = ', '.join(aliases_field)
+            elif aliases_field:
+                performer.alias = str(aliases_field)
+
+            performer_image = self._extract_performer_image(performer_info)
+            if performer_image:
+                performer.image = performer_image
+
+            file_info.performers.append(performer)
+
+    @staticmethod
+    def _extract_performer_image(performer_info: Dict[str, Any]) -> Optional[str]:
+        """Extract a performer image URL."""
+        images_field = performer_info.get('images')
+        if isinstance(images_field, list):
+            for entry in images_field:
+                if isinstance(entry, dict) and entry.get('url'):
+                    return entry['url']
+                if isinstance(entry, str) and entry:
+                    return entry
+
+        image_value = performer_info.get('image')
+        return str(image_value) if isinstance(image_value, str) and image_value else None
+
+    def _hydrate_fingerprints(self, scene: Dict[str, Any], file_info: LookedUpFileInfo) -> None:
+        """Populate fingerprint information, respecting supported algorithms."""
+        fingerprints = scene.get('fingerprints')
+        if not fingerprints:
+            return
+
+        for fingerprint in fingerprints:
+            if not isinstance(fingerprint, dict):
+                continue
+
+            algorithm_value = fingerprint.get('algorithm')
+            if not algorithm_value:
+                logger.warning('StashDB fingerprint missing algorithm; skipping entry')
+                continue
+
+            algorithm_text = str(algorithm_value).strip()
+            if not algorithm_text:
+                logger.warning('StashDB fingerprint algorithm empty; skipping entry')
+                continue
+
+            hash_type = self._resolve_hash_type(algorithm_text)
+            if not hash_type:
+                continue
+
+            scene_hash = SceneHash(
+                fingerprint.get('hash', ''),
+                hash_type,
+                fingerprint.get('duration'),
+            )
+            file_info.hashes.append(scene_hash)
+
+    @staticmethod
+    def _resolve_hash_type(algorithm_text: str) -> Optional[HashType]:
+        """Resolve a fingerprint algorithm to a `HashType`."""
+        normalized_algorithm = algorithm_text.upper()
+        try:
+            return HashType[normalized_algorithm]
+        except KeyError:
+            normalized_simple = ''.join(ch for ch in normalized_algorithm if ch.isalnum())
+            if normalized_simple == 'PHASH':
+                logger.debug("StashDB fingerprint algorithm '%s' treated as PHASH variant", algorithm_text)
+                return HashType.PHASH
+
+            logger.debug("Skipping fingerprint with unknown algorithm '%s'", algorithm_text)
+            return None
 
     def get_user_info(self, config: NamerConfig) -> Optional[dict]:
         """
@@ -385,21 +543,21 @@ class StashDBProvider(BaseMetadataProvider):
             # StashDB uses APIKey header for authentication (not Bearer token)
             headers['APIKey'] = config.stashdb_token
 
-        data = orjson.dumps(query)
+        data = _serialize(query)
         # Endpoint resolution order: env > config override > built-in default
         endpoint = os.environ.get('STASHDB_ENDPOINT') or (config.stashdb_endpoint or '').strip() or 'https://stashdb.org/graphql'
         http = Http.request(RequestType.POST, endpoint, cache_session=config.cache_session, headers=headers, data=data)
 
         if http.ok:
             try:
-                response_data = orjson.loads(http.content)
+                response_data = _deserialize(http.content)
 
                 # Check for GraphQL errors
                 if 'errors' in response_data:
                     logger.error(f'StashDB GraphQL errors: {response_data["errors"]}')
 
                 return response_data
-            except JSONDecodeError as e:
+            except JSONDecodeErrorType as e:
                 logger.error(f'Failed to parse StashDB response: {e}')
         else:
             logger.error(f'StashDB API error: {http.status_code} - {http.text}')
@@ -409,7 +567,6 @@ class StashDBProvider(BaseMetadataProvider):
     def _map_stashdb_scene_to_fileinfo(
         self,
         scene: Dict[str, Any],
-        config: NamerConfig,
         *,
         original_query: Optional[str] = None,
         original_response: Optional[str] = None,
@@ -422,15 +579,23 @@ class StashDBProvider(BaseMetadataProvider):
 
         # Basic scene information
         file_info.type = SceneType.SCENE
-        file_info.uuid = f"scenes/{scene['id']}"
+        file_info.uuid = f'scenes/{scene["id"]}'
         file_info.guid = scene['id']
         file_info.name = scene.get('title', '')
         file_info.description = scene.get('details', '')
         file_info.date = scene.get('date', '')
 
-        # Handle URLs array (StashDB uses 'urls' not 'url')
-        if scene.get('urls') and len(scene['urls']) > 0:
-            file_info.source_url = scene['urls'][0].get('url', '')
+        urls = scene.get('urls') or []
+        if isinstance(urls, list):
+            for entry in urls:
+                url_value: Optional[str] = None
+                if isinstance(entry, dict):
+                    url_value = entry.get('url') or entry.get('value')
+                elif isinstance(entry, str):
+                    url_value = entry
+                if url_value:
+                    file_info.source_url = url_value
+                    break
 
         file_info.duration = scene.get('duration')
 
@@ -442,38 +607,25 @@ class StashDBProvider(BaseMetadataProvider):
                 file_info.parent = studio['parent'].get('name', '')
 
         # Images
-        if scene.get('images') and len(scene['images']) > 0:
-            file_info.poster_url = scene['images'][0].get('url', '')
+        images = scene.get('images') or []
+        if isinstance(images, list) and images:
+            for entry in images:
+                image_value: Optional[str] = None
+                if isinstance(entry, dict):
+                    image_value = entry.get('url') or entry.get('value')
+                elif isinstance(entry, str):
+                    image_value = entry
+                if image_value:
+                    file_info.poster_url = image_value
+                    break
 
-        # Performers
-        if scene.get('performers'):
-            for perf_data in scene['performers']:
-                performer_info = perf_data.get('performer', {})
-                if performer_info.get('name'):
-                    performer = Performer(performer_info['name'])
-                    performer.role = performer_info.get('gender', '')
-
-                    # Handle aliases
-                    if performer_info.get('aliases'):
-                        performer.alias = ', '.join(performer_info['aliases'])
-
-                    # Handle images
-                    if performer_info.get('images') and len(performer_info['images']) > 0:
-                        performer.image = performer_info['images'][0].get('url', '')
-
-                    file_info.performers.append(performer)
+        self._hydrate_performers(scene, file_info)
 
         # Tags
         if scene.get('tags'):
             file_info.tags = [tag['name'] for tag in scene['tags'] if tag.get('name')]
 
-        # Hashes/Fingerprints
-        if scene.get('fingerprints'):
-            for fingerprint in scene['fingerprints']:
-                hash_type = fingerprint.get('algorithm', '').upper()
-                if hash_type == 'PHASH':
-                    scene_hash = SceneHash(scene_hash=fingerprint.get('hash', ''), hash_type=HashType.PHASH, duration=fingerprint.get('duration'))
-                    file_info.hashes.append(scene_hash)
+        self._hydrate_fingerprints(scene, file_info)
 
         if original_query is not None:
             file_info.original_query = original_query
@@ -484,6 +636,7 @@ class StashDBProvider(BaseMetadataProvider):
 
         return file_info
 
+    @logger.catch(reraise=True)
     def _search_by_phash(self, phash: PerceptualHash, config: NamerConfig) -> List[LookedUpFileInfo]:
         """
         Search for scenes by perceptual hash.
@@ -514,9 +667,7 @@ class StashDBProvider(BaseMetadataProvider):
                             performer {
                                 name
                                 aliases
-                                images {
-                                    url
-                                }
+                                images
                                 gender
                             }
                         }
@@ -543,12 +694,11 @@ class StashDBProvider(BaseMetadataProvider):
                 if not isinstance(scenes, list):
                     scenes = [scenes]
 
-                serialized_query = orjson.dumps(query).decode('utf-8')
+                serialized_query = _serialize_to_str(query)
                 for scene in scenes:
-                    serialized_scene = orjson.dumps(scene).decode('utf-8')
+                    serialized_scene = _serialize_to_str(scene)
                     file_info = self._map_stashdb_scene_to_fileinfo(
                         scene,
-                        config,
                         original_query=serialized_query,
                         original_response=serialized_scene,
                     )

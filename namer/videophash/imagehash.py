@@ -3,6 +3,7 @@ from typing import Literal, Optional
 import numpy
 import scipy.fft
 import scipy.fftpack
+from loguru import logger
 from PIL import Image
 
 try:
@@ -35,7 +36,9 @@ class ImageHash:
         if self.hash.size != other.hash.size:
             raise TypeError('ImageHashes must be of the same shape.', self.hash.shape, other.hash.shape)
 
-        return numpy.count_nonzero(self.hash.flatten() != other.hash.flatten())
+        # Convert numpy int to native Python int for runtime type safety
+        count = numpy.count_nonzero(self.hash.flatten() != other.hash.flatten())
+        return int(count)
 
     def __eq__(self, other: object) -> bool:
         if other is None:
@@ -58,6 +61,7 @@ class ImageHash:
         return self.hash.size
 
 
+@logger.catch(reraise=True)
 def _binary_array_to_hex(arr):
     """
     internal function to make a hex string out of a binary array.
@@ -67,6 +71,7 @@ def _binary_array_to_hex(arr):
     return '{:0>{width}x}'.format(int(bit_string, 2), width=width)
 
 
+@logger.catch(reraise=True)
 def hex_to_hash(hex_str: str) -> ImageHash:
     """
     Convert a stored hash (hex, as retrieved from str(Imagehash))
@@ -86,6 +91,7 @@ def hex_to_hash(hex_str: str) -> ImageHash:
     return ImageHash(hash_array)
 
 
+@logger.catch(reraise=True)
 def phash(image: Image.Image, hash_size=8, high_freq_factor=4, resample: Literal[0, 1, 2, 3, 4, 5] = Image.Resampling.LANCZOS) -> Optional[ImageHash]:  # type: ignore
     if hash_size < 2:
         raise ValueError('Hash size must be greater than or equal to 2')
