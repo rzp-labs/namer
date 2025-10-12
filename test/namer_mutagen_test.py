@@ -51,6 +51,7 @@ def _prepare_sample(
         info = match(name_parts, config)
     return target_file, poster, info
 
+
 class UnitTestAsTheDefaultExecution(unittest.TestCase):
     """
     Always test first.

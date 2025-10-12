@@ -23,6 +23,7 @@ from namer.videophash import PerceptualHash, imagehash
 # Consolidate orjson import at module level
 try:
     import orjson
+
     HAS_ORJSON = True
     JSONDecodeErrorType: Type[Exception] = orjson.JSONDecodeError
 except ImportError:  # pragma: no cover - orjson optional dependency
@@ -33,12 +34,12 @@ except ImportError:  # pragma: no cover - orjson optional dependency
 
 class Serializer(Protocol):
     """Protocol for JSON serialization."""
-    
+
     @staticmethod
     def dumps(data: Any) -> bytes:
         """Serialize data to bytes."""
         ...
-    
+
     @staticmethod
     def loads(data: bytes) -> Any:
         """Deserialize bytes to data."""
@@ -48,34 +49,36 @@ class Serializer(Protocol):
 def _get_serializer() -> Serializer:
     """
     Get the appropriate JSON serializer implementation.
-    
+
     Returns orjson-based serializer if available, otherwise falls back to stdlib json.
     """
     if HAS_ORJSON:
+
         class OrjsonSerializer:
             """Serializer using orjson for better performance."""
-            
+
             @staticmethod
             def dumps(data: Any) -> bytes:
                 return orjson.dumps(data)
-            
+
             @staticmethod
             def loads(data: bytes) -> Any:
                 return orjson.loads(data)
-        
+
         return OrjsonSerializer()
     else:
+
         class JsonSerializer:
             """Fallback serializer using stdlib json."""
-            
+
             @staticmethod
             def dumps(data: Any) -> bytes:
                 return json.dumps(data, separators=(',', ':')).encode('utf-8')
-            
+
             @staticmethod
             def loads(data: bytes) -> Any:
                 return json.loads(data.decode('utf-8'))
-        
+
         return JsonSerializer()
 
 
@@ -316,8 +319,7 @@ class StashDBProvider(BaseMetadataProvider):
                         }
                     }
                 }
-            """
-,
+            """,
             'variables': {
                 'id': uuid.split('/')[-1]  # Extract ID from UUID
             },
@@ -378,8 +380,7 @@ class StashDBProvider(BaseMetadataProvider):
                         }
                     }
                 }
-            """
-,
+            """,
             'variables': {'term': query},
         }
 

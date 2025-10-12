@@ -9,16 +9,16 @@ class QSVCodecMapper:
 
     # Mapping of codec names to QSV decoder names
     CODEC_TO_QSV_DECODER = {
-        "h264": "h264_qsv",
-        "hevc": "hevc_qsv",
-        "h265": "hevc_qsv",  # alias for hevc
-        "av1": "av1_qsv",
-        "vp9": "vp9_qsv",
-        "vp8": "vp8_qsv",
-        "mpeg2": "mpeg2_qsv",
-        "mpeg2video": "mpeg2_qsv",
-        "vc1": "vc1_qsv",
-        "mjpeg": "mjpeg_qsv",
+        'h264': 'h264_qsv',
+        'hevc': 'hevc_qsv',
+        'h265': 'hevc_qsv',  # alias for hevc
+        'av1': 'av1_qsv',
+        'vp9': 'vp9_qsv',
+        'vp8': 'vp8_qsv',
+        'mpeg2': 'mpeg2_qsv',
+        'mpeg2video': 'mpeg2_qsv',
+        'vc1': 'vc1_qsv',
+        'mjpeg': 'mjpeg_qsv',
     }
 
     @classmethod
@@ -52,27 +52,25 @@ class FFProbeStream:
 
     def __str__(self) -> str:
         data = self.to_dict()
-        return orjson.dumps(data, option=orjson.OPT_INDENT_2).decode("UTF-8")
+        return orjson.dumps(data, option=orjson.OPT_INDENT_2).decode('UTF-8')
 
     def to_dict(self) -> dict:
         data = {
-            "codec_name": self.codec_name,
-            "width": self.width,
-            "height": self.height,
-            "codec_type": self.codec_type,
-            "framerate": self.avg_frame_rate,
-            "duration": self.duration,
-            "disposition_default": self.disposition_default,
+            'codec_name': self.codec_name,
+            'width': self.width,
+            'height': self.height,
+            'codec_type': self.codec_type,
+            'framerate': self.avg_frame_rate,
+            'duration': self.duration,
+            'disposition_default': self.disposition_default,
         }
         return data
 
     def is_audio(self) -> bool:
-        return self.codec_type == "audio"
+        return self.codec_type == 'audio'
 
     def is_video(self) -> bool:
-        return self.codec_type == "video" and (
-            not self.disposition_attached_pic or self.disposition_attached_pic is False
-        )
+        return self.codec_type == 'video' and (not self.disposition_attached_pic or self.disposition_attached_pic is False)
 
 
 @dataclass(init=False, repr=False, eq=True, order=False, unsafe_hash=True, frozen=False)

@@ -39,7 +39,7 @@ class Command:
     """
     The movie file this name is targeting.
     """
-    
+
     # Optional fields with defaults (must come after required fields)
     target_directory: Optional[Path] = None
     """
@@ -153,7 +153,7 @@ def _json_safe(value):
             return value.hex()
     if value is None:
         return None
-    
+
     # Unknown type - log warning and convert to string
     logger.warning('Encountered non-JSON-serializable type {} for value, converting to string: {}', type(value).__name__, repr(value)[:100])
     return str(value)
@@ -232,11 +232,11 @@ def write_log_file(movie_file: Optional[Path], match_attempts: Optional[Comparis
     logger.info('Writing log to {}', log_name)
     summary = _build_summary(match_attempts)
     _write_summary_file(movie_file, summary, namer_config)
-    
+
     # Always produce valid JSON output, even if match_attempts is None
     redacted: List[Tuple[LookedUpFileInfo, Optional[str], Optional[str]]] = []
     json_out: Optional[str] = None
-    
+
     if match_attempts:
         try:
             for result in match_attempts.results or []:
@@ -254,7 +254,7 @@ def write_log_file(movie_file: Optional[Path], match_attempts: Optional[Comparis
     else:
         # No match attempts - encode None to produce valid JSON
         json_out = jsonpickle.encode(None)
-    
+
     # Always write compressed JSON to avoid zero-byte gzip files
     with open(log_name, 'wb') as log_file:
         if json_out:
@@ -517,11 +517,7 @@ def find_target_file(root_dir: Path, config: NamerConfig) -> Optional[Path]:
     file = None
     if list_of_files:
         for target_ext in config.target_extensions:
-            filtered = [
-                candidate
-                for candidate in list_of_files
-                if candidate.suffix and candidate.suffix.lower()[1:] == target_ext
-            ]
+            filtered = [candidate for candidate in list_of_files if candidate.suffix and candidate.suffix.lower()[1:] == target_ext]
             if not file and filtered:
                 file = max(filtered, key=lambda x: x.stat().st_size)
 

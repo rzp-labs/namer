@@ -17,6 +17,12 @@ repos:
         files: ^(scripts/|docker-entrypoint-user.sh)
         types: [shell]
 
+  # GitHub Actions workflow linting
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.5
+    hooks:
+      - id: actionlint
+
   # Optional Dockerfile linting (non-blocking at first; set `--failure-threshold` to `warning`)
   - repo: local
     hooks:
