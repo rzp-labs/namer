@@ -24,7 +24,7 @@ from namer.videophash import PerceptualHash, imagehash
 try:
     import orjson
     HAS_ORJSON = True
-    JSONDecodeErrorType: Type[Exception] = getattr(orjson, 'JSONDecodeError', json.JSONDecodeError)
+    JSONDecodeErrorType: Type[Exception] = orjson.JSONDecodeError
 except ImportError:  # pragma: no cover - orjson optional dependency
     orjson = None  # type: ignore[assignment]
     HAS_ORJSON = False
@@ -86,6 +86,11 @@ _SERIALIZER = _get_serializer()
 def _serialize(data: Any) -> bytes:
     """Serialize data to bytes using the configured serializer."""
     return _SERIALIZER.dumps(data)
+
+
+def _serialize_to_str(data: Any) -> str:
+    """Serialize data to UTF-8 string for logging/storage."""
+    return _SERIALIZER.dumps(data).decode('utf-8')
 
 
 def _deserialize(data: bytes) -> Any:
@@ -299,7 +304,7 @@ class StashDBProvider(BaseMetadataProvider):
                             performer {
                                 name
                                 aliases
-                                image
+                                images
                                 gender
                             }
                         }
@@ -321,8 +326,8 @@ class StashDBProvider(BaseMetadataProvider):
 
         response = self._execute_graphql_query(query, config)
         if response and 'data' in response and response['data']['findScene']:
-            serialized_query = _serialize(query).decode('utf-8')
-            serialized_scene = _serialize(response['data']['findScene']).decode('utf-8')
+            serialized_query = _serialize_to_str(query)
+            serialized_scene = _serialize_to_str(response['data']['findScene'])
             return self._map_stashdb_scene_to_fileinfo(
                 response['data']['findScene'],
                 original_query=serialized_query,
@@ -364,7 +369,7 @@ class StashDBProvider(BaseMetadataProvider):
                             performer {
                                 name
                                 aliases
-                                image
+                                images
                                 gender
                             }
                         }
@@ -660,7 +665,7 @@ class StashDBProvider(BaseMetadataProvider):
                             performer {
                                 name
                                 aliases
-                                image
+                                images
                                 gender
                             }
                         }
