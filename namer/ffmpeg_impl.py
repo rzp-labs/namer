@@ -26,7 +26,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Dict, List, Optional, Tuple
 
-import ffmpeg
+import ffmpeg  # type: ignore[import]  # ffmpeg-python has no type stubs
 from loguru import logger
 from PIL import Image
 

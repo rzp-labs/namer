@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-import oshash
+import oshash  # type: ignore[import]  # No type stubs available
 from loguru import logger
 from PIL import Image
 

@@ -69,6 +69,7 @@ class StashVideoPerceptualHash:
         logger.info(f'Calculating phash for file "{file}"')
         return self.__execute_stash_phash(file)
 
+    @logger.catch(reraise=True)
     def __execute_stash_phash(self, file: Optional[Path] = None) -> Optional[PerceptualHash]:
         output = None
         if not self.__phash_path:
@@ -85,18 +86,14 @@ class StashVideoPerceptualHash:
                 '--video', str(file)
             ])
 
-        try:
-            completed = subprocess.run(  # nosec B603: fixed executable path without user input
-                args,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                check=False,
-                shell=False,
-            )
-        except Exception as error:  # pragma: no cover - defensive logging
-            logger.error('Failed to execute videohash binary %s: %s', args[0], error)
-            return output
+        completed = subprocess.run(  # nosec B603: fixed executable path without user input
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+            shell=False,
+        )
 
         stdout = completed.stdout.strip()
         stderr = completed.stderr.strip()
@@ -114,3 +111,39 @@ class StashVideoPerceptualHash:
             logger.error('videohash execution failed (%s): %s', completed.returncode, stderr)
 
         return output
+
+    @logger.catch(reraise=True)
+    def is_binary_available(self) -> bool:
+        binary_path = self.__phash_path / self.__phash_name
+        
+        # Platform-specific executable check
+        if platform.system() == 'Windows':
+            # On Windows, os.X_OK only checks existence, not executability
+            # Check for executable extensions
+            if not binary_path.exists():
+                return False
+            
+            # Get executable extensions from PATHEXT or use defaults
+            pathext = os.environ.get('PATHEXT', '.EXE;.COM;.BAT;.CMD')
+            valid_extensions = [ext.lower() for ext in pathext.split(os.pathsep)]
+            
+            # Check if file has executable extension
+            if binary_path.suffix.lower() not in valid_extensions:
+                return False
+            
+            # Optionally verify binary actually runs (lightweight check)
+            try:
+                # codacy-disable-next-line
+                result = subprocess.run(  # nosec B603: binary_path is from trusted internal path, not user input
+                    [str(binary_path), '--help'],
+                    capture_output=True,
+                    timeout=2,
+                    check=False
+                )
+                # If it runs without crashing, consider it available
+                return result.returncode in (0, 1)  # Some binaries return 1 for --help
+            except (subprocess.TimeoutExpired, OSError):
+                return False
+        else:
+            # POSIX: os.access with X_OK checks execute permission
+            return os.access(binary_path, os.X_OK)

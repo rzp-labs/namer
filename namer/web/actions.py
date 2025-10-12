@@ -2,6 +2,7 @@
 Helper functions to tie in to namer's functionality.
 """
 
+import json
 import gzip
 import math
 import shutil
@@ -9,10 +10,17 @@ from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 from queue import Queue
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
-import orjson
-import jsonpickle
+try:  # pragma: no cover - optional dependency
+    import orjson  # type: ignore[import]  # Optional dependency for performance
+    HAS_ORJSON = True
+except ImportError:  # pragma: no cover - optional dependency
+    orjson = None  # type: ignore[assignment]
+    HAS_ORJSON = False
+
+import jsonpickle  # type: ignore[import]  # No type stubs available
+from loguru import logger
 from werkzeug.routing import Rule
 
 from namer.comparison_results import ComparisonResults, SceneType
@@ -25,11 +33,43 @@ from namer.videophash import PerceptualHash
 from namer.metadata_providers.factory import get_metadata_provider
 
 
+def _orjson_loads(value: str) -> Any:
+    """Load JSON using orjson if available, otherwise use stdlib json."""
+    if HAS_ORJSON:
+        return orjson.loads(value)
+    return json.loads(value)
+
+
+@logger.catch(reraise=True)
+def _orjson_dumps(value: Any, *, sort_keys: bool = False, indent: int = 2) -> str:
+    """Dump JSON using orjson if available, otherwise use stdlib json."""
+    if HAS_ORJSON:
+        # orjson only supports indent=2 via OPT_INDENT_2; fallback to json.dumps for other values
+        if indent not in (0, 2):
+            return json.dumps(value, sort_keys=sort_keys, indent=indent if indent else None)
+
+        option = 0
+        if indent:
+            option |= orjson.OPT_INDENT_2
+        if sort_keys:
+            option |= orjson.OPT_SORT_KEYS
+        return orjson.dumps(value, option=option).decode('UTF-8')
+
+    return json.dumps(value, sort_keys=sort_keys, indent=indent if indent else None)
+
+
 class SearchType(str, Enum):
     ANY = 'Any'
     SCENES = 'Scenes'
     MOVIES = 'Movies'
     JAV = 'JAV'
+
+
+@logger.catch(reraise=True)
+def _require_path(path: Optional[Path], name: str) -> Path:
+    if path is None:
+        raise ValueError(f'NamerConfig.{name} must be configured')
+    return path
 
 
 def has_no_empty_params(rule: Rule) -> bool:
@@ -45,7 +85,8 @@ def get_failed_files(config: NamerConfig) -> List[Dict]:
     """
     Get failed files to rename.
     """
-    return list(map(lambda o: command_to_file_info(o, config), gather_target_files_from_dir(config.failed_dir, config)))
+    failed_dir = _require_path(config.failed_dir, 'failed_dir')
+    return [command_to_file_info(o, config) for o in gather_target_files_from_dir(failed_dir, config)]
 
 
 def get_queued_files(queue: Queue, config: NamerConfig, queue_limit: int = 100) -> List[Dict]:
@@ -53,7 +94,7 @@ def get_queued_files(queue: Queue, config: NamerConfig, queue_limit: int = 100) 
     Get queued files.
     """
     queue_items = list(queue.queue)[:queue_limit]
-    return list(map(lambda x: command_to_file_info(x, config), filter(lambda i: i is not None, queue_items)))
+    return [command_to_file_info(x, config) for x in queue_items if x is not None]
 
 
 def get_queue_size(queue: Queue) -> int:
@@ -62,9 +103,13 @@ def get_queue_size(queue: Queue) -> int:
 
 def command_to_file_info(command: Command, config: NamerConfig) -> Dict:
     stat = command.target_movie_file.stat()
+    failed_dir = _require_path(command.config.failed_dir, 'failed_dir')
 
-    sub_path = str(command.target_movie_file.resolve().relative_to(command.config.failed_dir.resolve())) if is_relative_to(command.target_movie_file, command.config.failed_dir) else None
-    res = {
+    sub_path = None
+    if is_relative_to(command.target_movie_file, failed_dir):
+        sub_path = str(command.target_movie_file.resolve().relative_to(failed_dir.resolve()))
+
+    res: Dict[str, Any] = {
         'file': sub_path,
         'name': command.target_directory.stem if command.parsed_dir_name and command.target_directory else command.target_movie_file.stem,
         'ext': command.target_movie_file.suffix[1:].upper(),
@@ -73,7 +118,7 @@ def command_to_file_info(command: Command, config: NamerConfig) -> Dict:
     }
 
     percentage, phash, oshash = 0.0, '', ''
-    if config and config.write_namer_failed_log and config.add_columns_from_log and sub_path:
+    if config.write_namer_failed_log and config.add_columns_from_log and sub_path:
         log_data = read_failed_log_file(sub_path, config)
         if log_data:
             if log_data.results:
@@ -88,7 +133,7 @@ def command_to_file_info(command: Command, config: NamerConfig) -> Dict:
     res['oshash'] = oshash
 
     log_time = 0
-    if config and config.add_complete_column and config.write_namer_failed_log and sub_path:
+    if config.add_complete_column and config.write_namer_failed_log and sub_path:
         log_file = command.target_movie_file.parent / (command.target_movie_file.stem + '_namer.json.gz')
         if log_file.is_file():
             log_stat = log_file.stat()
@@ -100,28 +145,31 @@ def command_to_file_info(command: Command, config: NamerConfig) -> Dict:
 
 
 def metadataapi_responses_to_webui_response(responses: Dict, config: NamerConfig, file: str, phash: Optional[PerceptualHash] = None) -> List:
-    file = Path(file)
-    file_name = file.stem
-    if not file.suffix and config.target_extensions:
+    file_path = Path(file)
+    file_name = file_path.stem
+    if not file_path.suffix and config.target_extensions:
         file_name += '.' + config.target_extensions[0]
 
     file_infos = []
     for url, response in responses.items():
         if response and response.strip() != '':
-            json_obj = orjson.loads(response)
-            formatted = orjson.dumps(orjson.loads(response), option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS).decode('UTF-8')
+            json_obj = _orjson_loads(response)
+            formatted = _orjson_dumps(json_obj, sort_keys=True)
             name_parts = parse_file_name(file_name, config)
             file_infos.extend(__metadataapi_response_to_data(json_obj, url, formatted, name_parts, config))
 
     files = []
     for scene_data in file_infos:
-        scene = __evaluate_match(scene_data.original_parsed_filename, scene_data, config, phash).as_dict()
+        fallback_source = scene_data.name or file_name
+        parsed_name_parts: FileInfo = scene_data.original_parsed_filename or parse_file_name(fallback_source, config)
+
+        scene = __evaluate_match(parsed_name_parts, scene_data, config, phash).as_dict()
         scene.update(
             {
-                'name_parts': scene_data.original_parsed_filename,
+                'name_parts': parsed_name_parts,
                 'looked_up': {
                     'uuid': scene_data.uuid,
-                    'type': scene_data.type.value,
+                    'type': scene_data.type.value if scene_data.type else SceneType.SCENE.value,
                     'name': scene_data.name,
                     'date': scene_data.date,
                     'poster_url': scene_data.poster_url,
@@ -190,11 +238,17 @@ def get_search_results(query: str, search_type: SearchType, file: str, config: N
     }
 
 
-def get_phash_results(file: str, search_type: SearchType, config: NamerConfig) -> Dict:
+def get_phash_results(file: str, _search_type: SearchType, config: NamerConfig) -> Dict:
     """
     Search results by phash for user selection using the configured metadata provider.
+    
+    Args:
+        file: The filename to search for
+        _search_type: Reserved for future filtering by content type (currently unused)
+        config: Namer configuration
     """
-    phash_file = config.failed_dir / file
+    failed_dir = _require_path(config.failed_dir, 'failed_dir')
+    phash_file = failed_dir / file
     if not phash_file.is_file():
         return {'file': file, 'files': []}
 
@@ -239,17 +293,59 @@ def get_phash_results(file: str, search_type: SearchType, config: NamerConfig) -
 
 def delete_file(file_name_str: str, config: NamerConfig) -> bool:
     """
-    Delete selected file.
+    Delete selected file with path traversal protection.
+    
+    Security: file_name_str is user-provided but validated with relative_to()
+    to ensure it stays within failed_dir before any file operations.
     """
-    file_name = config.failed_dir / file_name_str
+    failed_dir = _require_path(config.failed_dir, 'failed_dir')
+    failed_dir_resolved = failed_dir.resolve()
+    
+    # Sanitize user input: remove any path traversal sequences
+    # This prevents ../../../etc/passwd style attacks
+    sanitized_name = Path(file_name_str).as_posix().replace('..', '').lstrip('/')
+    
+    # Normalize and resolve the target path (validated below with relative_to)
+    file_name = (failed_dir / sanitized_name).resolve()
+    
+    # Verify target is strictly within failed_dir (path traversal protection)
+    try:
+        file_name.relative_to(failed_dir_resolved)
+    except ValueError:
+        logger.warning('Path traversal attempt detected: %s is not within %s', file_name, failed_dir_resolved)
+        return False
+    
     if not is_acceptable_file(file_name, config) or not config.allow_delete_files:
         return False
 
     if config.del_other_files and file_name.is_dir():
-        target_name = config.failed_dir / Path(file_name_str).parts[0]
+        # Use the already-resolved full path to delete exact directory
+        target_name = file_name  # Already resolved and validated above
+        
+        # Prevent deleting the root failed_dir itself
+        if target_name == failed_dir_resolved:
+            logger.warning('Attempted to delete root failed_dir itself: %s', target_name)
+            return False
+        
+        # Double-check it's still within failed_dir (should always pass)
+        try:
+            target_name.relative_to(failed_dir_resolved)
+        except ValueError:
+            logger.warning('Path traversal attempt detected in directory delete: %s', target_name)
+            return False
+        
         shutil.rmtree(target_name)
     else:
-        log_file = config.failed_dir / (file_name.stem + '_namer.json.gz')
+        # Preserve directory structure when computing log file path
+        # file_name.parent is safe because file_name was sanitized and validated above
+        log_file = file_name.parent / (file_name.stem + '_namer.json.gz')
+        # Verify log file is also within failed_dir
+        try:
+            log_file.resolve().relative_to(failed_dir_resolved)
+        except ValueError:
+            logger.warning('Path traversal attempt detected for log file: %s', log_file)
+            return False
+        
         if log_file.is_file():
             log_file.unlink()
 
@@ -259,7 +355,8 @@ def delete_file(file_name_str: str, config: NamerConfig) -> bool:
 
 
 def read_failed_log_file(name: str, config: NamerConfig) -> Optional[ComparisonResults]:
-    file = config.failed_dir / name
+    failed_dir = _require_path(config.failed_dir, 'failed_dir')
+    file = failed_dir / name
     file = file.parent / (file.stem + '_namer.json.gz')
 
     res: Optional[ComparisonResults] = None
@@ -270,7 +367,7 @@ def read_failed_log_file(name: str, config: NamerConfig) -> Optional[ComparisonR
 
 
 @lru_cache(maxsize=1024)
-def _read_failed_log_file(file: Path, file_size: int, file_update: float) -> Optional[ComparisonResults]:
+def _read_failed_log_file(file: Path, _file_size: int, _file_update: float) -> Optional[ComparisonResults]:
     res: Optional[ComparisonResults] = None
     if file.is_file():
         data = gzip.decompress(file.read_bytes())

@@ -49,8 +49,9 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
         self.assertEqual(config.write_namer_log, False)
         self.assertEqual(config.enable_metadataapi_genres, False)
         self.assertEqual(config.default_genre, 'Adult')
-        self.assertFalse(hasattr(config, 'dest_dir'))
-        self.assertFalse(hasattr(config, 'failed_dir'))
+        # Path fields now have default None values instead of being absent
+        self.assertIsNone(config.dest_dir)
+        self.assertIsNone(config.failed_dir)
         self.assertEqual(config.min_file_size, 300)
         self.assertEqual(config.language, None)
         if sys.platform != 'win32':

@@ -61,8 +61,18 @@ else
 fi
 echo ""
 
-# Step 3: Run unit tests
-echo "3️⃣ Running unit tests..."
+# Step 3: Run mypy type checks
+echo "3️⃣ Running type checks with mypy..."
+if poetry run mypy .; then
+    echo "✅ Type checks passed"
+else
+    echo "❌ Type checks failed. Fix issues before proceeding."
+    exit 1
+fi
+echo ""
+
+# Step 4: Run unit tests
+echo "4️⃣ Running unit tests..."
 if [[ "$FAST" -eq 1 ]]; then
   echo "   Fast mode: skipping videophash, watchdog, and web tests"
   PYTEST_ARGS=(--cov -k "not videophash and not watchdog and not web")
@@ -78,8 +88,8 @@ else
 fi
 echo ""
 
-# Step 4: Build requirements check
-echo "4️⃣ Checking Docker build requirements..."
+# Step 5: Build requirements check
+echo "5️⃣ Checking Docker build requirements..."
 
 # Check for required build tools
 missing_tools=()
@@ -112,11 +122,11 @@ fi
 echo "✅ All build tools available"
 echo ""
 
-# Step 5: Local Docker integration test
+# Step 6: Local Docker integration test
 if [[ "$FAST" -eq 1 ]]; then
-  echo "5️⃣ Skipping Docker integration tests (fast mode)"
+  echo "6️⃣ Skipping Docker integration tests (fast mode)"
 else
-  echo "5️⃣ Running Docker integration tests..."
+  echo "6️⃣ Running Docker integration tests..."
 fi
 
 if [[ "$FAST" -eq 0 ]] && [[ -d "test/integration" ]] && [[ -f "test/integration/test.sh" ]]; then
@@ -178,8 +188,8 @@ else
     echo "✅ Skipping Docker integration tests"
   fi
 fi
-# Step 6: CodeRabbit AI review (optional)
-echo "6️⃣ Running CodeRabbit AI review..."
+# Step 7: CodeRabbit AI review (optional)
+echo "7️⃣ Running CodeRabbit AI review..."
 CODERABBIT_SUMMARY="SKIPPED (disabled)"
 if [[ "${CODERABBIT_VALIDATE:-1}" == "0" ]]; then
   echo "   Skipping CodeRabbit review (CODERABBIT_VALIDATE=0)."
@@ -198,10 +208,11 @@ else
 fi
 echo ""
 
-# Step 7: Final validation
-echo "7️⃣ Final validation summary..."
+# Step 8: Final validation
+echo "8️⃣ Final validation summary..."
 echo ""
 echo "✅ Code linting: PASSED"
+echo "✅ Type checks: PASSED"
 echo "✅ Unit tests: PASSED"
 echo "✅ Build tools: AVAILABLE"
 if [[ "$FAST" -eq 1 ]]; then

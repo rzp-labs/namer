@@ -2,9 +2,9 @@ from enum import Enum
 from io import BytesIO
 from typing import Optional
 
-import requests
+import requests  # type: ignore[import]  # types-requests available but conflicts with stubs
 from loguru import logger
-from requests_cache import CachedSession
+from requests_cache import CachedSession  # type: ignore[import]  # No type stubs available
 
 
 class RequestType(Enum):

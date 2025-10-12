@@ -7,7 +7,7 @@ import secrets
 import re
 import shutil
 from importlib import resources
-from typing import Dict, List, Optional, Callable, Pattern, Any, Tuple
+from typing import Dict, List, Optional, Callable, Pattern, Any, Tuple, TypeVar
 from configupdater import ConfigUpdater
 from pathlib import Path
 
@@ -18,6 +18,50 @@ from namer import database
 from namer.configuration import NamerConfig
 from namer.ffmpeg import FFMpeg
 from namer.name_formatter import PartialFormatter
+
+T = TypeVar('T')
+
+
+def require_not_none(value: Optional[T], name: str, context: str = '') -> T:
+    """
+    Validate that a value is not None.
+    
+    Args:
+        value: The value to check
+        name: Name of the value for error message
+        context: Additional context for when this is required
+    
+    Returns:
+        The value if not None
+    
+    Raises:
+        ValueError: If value is None
+    """
+    if value is None:
+        message = f'{name} must be configured'
+        if context:
+            message += f' {context}'
+        raise ValueError(message)
+    return value
+
+
+def require_config_path(config: NamerConfig, attr_name: str, context: str = '') -> Path:
+    """
+    Validate that a required config path is set.
+    
+    Args:
+        config: Configuration object
+        attr_name: Name of the path attribute (e.g., 'dest_dir')
+        context: Description of when this is required
+    
+    Returns:
+        The validated Path
+    
+    Raises:
+        ValueError: If the path is None with detailed message
+    """
+    path = getattr(config, attr_name, None)
+    return require_not_none(path, f'NamerConfig.{attr_name}', context)
 
 
 def __verify_naming_config(config: NamerConfig, formatter: PartialFormatter) -> bool:
@@ -180,22 +224,25 @@ def __verify_ffmpeg(ffmpeg: FFMpeg) -> bool:
     return None not in versions.values()
 
 
+@logger.catch(reraise=True)
 def __verify_metadata_provider_config(config: NamerConfig) -> bool:
     """
     Verify metadata provider configuration settings.
     """
     success = True
+    metadata_provider_lower = config.metadata_provider.lower()
 
     # Validate provider selection
     supported_providers = ['theporndb', 'stashdb']
-    if config.metadata_provider.lower() not in supported_providers:
+    if metadata_provider_lower not in supported_providers:
         logger.error(f'Unsupported metadata provider: "{config.metadata_provider}". Supported: {supported_providers}')
         success = False
 
     # Only validate provider-specific settings if directories are configured (indicates real usage vs test)
-    if hasattr(config, 'watch_dir') or hasattr(config, 'dest_dir') or hasattr(config, 'work_dir'):
+    # NamerConfig always defines these attributes; check if any are set (not None)
+    if config.watch_dir is not None or config.dest_dir is not None or config.work_dir is not None:
         # Validate provider-specific settings for real configurations
-        if config.metadata_provider.lower() == 'theporndb':
+        if metadata_provider_lower == 'theporndb':
             if not config.porndb_token or config.porndb_token.strip() == '':
                 logger.error('ThePornDB provider requires a porndb_token. Sign up at https://theporndb.net/register')
                 success = False
@@ -203,7 +250,7 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
             if not config.override_tpdb_address:
                 logger.info('Using default ThePornDB endpoint; override_tpdb_address not set')
 
-        elif config.metadata_provider.lower() == 'stashdb':
+        elif metadata_provider_lower == 'stashdb':
             # Endpoint is built-in; override is optional and primarily used by advanced deployments
             if not config.stashdb_endpoint or config.stashdb_endpoint.strip() == '':
                 logger.info('Using default StashDB endpoint; stashdb_endpoint not set')
@@ -212,10 +259,10 @@ def __verify_metadata_provider_config(config: NamerConfig) -> bool:
                 logger.warning('StashDB provider works better with an API token (stashdb_token)')
     else:
         # For test configurations without directories, just warn about missing tokens
-        if config.metadata_provider.lower() == 'theporndb' and (not config.porndb_token or config.porndb_token.strip() == ''):
+        if metadata_provider_lower == 'theporndb' and (not config.porndb_token or config.porndb_token.strip() == ''):
             logger.warning('ThePornDB provider would require a porndb_token in production')
-        elif config.metadata_provider.lower() == 'stashdb' and (not config.stashdb_endpoint or config.stashdb_endpoint.strip() == ''):
-            logger.warning('StashDB provider would require stashdb_endpoint in production')
+        elif metadata_provider_lower == 'stashdb' and (not config.stashdb_token or config.stashdb_token.strip() == ''):
+            logger.warning('StashDB provider would benefit from an API token (stashdb_token) in production')
 
     return success
 

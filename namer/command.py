@@ -5,27 +5,30 @@ Tools for working with files and directories in namer.
 import argparse
 import gzip
 import json
-from dataclasses import dataclass
 import os
 import shutil
 import sys
+from dataclasses import dataclass, field
+from datetime import date, datetime
+from numbers import Integral, Number
 from pathlib import Path
 from platform import system
 from typing import Iterable, List, Optional, Sequence, Tuple
 
-import jsonpickle
+import jsonpickle  # type: ignore[import]  # No type stubs available
 from loguru import logger
 
-from namer.configuration import NamerConfig
-from namer.configuration_utils import default_config
-from namer.ffmpeg import FFProbeResults
-from namer.fileinfo import parse_file_name, FileInfo
 from namer.comparison_results import ComparisonResults, LookedUpFileInfo, SceneType
+from namer.configuration import NamerConfig
+from namer.configuration_utils import default_config, require_config_path
+from namer.ffmpeg import FFProbeResults
+from namer.fileinfo import FileInfo, parse_file_name
 
 
 # noinspection PyDataclass
 @dataclass(init=False, repr=False, eq=True, order=False, unsafe_hash=True, frozen=False)
 class Command:
+    # Required fields without defaults (must come first)
     input_file: Path
     """
     This is the original user/machine input of a target path.
@@ -36,12 +39,14 @@ class Command:
     """
     The movie file this name is targeting.
     """
+    
+    # Optional fields with defaults (must come after required fields)
     target_directory: Optional[Path] = None
     """
     The containing directory of a File.  This may be the immediate parent directory, or higher up, depending
     on whether a directory was selected as the input to a naming process.
     """
-    parsed_dir_name: bool
+    parsed_dir_name: bool = False
     """
     Was the input file a directory and is parsing directory names configured?
     """
@@ -49,28 +54,23 @@ class Command:
     """
     The parsed file name.
     """
-
     inplace: bool = False
     """
     Was the command told to keep the files in place.
     """
-
     write_from_nfos: bool = False
     """
     Should .nfo files be used as a source of metadata and writen into file tag info and used for naming.
     """
-
     tpdb_id: Optional[str] = None
     """
     The _id used to identify video in tpdb
     """
-
     is_auto: bool = True
     """
     If False then it means command was from web ui
     """
-
-    config: NamerConfig
+    config: NamerConfig = field(default_factory=default_config)
 
     def get_command_target(self):
         return str(self.target_movie_file.resolve())
@@ -116,6 +116,49 @@ def move_command_files(target: Optional[Command], new_target: Path, is_auto: boo
     return output
 
 
+@logger.catch(reraise=True)
+def _json_safe(value):
+    """
+    Convert value to JSON-safe type, handling common non-JSON types explicitly.
+    Raises exceptions for truly problematic types rather than silently returning them.
+    """
+    if isinstance(value, dict):
+        return {key: _json_safe(val) for key, val in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value
+    if isinstance(value, Number):
+        # Keep integers as integers to avoid corruption of large IDs
+        # Check for integral types first to avoid float round-trip corruption
+        if isinstance(value, Integral):
+            return int(value)
+        # Convert non-integral numbers to float, let errors propagate
+        as_float = float(value)
+        # For floats that happen to be whole numbers, convert to int
+        if as_float.is_integer():
+            return int(as_float)
+        return as_float
+    # Handle common non-JSON types explicitly
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, bytes):
+        try:
+            return value.decode('utf-8')
+        except UnicodeDecodeError:
+            return value.hex()
+    if value is None:
+        return None
+    
+    # Unknown type - log warning and convert to string
+    logger.warning('Encountered non-JSON-serializable type {} for value, converting to string: {}', type(value).__name__, repr(value)[:100])
+    return str(value)
+
+
 def _build_summary(match_attempts: Optional[ComparisonResults]) -> dict:
     if not match_attempts:
         return {'results': [], 'fileinfo': None, 'ambiguous_reason': None, 'candidate_guids': []}
@@ -155,12 +198,14 @@ def _build_summary(match_attempts: Optional[ComparisonResults]) -> dict:
             'date': fileinfo.date,
         }
 
-    return {
-        'results': summary_results,
-        'fileinfo': fileinfo_summary,
-        'ambiguous_reason': match_attempts.ambiguous_reason,
-        'candidate_guids': match_attempts.candidate_guids,
-    }
+    return _json_safe(
+        {
+            'results': summary_results,
+            'fileinfo': fileinfo_summary,
+            'ambiguous_reason': match_attempts.ambiguous_reason,
+            'candidate_guids': match_attempts.candidate_guids,
+        }
+    )
 
 
 def _write_summary_file(movie_file: Path, summary: dict, namer_config: NamerConfig) -> Optional[Path]:
@@ -180,37 +225,47 @@ def write_log_file(movie_file: Optional[Path], match_attempts: Optional[Comparis
     """
     Writes scene results to a gzipped JSON log and a human-readable summary file.
     """
-    log_name = None
-    if movie_file:
-        log_name = movie_file.with_name(movie_file.stem + '_namer.json.gz')
-        logger.info('Writing log to {}', log_name)
-        summary = _build_summary(match_attempts)
-        _write_summary_file(movie_file, summary, namer_config)
-        with open(log_name, 'wb') as log_file:
-            if match_attempts:
-                redacted: List[Tuple[LookedUpFileInfo, Optional[str], Optional[str]]] = []
-                try:
-                    for result in match_attempts.results or []:
-                        looked_up = getattr(result, 'looked_up', None)
-                        if looked_up:
-                            redacted.append((looked_up, getattr(looked_up, 'original_query', None), getattr(looked_up, 'original_response', None)))
-                            looked_up.original_query = None
-                            looked_up.original_response = None
+    if not movie_file:
+        return None
 
-                    json_out = jsonpickle.encode(match_attempts, separators=(',', ':'))
-                finally:
-                    for looked_up, original_query, original_response in redacted:
-                        looked_up.original_query = original_query
-                        looked_up.original_response = original_response
+    log_name = movie_file.with_name(movie_file.stem + '_namer.json.gz')
+    logger.info('Writing log to {}', log_name)
+    summary = _build_summary(match_attempts)
+    _write_summary_file(movie_file, summary, namer_config)
+    
+    # Always produce valid JSON output, even if match_attempts is None
+    redacted: List[Tuple[LookedUpFileInfo, Optional[str], Optional[str]]] = []
+    json_out: Optional[str] = None
+    
+    if match_attempts:
+        try:
+            for result in match_attempts.results or []:
+                looked_up = getattr(result, 'looked_up', None)
+                if looked_up:
+                    redacted.append((looked_up, getattr(looked_up, 'original_query', None), getattr(looked_up, 'original_response', None)))
+                    looked_up.original_query = None
+                    looked_up.original_response = None
 
-                if json_out:
-                    json_out = json_out.encode('UTF-8')
-                    json_out = gzip.compress(json_out)
-                    log_file.write(json_out)
+            json_out = jsonpickle.encode(match_attempts, separators=(',', ':'))
+        finally:
+            for looked_up, original_query, original_response in redacted:
+                looked_up.original_query = original_query
+                looked_up.original_response = original_response
+    else:
+        # No match attempts - encode None to produce valid JSON
+        json_out = jsonpickle.encode(None)
+    
+    # Always write compressed JSON to avoid zero-byte gzip files
+    with open(log_name, 'wb') as log_file:
+        if json_out:
+            json_bytes = json_out.encode('UTF-8')
+            compressed = gzip.compress(json_bytes)
+            log_file.write(compressed)
 
-        set_permissions(log_name, namer_config)
+    set_permissions(log_name, namer_config)
 
     return log_name
+
 
 def _set_perms(target: Path, config: NamerConfig):
     file_perm: Optional[int] = int(str(config.set_file_permissions), 8) if config.set_file_permissions else None
@@ -306,8 +361,9 @@ def move_to_final_location(command: Command, new_metadata: LookedUpFileInfo) -> 
         target_dir = command.target_directory.parent
 
     if not command.inplace:
+        dest_dir = require_config_path(command.config, 'dest_dir', 'when inplace is False')
         name_template = get_new_relative_path_name_template_by_type(command.config, new_metadata.type)
-        target_dir = command.config.dest_dir
+        target_dir = dest_dir
 
     infix = 0
     # Find non-conflicting movie name.
@@ -383,6 +439,9 @@ def move_to_final_location(command: Command, new_metadata: LookedUpFileInfo) -> 
         output.target_directory = containing_dir
         output.input_file = containing_dir
 
+    output.config = command.config
+    output.inplace = command.inplace
+
     if command.target_directory and not is_relative_to(output.target_directory, command.target_directory):
         shutil.rmtree(command.target_directory)
 
@@ -416,9 +475,13 @@ def gather_target_files_from_dir(dir_to_scan: Path, config: NamerConfig) -> Iter
     """
     if dir_to_scan and dir_to_scan.is_dir() and dir_to_scan.exists():
         logger.info('Scanning dir {} for sub-dirs/files to process', dir_to_scan)
-        mapped: Iterable = map(lambda file: make_command((dir_to_scan / file), config), dir_to_scan.iterdir())
-        filtered: Iterable[Command] = filter(lambda file: file is not None, mapped)  # type: ignore
-        return filtered
+        commands: List[Command] = []
+        for file in dir_to_scan.iterdir():
+            # iterdir() yields full Path objects (already absolute), pass directly
+            cmd = make_command(file, config)
+            if cmd is not None:
+                commands.append(cmd)
+        return commands
 
     return []
 
@@ -454,7 +517,11 @@ def find_target_file(root_dir: Path, config: NamerConfig) -> Optional[Path]:
     file = None
     if list_of_files:
         for target_ext in config.target_extensions:
-            filtered = list(filter(lambda o, ext=target_ext: o.suffix and o.suffix.lower()[1:] == ext, list_of_files))
+            filtered = [
+                candidate
+                for candidate in list_of_files
+                if candidate.suffix and candidate.suffix.lower()[1:] == target_ext
+            ]
             if not file and filtered:
                 file = max(filtered, key=lambda x: x.stat().st_size)
 
