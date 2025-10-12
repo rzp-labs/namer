@@ -133,6 +133,7 @@ class StashVideoPerceptualHash:
             
             # Optionally verify binary actually runs (lightweight check)
             try:
+                # codacy-disable-next-line
                 result = subprocess.run(  # nosec B603: binary_path is from trusted internal path, not user input
                     [str(binary_path), '--help'],
                     capture_output=True,

@@ -9,7 +9,8 @@ from typing import Optional, List, Union, Sequence, cast
 
 from defusedxml.minidom import parseString  # type: ignore[import]  # Incomplete type stubs
 from loguru import logger
-from xml.dom.minidom import CharacterData, Document, Element, Node  # nosec B408: Using defusedxml for parsing
+# codacy-disable-next-line
+from xml.dom.minidom import CharacterData, Document, Element, Node  # nosec B408: Using defusedxml for parsing, only importing types
 
 from namer.configuration import NamerConfig
 from namer.command import set_permissions
