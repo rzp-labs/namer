@@ -14,8 +14,9 @@ jobs:
     if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
     runs-on: ubuntu-latest
     # Prevent multiple tag creation workflows from running simultaneously
+    # Use single shared group to prevent race conditions across all release PRs
     concurrency:
-      group: release-tag-${{ github.event.pull_request.number }}
+      group: release-tag-creation
       cancel-in-progress: false
     steps:
       - name: Checkout repository
@@ -49,57 +50,70 @@ jobs:
         id: version
         run: |
           set -euo pipefail
-
-          VERSION=$(poetry version -s)
-
+          
+          # Extract version with explicit error handling
+          if ! VERSION=$(poetry version -s 2>&1); then
+            echo "❌ Error: Poetry command failed"
+            echo "Output: $VERSION"
+            echo "This may indicate a malformed pyproject.toml or Poetry installation issue"
+            exit 1
+          fi
+          
           # Validate version was extracted successfully
           if [ -z "$VERSION" ]; then
             echo "❌ Error: Failed to extract version from pyproject.toml"
+            echo "Poetry returned an empty version string"
             exit 1
           fi
-
+          
           # Validate version format (semantic versioning: X.Y.Z)
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
             echo "❌ Error: Invalid version format: $VERSION (expected X.Y.Z)"
             exit 1
           fi
-
+          
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "✅ Extracted version: $VERSION"
 
-      - name: Check if tag already exists
-        id: check_tag
+      - name: Check if tag already exists and fail if it does
         run: |
           set -euo pipefail
-
-          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "⚠️  Tag v${{ steps.version.outputs.version }} already exists"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "✅ Tag v${{ steps.version.outputs.version }} does not exist, will create"
+          
+          TAG="v${{ steps.version.outputs.version }}"
+          
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "❌ Error: Tag $TAG already exists"
+            echo "This indicates the version in pyproject.toml was not bumped"
+            echo "Please increment the version and create a new release PR"
+            echo ""
+            echo "To fix:"
+            echo "  1. Run the release-bump workflow again with appropriate bump type"
+            echo "  2. Or manually update pyproject.toml with a new version"
+            exit 1
           fi
+          
+          echo "✅ Tag $TAG does not exist, proceeding with creation"
 
       - name: Create and push tag
-        if: steps.check_tag.outputs.exists == 'false'
         run: |
           set -euo pipefail
-
+          
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
+          
           TAG="v${{ steps.version.outputs.version }}"
           echo "📦 Creating annotated tag: $TAG"
           git tag -a "$TAG" -m "Release $TAG"
-
+          
           echo "⬆️  Pushing tag to origin"
-          git push origin "$TAG"
-
+          if ! git push origin "$TAG" 2>&1; then
+            echo "❌ Failed to push tag $TAG to remote"
+            echo "This may be due to:"
+            echo "  - Network connectivity issues"
+            echo "  - Permission problems (check GITHUB_TOKEN permissions)"
+            echo "  - Repository protection rules"
+            exit 1
+          fi
+          
           echo "✅ Tag $TAG created and pushed successfully"
           echo "🐳 Docker build will be triggered automatically"
-
-      - name: Tag already exists
-        if: steps.check_tag.outputs.exists == 'true'
-        run: |
-          echo "⚠️  Tag v${{ steps.version.outputs.version }} already exists, skipping tag creation"
-          echo "The existing tag will be used for the Docker build"
