@@ -24,10 +24,24 @@ jobs:
         with:
           # Use the PR merge commit SHA, with fallback to head SHA or github.sha
           # merge_commit_sha can be null in edge cases, so we provide fallbacks
+          # Edge case: Force-push between merge and workflow execution could cause fallback
+          # to point to wrong commit, but this is extremely rare and the concurrency group
+          # (release-tag-creation) prevents concurrent executions, reducing this risk further
           ref: ${{ github.event.pull_request.merge_commit_sha || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log checkout details for debugging
+        run: |
+          echo "🔍 Checkout details:"
+          echo "  Current SHA: $(git rev-parse HEAD)"
+          echo "  Current branch/ref: $(git rev-parse --abbrev-ref HEAD || echo 'detached')"
+          echo "  PR merge_commit_sha: ${{ github.event.pull_request.merge_commit_sha }}"
+          echo "  PR head.sha: ${{ github.event.pull_request.head.sha }}"
+          echo "  github.sha: ${{ github.sha }}"
+          echo ""
+          echo "✅ Using commit: $(git rev-parse HEAD)"
 
       - name: Set up Python
         uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
@@ -48,13 +62,15 @@ jobs:
           set -euo pipefail
           
           # Extract version with proper error handling
-          # Capture output but fail on non-zero exit code
-          VERSION=$(poetry version -s 2>&1) || {
+          # Use temp file to cleanly separate stdout from stderr
+          if ! poetry version -s > version.txt; then
             echo "❌ Error: Poetry command failed"
-            echo "Output: $VERSION"
             echo "This may indicate a malformed pyproject.toml or Poetry installation issue"
             exit 1
-          }
+          fi
+          
+          VERSION="$(cat version.txt)"
+          rm -f version.txt
           
           # Validate version was extracted successfully
           if [ -z "$VERSION" ]; then
