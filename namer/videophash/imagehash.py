@@ -3,6 +3,7 @@ from typing import Literal, Optional, cast
 import numpy
 import scipy.fft
 import scipy.fftpack
+from loguru import logger
 from PIL import Image
 
 try:
@@ -69,6 +70,7 @@ def _binary_array_to_hex(arr):
     return '{:0>{width}x}'.format(int(bit_string, 2), width=width)
 
 
+@logger.catch(reraise=True)
 def hex_to_hash(hex_str: str) -> ImageHash:
     """
     Convert a stored hash (hex, as retrieved from str(Imagehash))
@@ -88,6 +90,7 @@ def hex_to_hash(hex_str: str) -> ImageHash:
     return ImageHash(hash_array)
 
 
+@logger.catch(reraise=True)
 def phash(image: Image.Image, hash_size=8, high_freq_factor=4, resample: Literal[0, 1, 2, 3, 4, 5] = Image.Resampling.LANCZOS) -> Optional[ImageHash]:  # type: ignore
     if hash_size < 2:
         raise ValueError('Hash size must be greater than or equal to 2')
