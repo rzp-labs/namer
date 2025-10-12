@@ -294,12 +294,15 @@ def get_phash_results(file: str, _search_type: SearchType, config: NamerConfig) 
 def delete_file(file_name_str: str, config: NamerConfig) -> bool:
     """
     Delete selected file with path traversal protection.
+    
+    Security: file_name_str is user-provided but validated with relative_to()
+    to ensure it stays within failed_dir before any file operations.
     """
     failed_dir = _require_path(config.failed_dir, 'failed_dir')
     failed_dir_resolved = failed_dir.resolve()
     
-    # Normalize and resolve the target path
-    file_name = (failed_dir / Path(file_name_str)).resolve()
+    # Normalize and resolve the target path (validated below with relative_to)
+    file_name = (failed_dir / Path(file_name_str)).resolve()  # nosec: validated with relative_to() check below
     
     # Verify target is strictly within failed_dir (path traversal protection)
     try:
@@ -330,7 +333,8 @@ def delete_file(file_name_str: str, config: NamerConfig) -> bool:
         shutil.rmtree(target_name)
     else:
         # Preserve directory structure when computing log file path
-        log_file = file_name.parent / (file_name.stem + '_namer.json.gz')
+        # file_name.parent is safe because file_name was validated above
+        log_file = file_name.parent / (file_name.stem + '_namer.json.gz')  # nosec: file_name already validated
         # Verify log file is also within failed_dir
         try:
             log_file.resolve().relative_to(failed_dir_resolved)

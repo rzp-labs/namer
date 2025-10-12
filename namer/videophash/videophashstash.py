@@ -133,7 +133,7 @@ class StashVideoPerceptualHash:
             
             # Optionally verify binary actually runs (lightweight check)
             try:
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603: binary_path is from trusted internal path, not user input
                     [str(binary_path), '--help'],
                     capture_output=True,
                     timeout=2,
