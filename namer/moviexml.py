@@ -86,7 +86,14 @@ def parse_movie_xml_file(xml_file: Path) -> LookedUpFileInfo:
 
     movie: Document = cast(Document, parseString(bytes(content, encoding='UTF-8')))
     info = LookedUpFileInfo()
-    info.name = get_childnode_text(movie, 'title')
+    
+    # Require title element exists and validate it's not empty
+    require_childnode(movie, 'title')  # Raises if missing
+    title_text = get_childnode_text(movie, 'title')
+    if not title_text or not title_text.strip():
+        raise ValueError(f"XML file {xml_file} has empty or whitespace-only <title> element")
+    info.name = title_text.strip()
+    
     studios = get_all_childnode_text(movie, 'studio')
     info.site = studios[0] if studios else None
     info.date = get_childnode_text(movie, 'releasedate')

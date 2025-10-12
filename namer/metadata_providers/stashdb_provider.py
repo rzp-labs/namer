@@ -106,7 +106,7 @@ class StashDBProvider(BaseMetadataProvider):
     and maps results to namer's existing data structures.
     """
 
-    @logger.catch
+    @logger.catch(reraise=True)
     def __init__(self) -> None:
         """Initialize provider and validate optional dependencies."""
         if orjson is None:
@@ -476,9 +476,9 @@ class StashDBProvider(BaseMetadataProvider):
                 continue
 
             scene_hash = SceneHash(
-                scene_hash=fingerprint.get('hash', ''),
-                hash_type=hash_type,
-                duration=fingerprint.get('duration'),
+                fingerprint.get('hash', ''),
+                hash_type,
+                fingerprint.get('duration'),
             )
             file_info.hashes.append(scene_hash)
 

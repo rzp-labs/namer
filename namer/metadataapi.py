@@ -177,12 +177,9 @@ def __update_results(results: List[ComparisonResult], name_parts: Optional[FileI
 
 
 def __metadata_api_lookup_type(results: List[ComparisonResult], name_parts: Optional[FileInfo], namer_config: NamerConfig, scene_type: SceneType, phash: Optional[PerceptualHash] = None) -> List[ComparisonResult]:
+    # __update_results handles both phash and fallback name-only searches internally
     results = __update_results(results, name_parts, namer_config, scene_type=scene_type, phash=phash)
     results = __update_results(results, name_parts, namer_config, skip_name=True, scene_type=scene_type, phash=phash)
-
-    if phash:
-        results = __update_results(results, name_parts, namer_config, scene_type=scene_type)
-        results = __update_results(results, name_parts, namer_config, skip_name=True, scene_type=scene_type)
 
     if name_parts and name_parts.date:
         results = __update_results(results, name_parts, namer_config, skip_date=True, scene_type=scene_type)
