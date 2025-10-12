@@ -34,16 +34,11 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Cache Poetry installation
-        uses: actions/cache@v4
-        with:
-          path: ~/.local
-          key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            poetry-${{ runner.os }}-
-
       - name: Install Poetry
         run: |
+          # Note: No caching here - this workflow runs infrequently (only on release merges)
+          # Cache hit rate would be very low. Poetry dependency cache is in pr-validate.yml
+          # where it's effective (runs on every PR). Simplicity > marginal time savings here.
           python -m pip install --upgrade pip
           pip install poetry
 
