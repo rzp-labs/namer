@@ -293,19 +293,43 @@ def get_phash_results(file: str, _search_type: SearchType, config: NamerConfig) 
 
 def delete_file(file_name_str: str, config: NamerConfig) -> bool:
     """
-    Delete selected file.
+    Delete selected file with path traversal protection.
     """
     failed_dir = _require_path(config.failed_dir, 'failed_dir')
-    file_name = failed_dir / file_name_str
+    failed_dir_resolved = failed_dir.resolve()
+    
+    # Normalize and resolve the target path
+    file_name = (failed_dir / Path(file_name_str)).resolve()
+    
+    # Verify target is strictly within failed_dir (path traversal protection)
+    try:
+        file_name.relative_to(failed_dir_resolved)
+    except ValueError:
+        logger.warning('Path traversal attempt detected: %s is not within %s', file_name, failed_dir_resolved)
+        return False
+    
     if not is_acceptable_file(file_name, config) or not config.allow_delete_files:
         return False
 
     if config.del_other_files and file_name.is_dir():
-        target_name = failed_dir / Path(file_name_str).parts[0]
+        # Verify directory is within failed_dir before removing
+        target_name = (failed_dir / Path(file_name_str).parts[0]).resolve()
+        try:
+            target_name.relative_to(failed_dir_resolved)
+        except ValueError:
+            logger.warning('Path traversal attempt detected in directory delete: %s', target_name)
+            return False
         shutil.rmtree(target_name)
     else:
         # Preserve directory structure when computing log file path
         log_file = file_name.parent / (file_name.stem + '_namer.json.gz')
+        # Verify log file is also within failed_dir
+        try:
+            log_file.resolve().relative_to(failed_dir_resolved)
+        except ValueError:
+            logger.warning('Path traversal attempt detected for log file: %s', log_file)
+            return False
+        
         if log_file.is_file():
             log_file.unlink()
 

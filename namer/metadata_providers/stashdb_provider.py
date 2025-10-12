@@ -109,6 +109,7 @@ class StashDBProvider(BaseMetadataProvider):
     @logger.catch(reraise=True)
     def __init__(self) -> None:
         """Initialize provider and validate optional dependencies."""
+        super().__init__()
         if orjson is None:
             logger.debug('StashDBProvider running without orjson; falling back to json module')
 

@@ -393,6 +393,8 @@ def process_file(command: Command) -> Optional[Command]:
                     moved = move_command_files(command, ambiguous_subdir)
                     if moved is not None:
                         if search_results is not None and moved.config.write_namer_failed_log:
+                            if moved.target_movie_file is None:
+                                raise RuntimeError(f'move_command_files returned Command with None target_movie_file for {command.input_file}')
                             write_log_file(moved.target_movie_file, search_results, moved.config)
                         write_ambiguous_metadata(
                             moved.target_movie_file,
@@ -406,6 +408,8 @@ def process_file(command: Command) -> Optional[Command]:
                 logger.info('No metadata candidates for {}; routing to failed directory', command.target_movie_file)
             failed = move_command_files(command, failed_dir)
             if failed is not None and search_results is not None and failed.config.write_namer_failed_log:
+                if failed.target_movie_file is None:
+                    raise RuntimeError(f'move_command_files returned Command with None target_movie_file for {command.input_file}')
                 write_log_file(failed.target_movie_file, search_results, failed.config)
             return failed
 

@@ -115,5 +115,34 @@ class StashVideoPerceptualHash:
     @logger.catch(reraise=True)
     def is_binary_available(self) -> bool:
         binary_path = self.__phash_path / self.__phash_name
-        # No need for exists() check - os.access handles non-existent files gracefully
-        return os.access(binary_path, os.X_OK)
+        
+        # Platform-specific executable check
+        if platform.system() == 'Windows':
+            # On Windows, os.X_OK only checks existence, not executability
+            # Check for executable extensions
+            if not binary_path.exists():
+                return False
+            
+            # Get executable extensions from PATHEXT or use defaults
+            pathext = os.environ.get('PATHEXT', '.EXE;.COM;.BAT;.CMD')
+            valid_extensions = [ext.lower() for ext in pathext.split(os.pathsep)]
+            
+            # Check if file has executable extension
+            if binary_path.suffix.lower() not in valid_extensions:
+                return False
+            
+            # Optionally verify binary actually runs (lightweight check)
+            try:
+                result = subprocess.run(
+                    [str(binary_path), '--help'],
+                    capture_output=True,
+                    timeout=2,
+                    check=False
+                )
+                # If it runs without crashing, consider it available
+                return result.returncode in (0, 1)  # Some binaries return 1 for --help
+            except (subprocess.TimeoutExpired, OSError):
+                return False
+        else:
+            # POSIX: os.access with X_OK checks execute permission
+            return os.access(binary_path, os.X_OK)

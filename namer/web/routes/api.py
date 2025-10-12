@@ -90,7 +90,6 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
 
         res: Any = False
         if data:
-            res = False
             failed_dir = config.failed_dir
             work_dir = config.work_dir
             if failed_dir is None or work_dir is None:
