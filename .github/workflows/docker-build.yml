@@ -18,6 +18,10 @@ jobs:
       contents: read
       packages: write
       actions: write
+    # Prevent multiple builds of the same commit from running simultaneously
+    concurrency:
+      group: docker-build-${{ github.sha }}
+      cancel-in-progress: false
     outputs:
       digest: ${{ steps.build.outputs.digest }}
 

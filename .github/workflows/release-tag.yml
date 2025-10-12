@@ -13,11 +13,16 @@ jobs:
     # Only run if PR was merged (not just closed) and has the 'release' label
     if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
     runs-on: ubuntu-latest
+    # Prevent multiple tag creation workflows from running simultaneously
+    concurrency:
+      group: release-tag-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          ref: main
+          # Use the PR merge commit SHA to tag the exact merge commit
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
