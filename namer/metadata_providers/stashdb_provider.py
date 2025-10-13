@@ -288,14 +288,10 @@ class StashDBProvider(BaseMetadataProvider):
                         id
                         title
                         date
-                        urls {
-                            url
-                        }
+                        urls
                         details
                         duration
-                        images {
-                            url
-                        }
+                        images
                         studio {
                             name
                             parent {
@@ -320,7 +316,8 @@ class StashDBProvider(BaseMetadataProvider):
                         }
                     }
                 }
-            """,
+            """
+,
             'variables': {
                 'id': uuid.split('/')[-1]  # Extract ID from UUID
             },
@@ -353,14 +350,10 @@ class StashDBProvider(BaseMetadataProvider):
                         id
                         title
                         date
-                        urls {
-                            url
-                        }
+                        urls
                         details
                         duration
-                        images {
-                            url
-                        }
+                        images
                         studio {
                             name
                             parent {
@@ -385,7 +378,8 @@ class StashDBProvider(BaseMetadataProvider):
                         }
                     }
                 }
-            """,
+            """
+,
             'variables': {'term': query},
         }
 
