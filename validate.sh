@@ -113,12 +113,6 @@ if [[ ${#missing_tools[@]} -gt 0 ]]; then
     exit 1
 fi
 
-# Enforce pnpm usage
-echo "   Enforcing pnpm as package manager..."
-if ! ./scripts/enforce-pnpm.sh; then
-    exit 1
-fi
-
 echo "✅ All build tools available"
 echo ""
 

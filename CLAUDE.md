@@ -339,26 +339,49 @@ git flow hotfix finish hotfix-name
 
 This project uses Python's **pre-commit** framework for git hooks (NOT Husky).
 
-**Automatic checks on commit:**
-- Ruff linting with auto-fix (`--fix`)
-- Ruff formatting
-- Shellcheck for bash scripts
-- Actionlint for GitHub Actions workflows
-- CodeRabbit pre-commit review (optional)
-- Dockerfile linting with hadolint
+#### Stratified Hook Philosophy
 
-**Automatic checks on push:**
-- `validate.sh --fast` - Quick validation before push
+We use a **stratified approach** that separates fast commit-time validation from thorough push-time quality gates:
+
+**Pre-commit Hooks: Fast Quality + Functional Validation (~15-20 seconds)**
+- **Purpose:** Immediate feedback on code quality AND functionality
+- **Philosophy:** Fast enough not to disrupt flow, thorough enough to catch real issues
+- **Checks:**
+  - Ruff linting with auto-fix (`--fix`) - Style consistency
+  - Ruff formatting - Code formatting
+  - mypy type checking - Catch type errors early before they accumulate
+  - pytest fast tests - 78 tests in ~4 seconds for comprehensive functional validation
+  - Shellcheck - Bash script validation
+  - Actionlint - GitHub Actions workflow validation
+  - Hadolint - Dockerfile linting (optional)
+
+**Pre-push Hooks: Deep Validation + Security (~3-5 minutes)**
+- **Purpose:** Full quality gate before team review - "production ready" validation
+- **Philosophy:** Ready to push = ready for team review = high confidence in quality and security
+- **Checks:**
+  - Full pytest suite with coverage - All tests including watchdog, web, videophash, and slow tests
+  - Codacy security analysis - Security vulnerabilities, code quality, complexity analysis
+  - CodeRabbit AI review - Design patterns, best practices, security concerns
+  - Docker smoke test - Quick build validation to catch Dockerfile/build errors
+
+**Why this approach:**
+1. **Type safety shift-left** - Catch type errors at commit time before they pile up
+2. **Fast pytest in pre-commit** - 78 tests in 4 seconds provides excellent functional coverage
+3. **Security built-in** - Codacy catches vulnerabilities before push
+4. **No skipped tests on push** - Full test suite including watchdog (core functionality)
+5. **Docker validation** - Catch build errors locally before CI
+6. **Clear separation** - Commit (fast iteration) vs Push (comprehensive gate)
 
 **Manual execution:**
-- `pre-commit run --all-files` - Run all hooks manually
+- `pre-commit run --all-files` - Run all pre-commit hooks manually
+- `pre-commit run --hook-stage pre-push --all-files` - Run all pre-push hooks manually
 - `poe precommit` - Alternative: format checking + fast tests
 
 **Hook management:**
 - Hooks are installed automatically by `make setup-dev`
 - Configuration: `.pre-commit-config.yaml`
 - Update hooks: `pre-commit autoupdate`
-- Skip hooks (not recommended): `git commit --no-verify`
+- Skip hooks (not recommended): `git commit --no-verify` or `git push --no-verify`
 
 ### Before Pushing
 **Comprehensive validation:**
@@ -371,3 +394,310 @@ This project uses Python's **pre-commit** framework for git hooks (NOT Husky).
 
 ### Release Process
 **Do not use `git flow release`** - instead use the automated GitHub Actions workflow (see `/release` command or release.md)
+
+## Troubleshooting & Best Practices
+
+### Hook Performance & Timing
+
+**Pre-commit Hook Performance (~15-20 seconds):**
+```
+Breakdown:
+- Ruff linting + format: ~2-3s
+- mypy type checking: ~2-3s
+- pytest fast tests (78 tests): ~4-5s
+- Shellcheck: ~1s
+- Actionlint: ~1s
+- Hadolint: ~1s
+Total: ~15-20s
+```
+
+**Pre-push Hook Performance (~3-5 minutes):**
+```
+Breakdown:
+- Full pytest with coverage: ~90s (timeout: 10min - generous for slow systems)
+- Codacy security analysis: ~60-90s (timeout: 5min)
+- CodeRabbit AI review: ~60-120s (timeout: 10min - faster for small commits!)
+- Docker smoke test: ~30-60s (timeout: 10min - generous for cold builds)
+Total: ~3-5 minutes typical, up to 10min for comprehensive runs
+
+Note: Timeouts are generous to handle network delays, cold builds, and complex reviews.
+      Smaller commits complete much faster than the timeout limits.
+```
+
+**Why stratified hooks work:**
+- Pre-commit is fast enough not to disrupt flow (< 20s)
+- Pre-commit catches 90% of issues early (types, tests, style)
+- Pre-push provides deep validation before team review
+- Clear separation prevents frustration and bypass temptation
+
+### Git Hooks Best Practices
+
+**NEVER bypass pre-push hooks:**
+- ❌ **`git push --no-verify`** - STRICTLY PROHIBITED
+- ❌ Bypassing skips security scans, tests, and quality gates
+- ❌ Puts broken code into shared branches
+- ✅ If hooks are slow, **break work into smaller commits**
+- ✅ Small commits = faster CodeRabbit reviews = quicker delivery
+
+**Why this policy:**
+1. **Security first** - Codacy catches vulnerabilities before they're shared
+2. **Quality gates** - Full test suite ensures functionality
+3. **Team protection** - Don't break others' workflows
+4. **Better practices** - Small, focused commits are better engineering
+
+**If pre-push hooks seem slow:**
+- Review your commit size - are you committing too much at once?
+- Break large changes into smaller, logical commits
+- Smaller commits review faster and are easier to understand
+- Example: Instead of one 2000-line commit, create 5 focused 400-line commits
+
+**Hook timeout guidelines:**
+- pytest full suite: 10 minutes max (typically completes in ~90s)
+- Codacy analysis: 5 minutes max (typically completes in ~60-90s)
+- CodeRabbit review: 10 minutes max (typically completes in ~60-120s, faster for small commits!)
+- Docker smoke test: 10 minutes max (typically completes in ~30-60s, generous for cold builds)
+
+**Common hook issues:**
+1. **Timeout** - Commit too large? Break it into smaller pieces
+2. **Type errors** - Run `poetry run mypy .` locally first (caught in pre-commit)
+3. **Test failures** - Fix tests before pushing (caught in pre-commit fast tests)
+4. **Security issues** - Address Codacy findings
+5. **CodeRabbit feedback** - Address design/quality issues
+
+### Type Checking Tips
+
+**Common mypy issues and fixes:**
+
+1. **Callable import error:**
+   ```python
+   # ❌ Wrong
+   from typing import Callable
+
+   # ✅ Correct (Python 3.11+)
+   from collections.abc import Callable
+   ```
+
+2. **Redundant type annotations after unpacking:**
+   ```python
+   # ❌ Redundant
+   with environment() as (temp_dir, fake_tpdb, config):
+       temp_dir: Path
+       fake_tpdb: FakeTPDB
+       config: NamerConfig
+
+   # ✅ Correct - types inferred from tuple unpacking
+   with environment() as (temp_dir, fake_tpdb, config):
+       # No redundant annotations needed
+   ```
+
+3. **Optional Path attributes:**
+   ```python
+   # ❌ Assumes Path is never None
+   files = list(config.watch_dir.iterdir())
+
+   # ✅ Check for None first
+   watch_dir = config.watch_dir
+   if watch_dir:
+       files = list(watch_dir.iterdir())
+   ```
+
+### Development Workflow Insights
+
+**Make targets usage:**
+- `make quick` - Fast feedback during development (~11s)
+- `make validate` - Full validation before push (~2-3 min)
+- `make test-local` - Local tests without Docker
+- `make ci` - Simulate CI environment locally
+
+**Git hooks workflow (stratified approach):**
+- **Pre-commit (~15-20s):** Fast quality + functional validation
+  - Auto-formats code with Ruff
+  - Catches type errors with mypy
+  - Runs 78 fast tests for functional coverage
+  - Validates scripts and configs
+- **Pre-push (~3-5min):** Comprehensive quality gate
+  - Full test suite with coverage (all tests, no filtering)
+  - Codacy security analysis
+  - CodeRabbit AI review
+  - Docker build validation
+- **Manual:** `make validate` for full CI simulation with Docker integration
+
+### Dependency Management
+
+**Adding type stubs:**
+```bash
+# When mypy complains about missing stubs
+poetry add --group dev types-requests
+poetry add --group dev types-<package-name>
+```
+
+**Python-native tooling preference:**
+- ✅ Use pre-commit (Python) over Husky (Node.js)
+- ✅ Use Ruff (Python) over ESLint (Node.js) for Python
+- ✅ Keep tooling consistent with project language
+
+---
+
+## Pull Request Strategy
+
+### Atomic PR Guidelines
+
+**Goal**: Create focused, reviewable PRs that respect reviewer time and project quality standards.
+
+**Optimal Size**: 200-500 lines per PR, single focused concern
+
+**When to Split Large Branches**:
+- Branch exceeds 500 lines across multiple files
+- Multiple distinct concerns mixed together
+- Review cycles becoming slow (>1 day for initial feedback)
+- Changes can be logically separated
+
+**Splitting Strategy**:
+
+**Sequential PRs** (use when documentation/config evolves):
+1. Analyze commits: `git log develop..HEAD --oneline`
+2. Create atomic branches from develop
+3. Cherry-pick commits: `git cherry-pick <hash>`
+4. Handle conflicts strategically (`git checkout --ours` for complete implementations)
+5. Push and create PR with context
+
+**Parallel PRs** (use when changes are independent):
+- Split by feature/concern
+- No shared files modified
+- Can be reviewed/merged independently
+
+**Real-World Example**:
+- **Original**: 1 PR, 12 commits, 1,445 lines → 10+ min review time
+- **Split**: 5 PRs averaging 300 lines → <5 min review time each
+- **Result**: Faster reviews, parallel progress, lower merge risk
+
+**PR Series Template**:
+```markdown
+## Part of Series
+This is **PR #X of N** from `feature/large-branch`:
+1. PR #1: Foundation (type safety, dependencies)
+2. **This PR**: Core functionality
+3. PR #3: Integration (depends on this)
+4. PR #4: Bug fixes
+5. PR #5: Documentation
+```
+
+---
+
+## AI Code Review Integration
+
+### Gemini Code Assist Workflow
+
+This project uses Gemini Code Assist for automated PR reviews. Use the `/gemini-review` command to analyze and action feedback.
+
+**Workflow**:
+```bash
+1. Create PR → Gemini reviews automatically
+2. Run: /gemini-review [pr-number]
+3. Analyze suggestions by category
+4. Implement high-priority items
+5. Document decisions in PR comments
+6. Reference in commit messages
+```
+
+**Decision Framework**:
+
+| Priority | Criteria | Action |
+|----------|----------|--------|
+| **Must-Fix** | Security vulnerabilities, data integrity issues, breaking changes, critical performance (>100ms) | Implement immediately |
+| **Should-Fix** | Maintainability issues, moderate performance (10-100ms), important best practices | Implement in same PR |
+| **Nice-to-Have** | Style improvements, minor optimizations (<10ms), optional refactoring | Consider for follow-up PR |
+| **Skip** | Conflicts with project standards, out of scope, low ROI | Document why skipped |
+
+**Not All AI Feedback Requires Action**:
+- Formatting suggestions that conflict with Ruff configuration → Skip
+- Style preferences vs project standards → Skip (maintain consistency)
+- Out-of-scope suggestions → Defer to separate PR
+- Technical debt observations → Evaluate ROI vs effort
+
+**PR Comment Template**:
+```markdown
+## Addressed Gemini Code Assist Feedback
+
+### Implemented (commit abc123):
+- **Suggestion**: [What Gemini suggested]
+- **Action**: [What you did]
+- **Benefit**: [Why it improves the code]
+
+### Deferred:
+- **Suggestion**: [What Gemini suggested]
+- **Reason**: [Why deferring - separate PR, out of scope, etc.]
+
+### Declined:
+- **Suggestion**: [What Gemini suggested]
+- **Reason**: [Why declining - conflicts with project config, etc.]
+```
+
+---
+
+## Cross-Platform Development
+
+### Platform Compatibility Patterns
+
+**Timeout Commands** (macOS vs Linux):
+- macOS: `gtimeout` (via `brew install coreutils`)
+- Linux: `timeout` (built-in)
+
+**Detection Pattern**:
+```bash
+TIMEOUT_CMD=$(command -v gtimeout || command -v timeout || echo "")
+if [ -n "$TIMEOUT_CMD" ]; then
+    exec "$TIMEOUT_CMD" "$SECONDS" "$@"
+else
+    warn "No timeout available, running without limit"
+    exec "$@"
+fi
+```
+
+**Project Implementation**: `scripts/timeout-wrapper.sh`
+- Usage: `./scripts/timeout-wrapper.sh <seconds> <command> [args...]`
+- Handles platform detection automatically
+- Provides helpful warnings when timeout unavailable
+- Used by all pre-push git hooks
+
+**Best Practices**:
+- Always use **feature detection**, not platform detection
+- Provide **graceful fallbacks** with warnings
+- Centralize platform-specific logic in reusable scripts
+- Test on both macOS and Linux before merging
+
+---
+
+## Lessons Learned
+
+### Key Insights from Practice
+
+**1. Atomic PRs Deliver Measurable ROI**
+- Investment: ~1 hour to split large branch
+- Return: 20x faster review time (30s vs 10min)
+- Benefit: Parallel progress, lower risk, easier rollback
+- Pattern: 200-500 lines per PR = optimal reviewer experience
+
+**2. Respect Auto-Formatting Configuration**
+- Don't make manual changes that conflict with Ruff
+- If formatting is problematic, update Ruff config project-wide
+- Consistency across codebase > isolated "readability" improvements
+- Pre-commit hooks will revert manual formatting changes
+
+**3. Generous Timeouts Prevent False Failures**
+- 10min timeout with ~90s typical execution = best UX
+- Accommodates: slow systems, network delays, first-time package downloads
+- Prevents frustration from timeout failures on edge cases
+- Pattern: Generous safety margin + fast typical execution
+
+**4. Context-Appropriate Hook Bypass**
+- ✅ Acceptable: When modifying hook system itself (chicken-egg problem)
+- ✅ Acceptable: Atomic PRs missing build scripts (focused scope)
+- ❌ Never: To skip failing tests or security scans
+- ❌ Never: To bypass hooks before pushing to shared branches
+
+**5. Sequential > Parallel for Evolving Documentation**
+- When CLAUDE.md or configs evolve across commits, expect conflicts
+- Sequential PRs (building on each other) easier than parallel splits
+- Resolve conflicts by keeping more complete implementation
+- Document resolution rationale in merge commit message

@@ -37,4 +37,26 @@ run_pre_commit validate-config || {
 	exit 1
 }
 
-log "Done. You can test hooks with: pre-commit run -a"
+log "Verifying pre-push hook enforcement..."
+if [[ -x "$ROOT_DIR/scripts/enforce-pre-push.sh" ]]; then
+	"$ROOT_DIR/scripts/enforce-pre-push.sh" --check || {
+		log "⚠️  Pre-push hook verification failed"
+		exit 1
+	}
+else
+	log "⚠️  enforce-pre-push.sh not found or not executable"
+fi
+
+log ""
+log "✅ Git hooks installed successfully!"
+log ""
+log "Hook configuration:"
+log "  • Pre-commit (~15-20s): Fast quality + functional validation"
+log "  • Pre-push (~3-5min): Deep validation + security"
+log ""
+log "IMPORTANT: Pre-push hooks MUST NOT be bypassed (--no-verify)"
+log "  → Small, focused commits = faster reviews = quicker delivery"
+log ""
+log "Test hooks with:"
+log "  • pre-commit run --all-files"
+log "  • pre-commit run --hook-stage pre-push --all-files"

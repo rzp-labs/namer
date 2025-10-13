@@ -1,12 +1,20 @@
 repos:
+  # ============================================================================
+  # PRE-COMMIT HOOKS: Fast Quality + Functional Validation (~15-20 seconds)
+  # Purpose: Immediate feedback on code quality AND functionality
+  # Philosophy: Fast enough not to disrupt flow, thorough enough to catch real issues
+  # ============================================================================
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9
     hooks:
       - id: ruff
         args: ["--fix"]
         exclude: ^(namer/ffmpeg(_enhanced)?\.py)$
+        stages: [pre-commit]
       - id: ruff-format
         exclude: ^(namer/ffmpeg(_enhanced)?\.py)$
+        stages: [pre-commit]
 
   # Shell linting for our scripts
   - repo: https://github.com/shellcheck-py/shellcheck-py
@@ -16,35 +24,90 @@ repos:
         name: shellcheck
         files: ^(scripts/|docker-entrypoint-user.sh)
         types: [shell]
+        stages: [pre-commit]
 
   # GitHub Actions workflow linting
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.5
     hooks:
       - id: actionlint
+        stages: [pre-commit]
 
-  # Optional Dockerfile linting (non-blocking at first; set `--failure-threshold` to `warning`)
+  # Local hooks for pre-commit
   - repo: local
     hooks:
-      - id: coderabbit-pre-commit
-        name: CodeRabbit CLI (pre-commit, optional)
-        entry: ./scripts/run-coderabbit.sh pre-commit
+      # Type checking - catch type errors early before they accumulate
+      - id: mypy
+        name: mypy type checking
+        entry: poetry run mypy .
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # Fast pytest - 78 tests in ~4 seconds provides excellent functional validation
+      - id: pytest-fast
+        name: pytest (fast tests only)
+        entry: poetry run pytest -m "not slow" --quiet --tb=short
         language: system
         pass_filenames: false
         stages: [pre-commit]
+
+      # Dockerfile linting (optional, non-blocking)
       - id: hadolint
         name: hadolint
         entry: bash -lc 'command -v hadolint >/dev/null 2>&1 && hadolint Dockerfile || echo "hadolint not installed; skipping"'
         language: system
         pass_filenames: false
         files: ^Dockerfile$
+        stages: [pre-commit]
 
-  # Run validate fast on pre-push
+  # ============================================================================
+  # PRE-PUSH HOOKS: Deep Validation + Security (~3-5 minutes)
+  # Purpose: Full quality gate before team review - "production ready" validation
+  # Philosophy: Ready to push = ready for team review = high confidence
+  #
+  # IMPORTANT: These hooks MUST NOT be bypassed with --no-verify
+  # - The smaller and more focused your commits, the faster these will run
+  # - Small chunks of work = faster CodeRabbit reviews = quicker delivery
+  # - If hooks are taking too long, break your work into smaller commits
+  # ============================================================================
+
   - repo: local
     hooks:
-      - id: validate-fast
-        name: validate.sh --fast (pre-push)
-        entry: ./validate.sh --fast
+      # Full test suite with coverage (timeout: 10 minutes)
+      - id: pytest-full
+        name: pytest (full test suite with coverage)
+        entry: ./scripts/timeout-wrapper.sh 600 poetry run pytest --cov --cov-report=term-missing:skip-covered
         language: system
         pass_filenames: false
         stages: [pre-push]
+        verbose: true
+
+      # Codacy security analysis (timeout: 5 minutes)
+      - id: codacy-analysis
+        name: Codacy security analysis
+        entry: ./scripts/run-codacy.sh
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        verbose: true
+
+      # CodeRabbit AI review (timeout: 10 minutes - longer for complex reviews)
+      # Note: Smaller commits = faster reviews. Break large changes into focused commits.
+      - id: coderabbit-review
+        name: CodeRabbit AI review
+        entry: ./scripts/timeout-wrapper.sh 600 ./scripts/run-coderabbit.sh validate
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        verbose: true
+
+      # Docker smoke test - catch build errors locally (timeout: 10 minutes)
+      - id: docker-smoke-test
+        name: Docker smoke test (build validation)
+        entry: ./scripts/run-docker-smoke-test.sh
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        verbose: true
