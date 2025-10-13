@@ -362,6 +362,8 @@ We use a **stratified approach** that separates fast commit-time validation from
   - Full pytest suite with coverage - All tests including watchdog, web, videophash, and slow tests
   - Codacy security analysis - Security vulnerabilities, code quality, complexity analysis
   - CodeRabbit AI review - Design patterns, best practices, security concerns
+    - **Feedback is automatically captured** to `.coderabbit/feedback/` for later review
+    - See "CodeRabbit Feedback Tracking" section below for details
   - Docker smoke test - Quick build validation to catch Dockerfile/build errors
 
 **Why this approach:**
@@ -429,6 +431,99 @@ Note: Timeouts are generous to handle network delays, cold builds, and complex r
 - Pre-commit catches 90% of issues early (types, tests, style)
 - Pre-push provides deep validation before team review
 - Clear separation prevents frustration and bypass temptation
+
+### CodeRabbit Feedback Tracking
+
+**Automatic Capture:**
+Every pre-push triggers a CodeRabbit review, and all feedback is automatically captured for later implementation.
+
+**Feedback Location:**
+- **Detailed feedback:** `.coderabbit/feedback/YYYY-MM-DD_HH-MM-SS_branch_commit.txt`
+- **Tracking file:** `.coderabbit/feedback-tracker.md`
+- **Archive:** `.coderabbit/feedback/archive/` (completed items)
+
+**Workflow:**
+1. **Push triggers review** - CodeRabbit runs automatically on pre-push
+2. **Feedback captured** - Output saved to timestamped file
+3. **Tracker updated** - Summary added to tracking file with checkboxes
+4. **Review later** - Prioritize and implement in focused commits
+
+**Tracking File Format:**
+```markdown
+### 2025-01-15 14:30 UTC - Branch: feature/my-feature - Commit: abc123
+
+**Status:** 🟡 PENDING
+**Issues Found:** 6
+**Feedback File:** `.coderabbit/feedback/2025-01-15_14-30-00_feature-my-feature_abc123.txt`
+
+**Issues Summary:**
+- [ ] **scripts/optimize-test-video.sh** (potential_issue): Fix seq step direction
+- [ ] **.github/workflows/release-tag.yml** (potential_issue): Fix checkout fallback
+- [ ] **namer/web/actions.py** (potential_issue): Fix indent=0 handling
+- [x] **namer/metadata_providers/theporndb_provider.py** (potential_issue): Fix Loguru formatting
+- [-] **namer/command.py** (style): Refactor long function (deferred)
+```
+
+**Status Key:**
+- `[ ]` - TODO: Not yet addressed
+- `[x]` - DONE: Implemented and verified
+- `[-]` - WONTFIX: Intentionally skipped/deferred
+
+**Best Practices:**
+1. **Review feedback after every push** - Check `.coderabbit/feedback-tracker.md`
+2. **Prioritize high-impact items** - Focus on potential_issue and security findings
+3. **Create focused commits** - One issue type per commit for faster reviews
+4. **Mark completed items** - Update checkboxes in tracker as you implement
+5. **Archive old feedback** - Move completed feedback files to archive/
+
+**Manual Review Commands:**
+```bash
+# View latest feedback
+cat .coderabbit/feedback-tracker.md
+
+# View detailed feedback for specific review
+cat .coderabbit/feedback/2025-01-15_14-30-00_feature-my-feature_abc123.txt
+
+# Run CodeRabbit manually with capture
+./scripts/capture-coderabbit-feedback.sh validate
+
+# Run without capture (hook default)
+./scripts/run-coderabbit.sh validate
+```
+
+**GitHub Issue Integration:**
+
+CodeRabbit feedback can be automatically converted to GitHub issues for better tracking and prioritization:
+
+```bash
+# Manually create issues from latest feedback
+./scripts/create-issues-from-coderabbit.sh
+
+# Or from specific feedback file
+./scripts/create-issues-from-coderabbit.sh .coderabbit/feedback/2025-01-15_14-30-00_feature-my-feature_abc123.txt
+
+# Enable automatic issue creation during pre-push (set in ~/.bashrc or ~/.zshrc)
+export CODERABBIT_CREATE_ISSUES=1
+git push origin feature/my-feature
+```
+
+**Issue Labeling:**
+- `coderabbit` - All CodeRabbit-generated issues
+- `priority:critical` - Security issues
+- `priority:high` - Potential bugs
+- `priority:medium` - Performance issues
+- `priority:low` - Style improvements
+- `type:bug` - Potential issues and security
+- `type:enhancement` - Performance improvements
+- `type:refactor` - Style and code quality
+
+**Integration with Development Workflow:**
+- **Option 1: Manual tracking** - Review `.coderabbit/feedback-tracker.md` and implement directly
+- **Option 2: GitHub issues** - Create issues for planning and prioritization alongside other work
+- Feedback doesn't block pushes (informational only)
+- Review and implement in subsequent focused commits
+- Small commits = faster subsequent CodeRabbit reviews
+- Track progress using checkbox status in tracker OR GitHub issue status
 
 ### Git Hooks Best Practices
 

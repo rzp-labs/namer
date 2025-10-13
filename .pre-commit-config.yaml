@@ -95,9 +95,10 @@ repos:
 
       # CodeRabbit AI review (timeout: 10 minutes - longer for complex reviews)
       # Note: Smaller commits = faster reviews. Break large changes into focused commits.
+      # Feedback is automatically captured to .coderabbit/feedback/ for later review
       - id: coderabbit-review
         name: CodeRabbit AI review
-        entry: ./scripts/timeout-wrapper.sh 600 ./scripts/run-coderabbit.sh validate
+        entry: ./scripts/timeout-wrapper.sh 600 ./scripts/capture-coderabbit-feedback.sh validate
         language: system
         pass_filenames: false
         stages: [pre-push]
