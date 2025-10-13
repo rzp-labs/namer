@@ -381,8 +381,12 @@ fi
 # Get final file size
 NEW_SIZE=$(get_file_size "$TEMP_OUTPUT")
 
-# Calculate reduction
-REDUCTION=$(awk "BEGIN {printf \"%.2f\", (($ORIGINAL_SIZE - $NEW_SIZE) / $ORIGINAL_SIZE) * 100}")
+# Calculate reduction (guard against division by zero)
+if [[ "$ORIGINAL_SIZE" -eq 0 ]]; then
+	REDUCTION="0.00"
+else
+	REDUCTION=$(awk "BEGIN {printf \"%.2f\", (($ORIGINAL_SIZE - $NEW_SIZE) / $ORIGINAL_SIZE) * 100}")
+fi
 
 # Move to final location
 mv "$TEMP_OUTPUT" "$OUTPUT_FILE"
