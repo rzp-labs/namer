@@ -78,7 +78,7 @@ repos:
       # Full test suite with coverage (timeout: 3 minutes)
       - id: pytest-full
         name: pytest (full test suite with coverage)
-        entry: bash -c 'TIMEOUT_CMD=$(command -v gtimeout || command -v timeout || echo ""); if [ -n "$TIMEOUT_CMD" ]; then $TIMEOUT_CMD 180 poetry run pytest --cov --cov-report=term-missing:skip-covered || exit 1; else poetry run pytest --cov --cov-report=term-missing:skip-covered || exit 1; fi'
+        entry: ./scripts/timeout-wrapper.sh 180 poetry run pytest --cov --cov-report=term-missing:skip-covered
         language: system
         pass_filenames: false
         stages: [pre-push]
@@ -87,7 +87,7 @@ repos:
       # Codacy security analysis (timeout: 5 minutes)
       - id: codacy-analysis
         name: Codacy security analysis
-        entry: bash -c 'if [ -n "$CODACY_PROJECT_TOKEN" ]; then TIMEOUT_CMD=$(command -v gtimeout || command -v timeout || echo ""); if [ -n "$TIMEOUT_CMD" ]; then $TIMEOUT_CMD 300 ./.codacy/cli.sh analyze --verbose || exit 1; else ./.codacy/cli.sh analyze --verbose || exit 1; fi; else echo "Skipping Codacy (CODACY_PROJECT_TOKEN not set)"; fi'
+        entry: bash -c 'if [ -n "$CODACY_PROJECT_TOKEN" ]; then ./scripts/timeout-wrapper.sh 300 ./.codacy/cli.sh analyze --verbose; else echo "Skipping Codacy (CODACY_PROJECT_TOKEN not set)"; fi'
         language: system
         pass_filenames: false
         stages: [pre-push]
@@ -97,7 +97,7 @@ repos:
       # Note: Smaller commits = faster reviews. Break large changes into focused commits.
       - id: coderabbit-review
         name: CodeRabbit AI review
-        entry: bash -c 'TIMEOUT_CMD=$(command -v gtimeout || command -v timeout || echo ""); if [ -n "$TIMEOUT_CMD" ]; then $TIMEOUT_CMD 600 ./scripts/run-coderabbit.sh validate || exit 1; else ./scripts/run-coderabbit.sh validate || exit 1; fi'
+        entry: ./scripts/timeout-wrapper.sh 600 ./scripts/run-coderabbit.sh validate
         language: system
         pass_filenames: false
         stages: [pre-push]
@@ -106,7 +106,7 @@ repos:
       # Docker smoke test - catch build errors locally (timeout: 5 minutes)
       - id: docker-smoke-test
         name: Docker smoke test (build validation)
-        entry: bash -c 'TIMEOUT_CMD=$(command -v gtimeout || command -v timeout || echo ""); if [ -n "$TIMEOUT_CMD" ]; then $TIMEOUT_CMD 300 docker build --quiet --target build . >/dev/null || exit 1; else docker build --quiet --target build . >/dev/null || exit 1; fi'
+        entry: bash -c './scripts/timeout-wrapper.sh 300 docker build --quiet --target build . >/dev/null'
         language: system
         pass_filenames: false
         stages: [pre-push]
