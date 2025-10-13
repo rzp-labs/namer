@@ -417,10 +417,10 @@ Breakdown:
 - Full pytest with coverage: ~90s (timeout: 10min - generous for slow systems)
 - Codacy security analysis: ~60-90s (timeout: 5min)
 - CodeRabbit AI review: ~60-120s (timeout: 10min - faster for small commits!)
-- Docker smoke test: ~30-60s (timeout: 5min)
+- Docker smoke test: ~30-60s (timeout: 10min - generous for cold builds)
 Total: ~3-5 minutes typical, up to 10min for comprehensive runs
 
-Note: Timeouts are generous to handle network delays and complex reviews.
+Note: Timeouts are generous to handle network delays, cold builds, and complex reviews.
       Smaller commits complete much faster than the timeout limits.
 ```
 
@@ -453,9 +453,9 @@ Note: Timeouts are generous to handle network delays and complex reviews.
 
 **Hook timeout guidelines:**
 - pytest full suite: 10 minutes max (typically completes in ~90s)
-- Codacy analysis: 5 minutes max
-- CodeRabbit review: 10 minutes max (faster for small commits!)
-- Docker smoke test: 5 minutes max
+- Codacy analysis: 5 minutes max (typically completes in ~60-90s)
+- CodeRabbit review: 10 minutes max (typically completes in ~60-120s, faster for small commits!)
+- Docker smoke test: 10 minutes max (typically completes in ~30-60s, generous for cold builds)
 
 **Common hook issues:**
 1. **Timeout** - Commit too large? Break it into smaller pieces
@@ -535,3 +535,169 @@ poetry add --group dev types-<package-name>
 - ✅ Use pre-commit (Python) over Husky (Node.js)
 - ✅ Use Ruff (Python) over ESLint (Node.js) for Python
 - ✅ Keep tooling consistent with project language
+
+---
+
+## Pull Request Strategy
+
+### Atomic PR Guidelines
+
+**Goal**: Create focused, reviewable PRs that respect reviewer time and project quality standards.
+
+**Optimal Size**: 200-500 lines per PR, single focused concern
+
+**When to Split Large Branches**:
+- Branch exceeds 500 lines across multiple files
+- Multiple distinct concerns mixed together
+- Review cycles becoming slow (>1 day for initial feedback)
+- Changes can be logically separated
+
+**Splitting Strategy**:
+
+**Sequential PRs** (use when documentation/config evolves):
+1. Analyze commits: `git log develop..HEAD --oneline`
+2. Create atomic branches from develop
+3. Cherry-pick commits: `git cherry-pick <hash>`
+4. Handle conflicts strategically (`git checkout --ours` for complete implementations)
+5. Push and create PR with context
+
+**Parallel PRs** (use when changes are independent):
+- Split by feature/concern
+- No shared files modified
+- Can be reviewed/merged independently
+
+**Real-World Example**:
+- **Original**: 1 PR, 12 commits, 1,445 lines → 10+ min review time
+- **Split**: 5 PRs averaging 300 lines → <5 min review time each
+- **Result**: Faster reviews, parallel progress, lower merge risk
+
+**PR Series Template**:
+```markdown
+## Part of Series
+This is **PR #X of N** from `feature/large-branch`:
+1. PR #1: Foundation (type safety, dependencies)
+2. **This PR**: Core functionality
+3. PR #3: Integration (depends on this)
+4. PR #4: Bug fixes
+5. PR #5: Documentation
+```
+
+---
+
+## AI Code Review Integration
+
+### Gemini Code Assist Workflow
+
+This project uses Gemini Code Assist for automated PR reviews. Use the `/gemini-review` command to analyze and action feedback.
+
+**Workflow**:
+```bash
+1. Create PR → Gemini reviews automatically
+2. Run: /gemini-review [pr-number]
+3. Analyze suggestions by category
+4. Implement high-priority items
+5. Document decisions in PR comments
+6. Reference in commit messages
+```
+
+**Decision Framework**:
+
+| Priority | Criteria | Action |
+|----------|----------|--------|
+| **Must-Fix** | Security vulnerabilities, data integrity issues, breaking changes, critical performance (>100ms) | Implement immediately |
+| **Should-Fix** | Maintainability issues, moderate performance (10-100ms), important best practices | Implement in same PR |
+| **Nice-to-Have** | Style improvements, minor optimizations (<10ms), optional refactoring | Consider for follow-up PR |
+| **Skip** | Conflicts with project standards, out of scope, low ROI | Document why skipped |
+
+**Not All AI Feedback Requires Action**:
+- Formatting suggestions that conflict with Ruff configuration → Skip
+- Style preferences vs project standards → Skip (maintain consistency)
+- Out-of-scope suggestions → Defer to separate PR
+- Technical debt observations → Evaluate ROI vs effort
+
+**PR Comment Template**:
+```markdown
+## Addressed Gemini Code Assist Feedback
+
+### Implemented (commit abc123):
+- **Suggestion**: [What Gemini suggested]
+- **Action**: [What you did]
+- **Benefit**: [Why it improves the code]
+
+### Deferred:
+- **Suggestion**: [What Gemini suggested]
+- **Reason**: [Why deferring - separate PR, out of scope, etc.]
+
+### Declined:
+- **Suggestion**: [What Gemini suggested]
+- **Reason**: [Why declining - conflicts with project config, etc.]
+```
+
+---
+
+## Cross-Platform Development
+
+### Platform Compatibility Patterns
+
+**Timeout Commands** (macOS vs Linux):
+- macOS: `gtimeout` (via `brew install coreutils`)
+- Linux: `timeout` (built-in)
+
+**Detection Pattern**:
+```bash
+TIMEOUT_CMD=$(command -v gtimeout || command -v timeout || echo "")
+if [ -n "$TIMEOUT_CMD" ]; then
+    exec "$TIMEOUT_CMD" "$SECONDS" "$@"
+else
+    warn "No timeout available, running without limit"
+    exec "$@"
+fi
+```
+
+**Project Implementation**: `scripts/timeout-wrapper.sh`
+- Usage: `./scripts/timeout-wrapper.sh <seconds> <command> [args...]`
+- Handles platform detection automatically
+- Provides helpful warnings when timeout unavailable
+- Used by all pre-push git hooks
+
+**Best Practices**:
+- Always use **feature detection**, not platform detection
+- Provide **graceful fallbacks** with warnings
+- Centralize platform-specific logic in reusable scripts
+- Test on both macOS and Linux before merging
+
+---
+
+## Lessons Learned
+
+### Key Insights from Practice
+
+**1. Atomic PRs Deliver Measurable ROI**
+- Investment: ~1 hour to split large branch
+- Return: 20x faster review time (30s vs 10min)
+- Benefit: Parallel progress, lower risk, easier rollback
+- Pattern: 200-500 lines per PR = optimal reviewer experience
+
+**2. Respect Auto-Formatting Configuration**
+- Don't make manual changes that conflict with Ruff
+- If formatting is problematic, update Ruff config project-wide
+- Consistency across codebase > isolated "readability" improvements
+- Pre-commit hooks will revert manual formatting changes
+
+**3. Generous Timeouts Prevent False Failures**
+- 10min timeout with ~90s typical execution = best UX
+- Accommodates: slow systems, network delays, first-time package downloads
+- Prevents frustration from timeout failures on edge cases
+- Pattern: Generous safety margin + fast typical execution
+
+**4. Context-Appropriate Hook Bypass**
+- ✅ Acceptable: When modifying hook system itself (chicken-egg problem)
+- ✅ Acceptable: Atomic PRs missing build scripts (focused scope)
+- ❌ Never: To skip failing tests or security scans
+- ❌ Never: To bypass hooks before pushing to shared branches
+
+**5. Sequential > Parallel for Evolving Documentation**
+- When CLAUDE.md or configs evolve across commits, expect conflicts
+- Sequential PRs (building on each other) easier than parallel splits
+- Resolve conflicts by keeping more complete implementation
+- Document resolution rationale in merge commit message

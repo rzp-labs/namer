@@ -87,7 +87,7 @@ repos:
       # Codacy security analysis (timeout: 5 minutes)
       - id: codacy-analysis
         name: Codacy security analysis
-        entry: bash -c 'if [ -n "$CODACY_PROJECT_TOKEN" ]; then ./scripts/timeout-wrapper.sh 300 ./.codacy/cli.sh analyze --verbose; else echo "Skipping Codacy (CODACY_PROJECT_TOKEN not set)"; fi'
+        entry: ./scripts/run-codacy.sh
         language: system
         pass_filenames: false
         stages: [pre-push]
@@ -103,10 +103,10 @@ repos:
         stages: [pre-push]
         verbose: true
 
-      # Docker smoke test - catch build errors locally (timeout: 5 minutes)
+      # Docker smoke test - catch build errors locally (timeout: 10 minutes)
       - id: docker-smoke-test
         name: Docker smoke test (build validation)
-        entry: bash -c './scripts/timeout-wrapper.sh 300 docker build --quiet --target build . >/dev/null'
+        entry: ./scripts/run-docker-smoke-test.sh
         language: system
         pass_filenames: false
         stages: [pre-push]
