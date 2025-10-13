@@ -75,6 +75,11 @@ See all available targets:
 - `make test-local` - Fast local testing without Docker
 - `make quick` - Quick feedback loop (lint-fix + fast tests)
 
+**GraphQL Schema Management:**
+- `make check-schema-drift` - Detect API changes (requires STASHDB_TOKEN, TPDB_TOKEN)
+- `make update-schema-docs` - Refresh schema documentation
+- See `docs/api/SCHEMA_MAINTENANCE.md` for complete guide
+
 **Note:** Docker image builds/pushes to GHCR are **always** done through CI/CD (GitHub Actions), never locally.
 
 ## Technology Stack
@@ -280,6 +285,61 @@ docker run -p 6980:6980 nehpz/namer:latest
 - Sanitize data before database operations
 - Use HTTPS for production deployments
 
+## External API Integration
+
+### Metadata Providers
+
+Namer integrates with two external GraphQL APIs for video metadata:
+
+**StashDB (stashdb.org)**
+- Endpoint: `https://stashdb.org/graphql`
+- Authentication: `APIKey` header (non-standard)
+- Schema: 181 types, 35+ queries, full CRUD + voting
+- Implementation: `namer/metadata_providers/stashdb_provider.py`
+
+**ThePornDB (theporndb.net)**
+- Endpoint: `https://theporndb.net/graphql`
+- Authentication: `Authorization: Bearer` header (standard)
+- Schema: 30 types, 7 queries, streamlined design
+- Implementation: `namer/metadata_providers/theporndb_provider.py`
+
+### Schema Drift Detection
+
+**Automated Monitoring:**
+- Weekly CI checks every Monday at 9 AM UTC
+- PR validation when provider code changes
+- Automatic GitHub issue creation on drift
+- Detailed diff artifacts stored for 30 days
+
+**Manual Operations:**
+```bash
+# Check for schema changes
+export STASHDB_TOKEN="your_token"
+export TPDB_TOKEN="your_token"
+make check-schema-drift
+
+# Update documentation after drift
+make update-schema-docs
+git add docs/api/ && git commit -m "docs: update GraphQL schemas"
+```
+
+**Documentation:**
+- `docs/api/stashdb_schema.json` - Complete StashDB schema
+- `docs/api/tpdb_schema.json` - Complete ThePornDB schema
+- `docs/api/graphql_schema_documentation.md` - Human-readable guide
+- `docs/api/SCHEMA_MAINTENANCE.md` - Operations manual
+
+**Key Differences:**
+| Feature | StashDB | ThePornDB |
+|---------|---------|-----------|
+| Auth Header | `APIKey` | `Authorization: Bearer` |
+| Field: Studio/Site | `studio` | `site` |
+| Field: URLs | `urls[].url` | `urls[].view` |
+| Field: Date | `release_date` | `date` |
+| Schema Size | 181 types | 30 types |
+
+See `docs/api/SCHEMA_MAINTENANCE.md` for complete operational guide.
+
 ## Git Flow Workflow
 
 This project uses **Git Flow** branching model.
@@ -382,23 +442,6 @@ We use a **stratified approach** that separates fast commit-time validation from
 - Configuration: `.pre-commit-config.yaml`
 - Update hooks: `pre-commit autoupdate`
 - Skip hooks (not recommended): `git commit --no-verify` or `git push --no-verify`
-
-### Before Committing ANY Files
-**CRITICAL PRE-COMMIT CHECKLIST:**
-1. **Check `git status` for untracked files** - ALWAYS review what you're about to commit
-2. **Verify against `.gitignore`** - Check if new files should be ignored:
-   - `logs/` - Runtime logs (NEVER commit)
-   - `database/` - Local database files (NEVER commit)
-   - `*.backup` - Backup files (NEVER commit)
-   - `.env` - Environment secrets (NEVER commit)
-3. **Update `.gitignore` FIRST** if adding ignored file types
-4. **Use `git add <specific-files>`** - NEVER use `git add .` or `git add -A` blindly
-
-**Common mistakes to AVOID:**
-- ❌ Committing `logs/` directory - contains runtime data
-- ❌ Committing temp files generated during development
-- ❌ Using `git add .` without reviewing `git status` first
-- ❌ Forgetting to update `.gitignore` for new file types
 
 ### Before Pushing
 **Comprehensive validation:**
@@ -940,45 +983,46 @@ gh issue create ... > "$temp_file"
   - Python code: ~15-20s commit + ~90s push
   - Dockerfile: ~15-20s commit + ~60s push
   - Shell scripts: ~5s commit + instant push
-**12. Accidental Logs Commit & Prevention System (2025-10-13)**
-- **Incident:** Committed `logs/namer.log` in feature branch (commit 3902525)
-- **Root Causes:**
-  1. Used `git add -A` without reviewing `git status` first
-  2. No `.gitignore` entry for root `logs/` directory
-  3. No automated enforcement to block logs/ commits
-- **Impact:**
-  - Committed runtime logs to feature branch
-  - Created PR #138 with unwanted files
-  - Had to close PR (GitHub doesn't allow full deletion)
-  - Wasted time on cleanup and recovery
-- **Prevention System Implemented (PR #139):**
-  1. **Pre-commit hook** (`check-logs-directory`) - Automated enforcement
-  2. **`.gitignore` entry** - `logs/` directory ignored by git
-  3. **CLAUDE.md checklist** - "Before Committing ANY Files" section
-- **Key Learning:** Manual checklists insufficient - need automated enforcement
-- **Pattern:** Add pre-commit hooks for common mistakes that slip through review
-- **Testing:** Try `git add logs/ && git commit` - should fail with clear error
 
-**13. Git Flow Discipline: Never Push Directly to Develop**
-- **Violation:** Pushed 2 commits directly to `develop` (16a814a, 563897f)
-- **Why This Matters:**
-  - Bypasses code review process
-  - Breaks Git Flow branching model
-  - Violates team collaboration patterns
-  - No opportunity for feedback/validation
-- **Correct Git Flow Process:**
-  1. Create feature branch from `develop`
-  2. Make commits on feature branch
-  3. Push feature branch to remote
-  4. Create PR to `develop`
-  5. Merge after review
-- **Recovery Process:**
-  1. `git reset --hard HEAD~2` on local develop
-  2. `git push --force-with-lease` to revert remote develop
-  3. Create feature branch: `git checkout -b feature/name develop`
-  4. Cherry-pick commits: `git cherry-pick <sha1> <sha2>`
-  5. Push feature branch and create PR properly
-- **Rule:** ALWAYS use feature branches, even for "small" documentation fixes
-- **Exception:** None - proper process takes <5 minutes, no valid excuse
-- **Reminder:** Even fixes to prevent mistakes must follow proper Git Flow
-- **Pattern:** If you break Git Flow, stop immediately and fix it before continuing
+**12. GraphQL Schema Drift Detection via Introspection**
+- **Problem:** External APIs (StashDB, ThePornDB) change without notice, breaking integration
+- **Solution:** Automated schema introspection + drift detection + CI monitoring
+- **Architecture:**
+  1. **Baseline Documentation** - Store complete schema snapshots in `docs/api/`
+  2. **Introspection Queries** - Fetch live schemas via GraphQL `__schema` queries
+  3. **Normalized Comparison** - Sort/format consistently to avoid false positives
+  4. **Automated Monitoring** - Weekly CI checks + PR validation
+  5. **GitHub Integration** - Auto-create issues when drift detected
+- **Key Learnings:**
+  - Introspection is more reliable than parsing API docs
+  - Normalization critical for avoiding format-only diffs
+  - Weekly schedule balances monitoring vs noise
+  - PR validation prevents merging outdated integrations
+  - Detailed diffs essential for understanding breaking changes
+- **Implementation:**
+  - `make check-schema-drift` - Manual drift detection
+  - `make update-schema-docs` - Refresh documentation
+  - `.github/workflows/schema-drift-check.yml` - Automated monitoring
+  - `docs/api/SCHEMA_MAINTENANCE.md` - Operations guide
+- **Best Practices:**
+  - Store baseline schemas in version control
+  - Use normalized comparisons (sorted JSON)
+  - Generate human-readable diffs
+  - Document breaking vs additive changes
+  - Test integration code after schema updates
+- **Emergency Response:**
+  1. Detect breaking change via CI alert
+  2. Review diff to understand impact
+  3. Update integration code + tests
+  4. Refresh documentation: `make update-schema-docs`
+  5. Commit all changes together
+- **Authentication Gotchas:**
+  - StashDB uses non-standard `APIKey` header (not `Authorization: Bearer`)
+  - ThePornDB uses standard `Authorization: Bearer` header
+  - Different field names: `studio` vs `site`, `urls[].url` vs `urls[].view`
+  - Test auth early: `curl` with `me` query validates tokens
+- **ROI:**
+  - Prevents production failures from silent API changes
+  - Reduces debugging time (clear diffs vs mystery errors)
+  - Enables proactive updates vs reactive firefighting
+  - Documents API evolution over time
