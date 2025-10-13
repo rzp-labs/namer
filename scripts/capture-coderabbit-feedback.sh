@@ -211,7 +211,10 @@ fi
 
 # Count critical issues (potential_issue, security, refactor_suggestion)
 # These MUST be fixed before pushing
-CRITICAL_COUNT=$(grep -c "^Type: potential_issue$\|^Type: security$\|^Type: refactor_suggestion$" "$FEEDBACK_FILE" 2>/dev/null || echo "0")
+POTENTIAL_COUNT=$(grep -c "^Type: potential_issue$" "$FEEDBACK_FILE" 2>/dev/null || echo "0")
+SECURITY_COUNT=$(grep -c "^Type: security$" "$FEEDBACK_FILE" 2>/dev/null || echo "0")
+REFACTOR_COUNT=$(grep -c "^Type: refactor_suggestion$" "$FEEDBACK_FILE" 2>/dev/null || echo "0")
+CRITICAL_COUNT=$((POTENTIAL_COUNT + SECURITY_COUNT + REFACTOR_COUNT))
 
 # Update tracking file
 update_tracker "$FEEDBACK_FILE" "$ISSUE_COUNT" "SUCCESS"
