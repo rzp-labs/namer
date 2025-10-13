@@ -249,7 +249,20 @@ def get_phash_results(file: str, _search_type: SearchType, config: NamerConfig) 
         config: Namer configuration
     """
     failed_dir = _require_path(config.failed_dir, 'failed_dir')
-    phash_file = failed_dir / file
+    failed_dir_resolved = failed_dir.resolve()
+    phash_file = (failed_dir / file).resolve()
+
+    # Verify target is strictly within failed_dir (path traversal protection)
+    try:
+        phash_file.relative_to(failed_dir_resolved)
+    except ValueError:
+        logger.warning(
+            'Path traversal attempt detected for phash lookup: %s is not within %s',
+            phash_file,
+            failed_dir_resolved,
+        )
+        return {'file': file, 'files': []}
+
     if not phash_file.is_file():
         return {'file': file, 'files': []}
 

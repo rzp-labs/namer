@@ -44,7 +44,9 @@ if [[ -x "$ROOT_DIR/scripts/enforce-pre-push.sh" ]]; then
 		exit 1
 	}
 else
-	log "⚠️  enforce-pre-push.sh not found or not executable"
+	log "❌ ERROR: enforce-pre-push.sh not found or not executable"
+	log "   This is required for hook enforcement. Installation failed."
+	exit 1
 fi
 
 log ""

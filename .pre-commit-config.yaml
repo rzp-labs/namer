@@ -56,7 +56,7 @@ repos:
       # Dockerfile linting (optional, non-blocking)
       - id: hadolint
         name: hadolint
-        entry: bash -lc 'command -v hadolint >/dev/null 2>&1 && hadolint Dockerfile || echo "hadolint not installed; skipping"'
+        entry: bash -lc 'if ! command -v hadolint >/dev/null 2>&1; then echo "hadolint not installed; skipping"; exit 0; fi; hadolint Dockerfile'
         language: system
         pass_filenames: false
         files: ^Dockerfile$
