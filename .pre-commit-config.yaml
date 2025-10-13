@@ -137,14 +137,30 @@ repos:
         verbose: true
 
       # Docker smoke test - catch build errors locally (timeout: 10 minutes)
-      # Only runs when files that affect Docker build are modified
-      # Includes: Dockerfile, Python source, frontend assets, dependencies, and Docker entrypoint scripts
+      # FAIL-SAFE DESIGN: Uses exclusion pattern instead of inclusion
+      # Runs on ALL files EXCEPT explicitly excluded non-build files
+      # This prevents silent skips when new build file types are added
       - id: docker-smoke-test
         name: Docker smoke test (build validation)
         entry: ./scripts/run-docker-smoke-test.sh
         language: system
-        types_or: [dockerfile, python, javascript, json, toml, shell]
-        files: ^(Dockerfile|docker-entrypoint.*\.sh|scripts/(install-intel-firmware-fast|detect-intel-gpu)\.sh|namer/|src/|test/|package\.json|package-lock\.json|pyproject\.toml|poetry\.lock|\.npmrc|webpack\.config\.js)
+        # NO types_or filter - runs on all file types by default (fail-safe)
+        exclude: |
+          (?x)^(
+            .*\.md$|                          # Markdown documentation
+            docs/.*|                          # Documentation directory
+            \.github/.*\.md$|                 # GitHub markdown files
+            \.claude/session-notes/.*|        # Session notes
+            \.windsurf/.*|                    # Windsurf IDE config
+            \.vscode/.*|                      # VS Code config
+            \.idea/.*|                        # IntelliJ config
+            CHANGELOG\.md|                    # Changelog
+            README.*|                         # README files
+            LICENSE.*|                        # License files
+            \.gitignore|                      # Git ignore
+            \.gitattributes|                  # Git attributes
+            docs/sessions/.*                  # Session documentation
+          )
         pass_filenames: false
         stages: [pre-push]
         verbose: true
