@@ -136,7 +136,14 @@ get_duration() {
 
 get_file_size() {
 	local file="$1"
-	stat -f%z "$file" 2>/dev/null || wc -c <"$file"
+	# Try GNU stat (Linux), then BSD stat (macOS), then fallback to wc
+	if stat -c%s "$file" >/dev/null 2>&1; then
+		stat -c%s "$file"
+	elif stat -f%z "$file" >/dev/null 2>&1; then
+		stat -f%z "$file"
+	else
+		wc -c <"$file"
+	fi
 }
 
 format_size() {
@@ -179,7 +186,7 @@ encode_video() {
 		-c:v libsvtav1
 		-crf "$crf"
 		-preset "$preset"
-		-vf "scale=${width}:-2"
+		-vf "scale=trunc(min(iw\,${width})/2)*2:-2"
 		-pix_fmt yuv420p
 		"${audio_opts[@]}"
 		-map_metadata -1
