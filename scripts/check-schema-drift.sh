@@ -259,10 +259,17 @@ main() {
 	echo -e "\n${BLUE}Step 3: Generating report${NC}"
 	generate_report
 
-	# Exit with appropriate code (only fail on drift, not missing baselines)
-	if [[ $STASHDB_DRIFT -eq 1 || $TPDB_DRIFT -eq 1 ]]; then
+	# Exit with appropriate code based on validation results
+	# Check for missing baselines first (exit code 2)
+	if [[ $STASHDB_DRIFT -eq 2 || $TPDB_DRIFT -eq 2 ]]; then
+		echo -e "\n${YELLOW}⚠ One or more baseline schemas are missing. No validation performed.${NC}"
+		echo -e "${BLUE}Run 'make update-schema-docs' to create baseline files.${NC}"
+		exit 0
+	# Check for schema drift (exit code 1)
+	elif [[ $STASHDB_DRIFT -eq 1 || $TPDB_DRIFT -eq 1 ]]; then
 		echo -e "\n${YELLOW}⚠ Schema drift detected. Review changes and update documentation.${NC}"
 		exit 1
+	# All schemas validated successfully (exit code 0)
 	else
 		echo -e "\n${GREEN}✅ All schemas are current. No action required.${NC}"
 		exit 0
