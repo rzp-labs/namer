@@ -109,4 +109,3 @@ def test_stashdb_phash_results_without_guids_sets_name_candidates(monkeypatch):
     assert not results.get_match()
     assert results.ambiguous_reason == 'phash_missing_guids'
     assert results.candidate_guids == ['Scene a', 'Scene b']
-    

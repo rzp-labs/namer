@@ -50,6 +50,7 @@ test/integration/media/5-ambiguous/*
 .windsurfrules
 .mcp.json
 .agent/
+.claude/
 
 # npm artifacts
 package-lock.json

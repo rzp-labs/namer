@@ -120,21 +120,21 @@ def retry_failed(namer_config: NamerConfig):
         except OSError as e:
             logger.warning('Failed to delete log file %s: %s', log_file, e)
             cleanup_failures += 1
-    
+
     for summary_file in failed_dir.rglob('**/*_namer_summary.json'):
         try:
             summary_file.unlink()
         except OSError as e:
             logger.warning('Failed to delete summary file %s: %s', summary_file, e)
             cleanup_failures += 1
-    
+
     for note_file in failed_dir.rglob('**/*.ambiguous.json'):
         try:
             note_file.unlink()
         except OSError as e:
             logger.warning('Failed to delete ambiguous note file %s: %s', note_file, e)
             cleanup_failures += 1
-    
+
     if cleanup_failures > 0:
         logger.warning('Failed to delete %d file(s) during cleanup', cleanup_failures)
 

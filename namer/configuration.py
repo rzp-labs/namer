@@ -15,6 +15,7 @@ from typing import ClassVar, Dict, List, Optional, Pattern, Sequence, Set
 
 try:
     import orjson
+
     HAS_ORJSON = True
 except ImportError:
     orjson = None  # type: ignore[assignment]
@@ -42,22 +43,22 @@ def _env_truthy(name: str, default: str = 'false') -> bool:
 def _ffmpeg_should_skip_validation() -> bool:
     """
     Determine if FFmpeg validation should be skipped.
-    
+
     Primary control: NAMER_SKIP_FFMPEG_VALIDATION environment variable.
     Conservative fallback: Detect pytest via process name (sys.argv[0]).
-    
+
     Returns:
         True if FFmpeg validation should be skipped, False otherwise.
     """
     # Explicit control for tests/CI
     if _env_truthy('NAMER_SKIP_FFMPEG_VALIDATION'):
         return True
-    
+
     # Conservative best-effort: invoked via pytest
     argv0 = os.path.basename(sys.argv[0] or '')
     if argv0.startswith('pytest') or argv0.startswith('py.test'):
         return True
-    
+
     return False
 
 

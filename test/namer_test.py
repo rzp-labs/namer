@@ -18,7 +18,7 @@ from namer.configuration_utils import to_ini
 from namer.namer import check_arguments, main, set_permissions
 from namer.__main__ import main as namer_main
 from test import utils
-from test.utils import new_ea, sample_config, validate_mp4_tags, environment, FakeTPDB
+from test.utils import new_ea, sample_config, validate_mp4_tags, environment
 
 
 class UnitTestAsTheDefaultExecution(unittest.TestCase):
@@ -78,9 +78,6 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
         Process all subdirs of -d.
         """
         with environment() as (temp_dir, fake_tpdb, config):
-            temp_dir: Path
-            fake_tpdb: FakeTPDB
-            config: NamerConfig
             targets = [
                 new_ea(temp_dir, use_dir=True, post_stem='1'),
                 new_ea(temp_dir, use_dir=True, post_stem='2'),

@@ -9,6 +9,7 @@ from typing import Optional, List, Union, Sequence, cast
 
 from defusedxml.minidom import parseString  # type: ignore[import]  # Incomplete type stubs
 from loguru import logger
+
 # codacy-disable-next-line
 from xml.dom.minidom import CharacterData, Document, Element, Node  # nosec B408: Using defusedxml for parsing, only importing types
 
@@ -37,7 +38,7 @@ def get_childnode(node: NodeHost, name: str) -> Optional[Element]:
 def require_childnode(node: NodeHost, name: str) -> Element:
     """
     Get child node, raises ValueError if not found.
-    
+
     Use this for required XML elements that must be present.
     """
     element = get_childnode(node, name)
@@ -56,10 +57,10 @@ def _text_from_children(children: Sequence[Node]) -> Optional[str]:
     for child in children:
         if isinstance(child, CharacterData):
             text_parts.append(child.data)
-    
+
     if not text_parts:
         return None
-    
+
     return ''.join(text_parts)
 
 
@@ -87,14 +88,14 @@ def parse_movie_xml_file(xml_file: Path) -> LookedUpFileInfo:
 
     movie: Document = cast(Document, parseString(bytes(content, encoding='UTF-8')))
     info = LookedUpFileInfo()
-    
+
     # Require title element exists and validate it's not empty
     require_childnode(movie, 'title')  # Raises if missing
     title_text = get_childnode_text(movie, 'title')
     if not title_text or not title_text.strip():
-        raise ValueError(f"XML file {xml_file} has empty or whitespace-only <title> element")
+        raise ValueError(f'XML file {xml_file} has empty or whitespace-only <title> element')
     info.name = title_text.strip()
-    
+
     studios = get_all_childnode_text(movie, 'studio')
     info.site = studios[0] if studios else None
     info.date = get_childnode_text(movie, 'releasedate')

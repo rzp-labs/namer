@@ -111,7 +111,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
         """
         # Mock FFMpeg verification to return True since we don't have ffmpeg in test environment
         mock_verify_ffmpeg.return_value = True
-        
+
         config = NamerConfig()
         success = verify_configuration(config, PartialFormatter())
         self.assertEqual(success, True)
