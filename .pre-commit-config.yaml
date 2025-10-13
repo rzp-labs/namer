@@ -36,6 +36,14 @@ repos:
   # Local hooks for pre-commit
   - repo: local
     hooks:
+      # Prevent committing logs directory
+      - id: check-logs-directory
+        name: check for logs/ directory
+        entry: bash -c 'if git diff --cached --name-only | grep -q "^logs/"; then echo "ERROR - Attempting to commit logs/ directory. Logs should never be committed to git."; exit 1; fi'
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
       # Type checking - catch type errors early before they accumulate
       - id: mypy
         name: mypy type checking
