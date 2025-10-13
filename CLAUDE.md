@@ -352,6 +352,7 @@ We use a **stratified approach** that separates fast commit-time validation from
   - mypy type checking - Catch type errors early before they accumulate
   - pytest fast tests - 78 tests in ~4 seconds for comprehensive functional validation
   - Shellcheck - Bash script validation
+  - shfmt - Shell script formatting (tabs for indentation)
   - Actionlint - GitHub Actions workflow validation
   - Hadolint - Dockerfile linting (optional)
 
@@ -431,7 +432,7 @@ We use a **stratified approach** that separates fast commit-time validation from
 **`types: [single-type]`** - Use when hook validates/processes ONE file type:
 - `types: [python]` → pytest, mypy, ruff
 - `types: [dockerfile]` → hadolint
-- `types: [shell]` → shellcheck
+- `types: [shell]` → shellcheck, shfmt
 - `types: [yaml]` → actionlint
 
 **`types_or: [type1, type2, ...]`** - Use when hook depends on MULTIPLE file types:
@@ -501,6 +502,7 @@ Breakdown:
 - mypy type checking: ~2-3s
 - pytest fast tests (78 tests): ~4-5s
 - Shellcheck: ~1s
+- shfmt: ~1s
 - Actionlint: ~1s
 - Hadolint: ~1s
 Total: ~15-20s
@@ -530,6 +532,7 @@ All hooks use `types` or `types_or` filters to skip when irrelevant files change
 | hadolint | `types: [dockerfile]` | Dockerfiles only |
 | docker-smoke-test | `types_or: [dockerfile, python, javascript, json, toml, shell]` | Build-related files |
 | shellcheck | `types: [shell]` | Shell scripts only |
+| shfmt | `types: [shell]` | Shell scripts only |
 | actionlint | `types: [yaml]` | Workflow files only |
 
 **Performance Impact by Change Type:**
