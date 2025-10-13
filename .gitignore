@@ -33,6 +33,9 @@ namer-prod.cfg
 .github/workflows/ci.yml.backup
 namer/tools/*
 
+# Logs
+logs/
+
 # Test artifacts
 test/failed/
 test/integration/config/namer.cfg.old

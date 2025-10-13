@@ -383,6 +383,23 @@ We use a **stratified approach** that separates fast commit-time validation from
 - Update hooks: `pre-commit autoupdate`
 - Skip hooks (not recommended): `git commit --no-verify` or `git push --no-verify`
 
+### Before Committing ANY Files
+**CRITICAL PRE-COMMIT CHECKLIST:**
+1. **Check `git status` for untracked files** - ALWAYS review what you're about to commit
+2. **Verify against `.gitignore`** - Check if new files should be ignored:
+   - `logs/` - Runtime logs (NEVER commit)
+   - `database/` - Local database files (NEVER commit)
+   - `*.backup` - Backup files (NEVER commit)
+   - `.env` - Environment secrets (NEVER commit)
+3. **Update `.gitignore` FIRST** if adding ignored file types
+4. **Use `git add <specific-files>`** - NEVER use `git add .` or `git add -A` blindly
+
+**Common mistakes to AVOID:**
+- ❌ Committing `logs/` directory - contains runtime data
+- ❌ Committing temp files generated during development
+- ❌ Using `git add .` without reviewing `git status` first
+- ❌ Forgetting to update `.gitignore` for new file types
+
 ### Before Pushing
 **Comprehensive validation:**
 - `make validate` - Full validation suite (required before PR)
