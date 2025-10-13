@@ -104,6 +104,7 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
             if moved_command:
                 moved_command.tpdb_id = data['scene_id']
                 command_queue.put(moved_command)  # Todo pass selection
+                res = True
 
         return jsonify(res)
 
