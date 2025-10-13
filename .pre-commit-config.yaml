@@ -143,7 +143,7 @@ repos:
         name: Docker smoke test (build validation)
         entry: ./scripts/run-docker-smoke-test.sh
         language: system
-        types_or: [dockerfile, python, javascript, json, toml]
+        types_or: [dockerfile, python, javascript, json, toml, shell]
         files: ^(Dockerfile|docker-entrypoint.*\.sh|scripts/(install-intel-firmware-fast|detect-intel-gpu)\.sh|namer/|src/|test/|package\.json|package-lock\.json|pyproject\.toml|poetry\.lock|\.npmrc|webpack\.config\.js)
         pass_filenames: false
         stages: [pre-push]
