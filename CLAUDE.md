@@ -172,6 +172,52 @@ docs/                    # Documentation
 - Handle exceptions appropriately with try/except blocks
 - Use `logging` module instead of print statements
 
+## Shell Script Guidelines
+
+### Code Style
+- **Indentation**: Use tabs (not spaces)
+- **Formatting**: Enforced by `shfmt` with `-i 0` flag
+- **Validation**: Both pre-commit hook and CI validate formatting
+- **Scope**: Applies to all scripts in `scripts/` directory
+
+### Best Practices
+- Use `shellcheck` for static analysis (catches common errors)
+- Use bash parameter expansion over external commands when possible
+- Provide descriptive error messages with proper exit codes
+- Include `set -euo pipefail` at script start for safety
+- Use `trap` for cleanup operations
+
+### Example Patterns
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ✅ Good: bash parameter expansion (shellcheck compliant)
+SAFE_BRANCH="${BRANCH//\//-}"
+
+# ❌ Bad: triggers shellcheck warnings
+SAFE_BRANCH=$(echo "$BRANCH" | sed 's|/|-|g')
+
+# ✅ Good: unique temp file with cleanup
+temp_file=$(mktemp)
+trap 'rm -f "$temp_file"' EXIT
+
+# ❌ Bad: hardcoded temp file (race conditions)
+temp_file="/tmp/myfile.txt"
+```
+
+### Formatting Commands
+```bash
+# Format single file
+shfmt -i 0 -w script.sh
+
+# Format all scripts
+shfmt -i 0 -w scripts/
+
+# Check formatting without changes
+shfmt -i 0 -d scripts/
+```
+
 ## Testing Standards
 
 ### Test Structure
@@ -926,3 +972,86 @@ gh issue create ... > "$temp_file"
   - Python code: ~15-20s commit + ~90s push
   - Dockerfile: ~15-20s commit + ~60s push
   - Shell scripts: ~5s commit + instant push
+
+**12. Shift-Left Validation: If CI Fails Repeatedly, Add to Pre-Commit**
+- **Observation:** CI Static Analysis failed due to shell script formatting (spaces vs tabs)
+- **Root Cause:** Scripts formatted manually with `shfmt -w` but one file (`optimize-test-video.sh`) was missed
+- **Why Local Passed:** No pre-commit shfmt hook to validate before commit
+- **Solution:** Added shfmt to pre-commit hooks (commit `11b5ca9`)
+- **Pattern:** If CI keeps catching issue X, add validation for X to pre-commit hooks
+- **Benefits:**
+  - Immediate feedback at commit time (< 1 second for shfmt)
+  - Prevents CI failures and wasted pipeline time
+  - Faster iteration cycle (no waiting for CI to fail)
+  - Better developer experience (catch issues locally)
+- **Shell Script Standards Established:**
+  - Use tabs for indentation (not spaces)
+  - Enforced by shfmt with `-i 0` flag
+  - Validated by both pre-commit hook and CI
+  - Applies to all scripts in `scripts/` directory
+- **Impact:** Future shell script changes automatically validated before commit
+
+**13. Release Branch Conflict Management**
+- **Context:** Release/1.23.3 had 16 merge conflicts with main due to intermediate releases (1.23.0, 1.23.1)
+- **Resolution:** Used git-flow-manager agent to systematically resolve conflicts file-by-file
+- **Process:**
+  1. Merged origin/main into release branch
+  2. Resolved conflicts with clear strategy (keep release changes)
+  3. Ran full test suite for validation
+  4. Documented resolution rationale
+- **Learning:** Keep version numbers in sync; release branches should be short-lived
+- **Best Practice:** Avoid long-lived release branches to minimize merge conflicts
+- **Tool Value:** Complex git operations benefit from agent orchestration
+
+**14. Test Hygiene: Variable Naming Matters**
+- **Bug:** `test/namer_types_test.py:141` used wrong config variable
+- **Issue:** Created `config1` but passed `config` to `verify_configuration()`
+- **Impact:** Test wasn't validating `new_relative_path_name` configuration
+- **Fix:** Changed to `verify_configuration(config1, ...)`
+- **Learning:** Similar variable names (`config` vs `config1`) easy to miss in code review
+- **Pattern:** Use descriptive names that clearly indicate purpose
+- **Example:** Better naming would be `config_base` and `config_with_relative_path`
+
+**15. API Response Validation: Always Verify Success Paths**
+- **Bug:** `/v1/rename` endpoint always returned `false` even on success
+- **Root Cause:** Set `res = False` at start, never updated to `True` after success
+- **Impact:** Frontend couldn't detect successful rename operations
+- **Fix:** Added `res = True` after successfully queuing command
+- **Pattern:** Always trace through success paths in API endpoints
+- **Best Practice:** Write tests that validate both success and failure responses
+- **Testing Gap:** Integration tests should verify actual API response payloads
+
+**16. Multi-Reviewer Feedback Integration**
+- **Context:** Release PR #128 received feedback from multiple reviewers
+- **Reviewers:** CodeRabbit, Gemini Code Assist, GitHub Actions CI
+- **Process:**
+  1. Identified issues from each reviewer (Static Analysis, Test Bug, API Regression)
+  2. Prioritized by severity (Static Analysis > Test Bug > API Regression)
+  3. Fixed all issues in single comprehensive commit
+  4. Pushed with detailed commit message referencing all fixes
+- **Learning:** Address all reviewer feedback comprehensively, not piecemeal
+- **Benefit:** Single commit with all fixes easier to review than multiple small commits
+- **Pattern:** Group related fixes by theme (formatting, tests, API) in commit message
+
+**17. Release PR Complexity Acceptance**
+- **Stats:** PR #128 with +4,174 additions, -851 deletions across 40 files
+- **Composition:**
+  - Major: Stratified git hooks implementation
+  - Moderate: Hook optimization with file type filtering
+  - Minor: Bug fixes, documentation updates
+- **Insight:** Large PRs acceptable for release branches (consolidating develop work)
+- **Contrast:** Feature PRs should be 200-500 lines, but release PRs consolidate multiple features
+- **Review Strategy:** Release PRs reviewed by theme (hooks, tests, docs) not line-by-line
+- **Learning:** Different PR types have different size expectations
+
+**18. Stratified Hooks Validation in Real Release Cycle**
+- **Evidence from Release/1.23.3:**
+  - Pre-commit caught: Type errors, formatting issues, test failures
+  - Pre-push caught: Full test suite coverage, Docker build validation
+  - File type filtering: Only relevant hooks ran (Python hooks skipped for shell changes)
+- **Confirmed Benefits:**
+  - Fast feedback loop (~15-20s) prevents iteration delays
+  - Comprehensive gate (~2min) ensures quality before push
+  - 70%+ time savings on docs/config-only changes
+- **Validation:** System working as designed through full release workflow
+- **Future:** Continue measuring and optimizing hook performance
