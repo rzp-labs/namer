@@ -1026,3 +1026,59 @@ gh issue create ... > "$temp_file"
   - Reduces debugging time (clear diffs vs mystery errors)
   - Enables proactive updates vs reactive firefighting
   - Documents API evolution over time
+
+**13. PR Merge and Cleanup Workflow (2025-10-13)**
+- **Context:** Merging approved PRs and performing Git Flow cleanup
+- **Workflow Steps:**
+  1. **Verify PR Status** - Check `mergeability`, `mergeStateStatus`, and review approvals
+  2. **Re-run Failed Checks** - Use `gh run rerun <id> --failed` to retry transient CI failures
+  3. **Merge with Cleanup** - Use `gh pr merge --squash --delete-branch` for atomic merges
+  4. **Local Cleanup** - Switch to develop, pull latest, delete local feature branch
+  5. **Remote Cleanup** - Use `git remote prune origin` to remove stale tracking branches
+- **Key Commands:**
+  - `gh pr view <num> --json mergeable,mergeStateStatus,reviews` - Check PR status
+  - `gh pr checks <num>` - View CI check status
+  - `gh run rerun <id> --failed` - Retry failed workflow runs
+  - `gh pr merge <num> --squash --delete-branch` - Merge and cleanup
+  - `git remote prune origin` - Clean stale remote tracking branches
+- **Git Flow Discipline:**
+  - NEVER push directly to `develop` - always use feature branches + PRs
+  - Branch protection enforces PR requirement (good practice)
+  - Even "small" doc fixes must go through proper Git Flow
+  - Reset and create feature branch if you accidentally commit to develop
+- **Lessons Learned:**
+  - Branch protection prevents direct pushes (caught Git Flow violation)
+  - Stash changes when switching branches to avoid losing work
+  - Verify branch cleanup with `git branch -a` after prune
+  - Schema docs from PR 140 should not be duplicated in drift detection PR
+- **Pattern:** Systematic merge → cleanup → verification prevents clutter
+
+**14. Separating Infrastructure from Documentation (2025-10-13)**
+- **Problem:** PR 138 included both drift detection infrastructure AND schema documentation
+- **Root Cause:** Schema docs were merged separately in PR 140, creating duplication
+- **Solution:** Split infrastructure (new) from documentation (already merged)
+- **Process:**
+  1. Apply all changes from closed PR to new feature branch
+  2. Identify which files already exist in develop (from other PRs)
+  3. Unstage duplicate files: `git reset HEAD <files>`
+  4. Restore duplicates from develop: `git checkout develop -- <files>`
+  5. Commit only the new infrastructure without duplicates
+- **Files Kept (Infrastructure):**
+  - `.github/workflows/schema-drift-check.yml` - CI automation
+  - `scripts/check-schema-drift.sh` - Drift detection script
+  - `scripts/update-schema-docs.sh` - Documentation update script
+  - `docs/api/SCHEMA_MAINTENANCE.md` - Operations guide
+  - `docs/sessions/*.md` - Session notes
+  - `Makefile` - New targets for drift detection
+  - `CLAUDE.md` - External API Integration section
+- **Files Excluded (Already in PR 140):**
+  - `docs/api/graphql_schema_documentation.md` - Human-readable guide
+  - `docs/api/graphql_schemas_report.json` - Schema comparison report
+  - `docs/api/stashdb_schema.json` - StashDB baseline schema
+  - `docs/api/tpdb_schema.json` - ThePornDB baseline schema
+- **Best Practices:**
+  - Review what's already merged before creating new PRs from closed PRs
+  - Use `git diff develop...HEAD --name-only` to see what's truly new
+  - Keep infrastructure separate from documentation when possible
+  - Reference related PRs in commit messages for context
+- **Pattern:** Infrastructure PRs should focus on tooling, not duplicate docs
