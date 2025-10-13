@@ -120,7 +120,7 @@ def move_command_files(target: Optional[Command], new_target: Path, is_auto: boo
 def _json_safe(value):
     """
     Convert value to JSON-safe type, handling common non-JSON types explicitly.
-    Raises exceptions for truly problematic types rather than silently returning them.
+    Unknown types are logged as warnings and converted to strings.
     """
     if isinstance(value, dict):
         return {key: _json_safe(val) for key, val in value.items()}

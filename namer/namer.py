@@ -63,7 +63,14 @@ def write_ambiguous_metadata(
     # Build candidate details with scene names
     candidates_with_names = []
     if search_results:
-        guid_to_name = {(r.looked_up.guid or r.looked_up.uuid): r.looked_up.name for r in search_results.results if r.looked_up and (r.looked_up.guid or r.looked_up.uuid) and r.looked_up.name}
+        # Build dict with both guid AND uuid as keys to handle both lookup strategies
+        guid_to_name = {}
+        for r in search_results.results:
+            if r.looked_up and r.looked_up.name:
+                if r.looked_up.guid:
+                    guid_to_name[r.looked_up.guid] = r.looked_up.name
+                if r.looked_up.uuid:
+                    guid_to_name[r.looked_up.uuid] = r.looked_up.name
         for guid in candidate_ids:
             candidates_with_names.append({'guid': guid, 'name': guid_to_name.get(guid, 'Unknown')})
 
