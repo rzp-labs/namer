@@ -355,20 +355,19 @@ We use a **stratified approach** that separates fast commit-time validation from
   - Actionlint - GitHub Actions workflow validation
   - Hadolint - Dockerfile linting (optional)
 
-**Pre-push Hooks: Deep Validation + Security (~2-3 minutes)**
+**Pre-push Hooks: Deep Validation (~2 minutes)**
 - **Purpose:** Full quality gate before team review - "production ready" validation
-- **Philosophy:** Ready to push = ready for team review = high confidence in quality and security
+- **Philosophy:** Ready to push = ready for team review = high confidence in quality
 - **Checks:**
   - Full pytest suite with coverage - All tests including watchdog, web, videophash, and slow tests
-  - Codacy security analysis - Security vulnerabilities, code quality, complexity analysis
   - Docker smoke test - Quick build validation to catch Dockerfile/build errors
 
-**Note:** CodeRabbit AI review can be run manually via `make review` or `./scripts/run-coderabbit.sh validate` but is not part of the automated pre-push pipeline to prevent SSH timeout issues.
+**Note:** CodeRabbit AI review can be run manually via `make review`. Codacy security analysis runs in CI only (requires CODACY_PROJECT_TOKEN).
 
 **Why this approach:**
 1. **Type safety shift-left** - Catch type errors at commit time before they pile up
 2. **Fast pytest in pre-commit** - 78 tests in 4 seconds provides excellent functional coverage
-3. **Security built-in** - Codacy catches vulnerabilities before push
+3. **CI-based security** - Codacy runs in CI where tokens are configured
 4. **No skipped tests on push** - Full test suite including watchdog (core functionality)
 5. **Docker validation** - Catch build errors locally before CI
 6. **Clear separation** - Commit (fast iteration) vs Push (comprehensive gate)
@@ -412,16 +411,16 @@ Breakdown:
 Total: ~15-20s
 ```
 
-**Pre-push Hook Performance (~2-3 minutes):**
+**Pre-push Hook Performance (~2 minutes):**
 ```
 Breakdown:
 - Full pytest with coverage: ~90s (timeout: 10min - generous for slow systems)
-- Codacy security analysis: ~60-90s (timeout: 5min)
 - Docker smoke test: ~30-60s (timeout: 10min - generous for cold builds)
-Total: ~2-3 minutes typical
+Total: ~2 minutes typical
 
 Note: Timeouts are generous to handle network delays, cold builds, and slow systems.
-      CodeRabbit AI review available via 'make review' for manual execution.
+      CodeRabbit AI review: 'make review' (manual)
+      Codacy security: Runs in CI only
 ```
 
 **Why stratified hooks work:**
@@ -440,8 +439,8 @@ Note: Timeouts are generous to handle network delays, cold builds, and slow syst
 - ✅ Small commits = faster reviews = quicker delivery
 
 **Why this policy:**
-1. **Security first** - Codacy catches vulnerabilities before they're shared
-2. **Quality gates** - Full test suite ensures functionality
+1. **Quality gates** - Full test suite ensures functionality before sharing
+2. **CI validation** - Security checks run in CI where tokens are configured
 3. **Team protection** - Don't break others' workflows
 4. **Better practices** - Small, focused commits are better engineering
 
@@ -453,14 +452,13 @@ Note: Timeouts are generous to handle network delays, cold builds, and slow syst
 
 **Hook timeout guidelines:**
 - pytest full suite: 10 minutes max (typically completes in ~90s)
-- Codacy analysis: 5 minutes max (typically completes in ~60-90s)
 - Docker smoke test: 10 minutes max (typically completes in ~30-60s, generous for cold builds)
 
 **Common hook issues:**
 1. **Timeout** - Commit too large? Break it into smaller pieces
 2. **Type errors** - Run `poetry run mypy .` locally first (caught in pre-commit)
 3. **Test failures** - Fix tests before pushing (caught in pre-commit fast tests)
-4. **Security issues** - Address Codacy findings
+4. **Docker build failures** - Test locally with `docker build .`
 
 ### Type Checking Tips
 
@@ -513,11 +511,11 @@ Note: Timeouts are generous to handle network delays, cold builds, and slow syst
   - Catches type errors with mypy
   - Runs 78 fast tests for functional coverage
   - Validates scripts and configs
-- **Pre-push (~2-3min):** Comprehensive quality gate
+- **Pre-push (~2min):** Comprehensive quality gate
   - Full test suite with coverage (all tests, no filtering)
-  - Codacy security analysis
   - Docker build validation
 - **Manual:** `make validate` for full CI simulation, `make review` for CodeRabbit AI review
+- **CI only:** Codacy security analysis (requires token configuration)
 
 ### Dependency Management
 

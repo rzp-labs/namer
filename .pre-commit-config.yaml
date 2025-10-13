@@ -56,23 +56,26 @@ repos:
         stages: [pre-commit]
 
       # Dockerfile linting (optional, non-blocking)
+      # Only runs when Dockerfile is modified
       - id: hadolint
         name: hadolint
         entry: bash -lc 'if ! command -v hadolint >/dev/null 2>&1; then echo "hadolint not installed; skipping"; exit 0; fi; hadolint Dockerfile'
         language: system
+        types: [dockerfile]
         pass_filenames: false
         files: ^Dockerfile$
         stages: [pre-commit]
 
   # ============================================================================
-  # PRE-PUSH HOOKS: Deep Validation + Security (~2-3 minutes)
+  # PRE-PUSH HOOKS: Deep Validation (~2 minutes)
   # Purpose: Full quality gate before team review - "production ready" validation
   # Philosophy: Ready to push = ready for team review = high confidence
   #
   # IMPORTANT: These hooks MUST NOT be bypassed with --no-verify
   # - Full test suite with coverage validation
-  # - Codacy security analysis
   # - Docker build validation
+  #
+  # Note: Codacy security analysis runs in CI only (requires CODACY_PROJECT_TOKEN)
   # ============================================================================
 
   - repo: local
@@ -84,15 +87,6 @@ repos:
         entry: ./scripts/timeout-wrapper.sh 600 poetry run pytest --cov --cov-report=term-missing:skip-covered
         language: system
         types: [python]
-        pass_filenames: false
-        stages: [pre-push]
-        verbose: true
-
-      # Codacy security analysis (timeout: 5 minutes)
-      - id: codacy-analysis
-        name: Codacy security analysis
-        entry: ./scripts/run-codacy.sh
-        language: system
         pass_filenames: false
         stages: [pre-push]
         verbose: true
