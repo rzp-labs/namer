@@ -175,9 +175,22 @@ encode_video() {
 	local map_args=("-map" "0:v:0")
 	local audio_opts=("-an")
 	if [[ "$keep_audio" == "true" ]]; then
-		# Map all audio streams if present; copy without re-encode
-		map_args+=("-map" "0:a?")
-		audio_opts=("-c:a" "copy")
+		# Detect audio codec to determine if we can copy or need to re-encode
+		local audio_codec
+		audio_codec=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "$input" 2>/dev/null || echo "")
+
+		if [[ -z "$audio_codec" ]]; then
+			# No audio stream present, keep -an
+			audio_opts=("-an")
+		elif [[ "$audio_codec" =~ ^(aac|mp3|ac3|eac3)$ ]]; then
+			# MP4-compatible codec, copy without re-encode
+			map_args+=("-map" "0:a?")
+			audio_opts=("-c:a" "copy")
+		else
+			# Incompatible codec (opus, vorbis, flac, etc.), re-encode to AAC
+			map_args+=("-map" "0:a?")
+			audio_opts=("-c:a" "aac" "-b:a" "128k")
+		fi
 	fi
 
 	local ffmpeg_cmd=(
