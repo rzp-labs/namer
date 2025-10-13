@@ -92,10 +92,12 @@ repos:
         verbose: true
 
       # Docker smoke test - catch build errors locally (timeout: 10 minutes)
+      # Only runs when files that affect Docker build are modified
       - id: docker-smoke-test
         name: Docker smoke test (build validation)
         entry: ./scripts/run-docker-smoke-test.sh
         language: system
+        types_or: [dockerfile, python, javascript, json, toml, shell]
         pass_filenames: false
         stages: [pre-push]
         verbose: true
