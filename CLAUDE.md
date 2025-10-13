@@ -924,16 +924,55 @@ gh issue create ... > "$temp_file"
   - Dockerfile: ~15-20s commit + ~60s push
   - Shell scripts: ~5s commit + instant push
 
-**20. Bash Command Timeout Configuration for Git Operations**
+**20. Git Push Wrapper for Pre-Push Hook Timeout**
 - **Problem:** Default Bash tool timeout (120s/2min) insufficient for pre-push hooks
 - **Root Cause:** Pre-push hooks have 10-minute timeouts but Bash command times out at 2 minutes
 - **Impact:** Git push appears to fail even though hooks are running and passing
-- **Solution:** Use 300 seconds (5 minutes) timeout for git push operations
-- **Pattern:** `Bash(git push:*, timeout: 300000)` - 5 minutes for git operations
+- **Solution:** Use `scripts/git-push-wrapper.sh` which handles timeout automatically
+- **Pattern:**
+  ```bash
+  ./scripts/git-push-wrapper.sh origin branch-name
+  ./scripts/git-push-wrapper.sh -u origin feature/my-branch
+  ```
+- **Benefits:**
+  - No need to remember timeout parameter
+  - Consistent 5-minute timeout across all pushes
+  - Can override: `GIT_PUSH_TIMEOUT=600 ./scripts/git-push-wrapper.sh`
+  - Cross-platform (handles gtimeout vs timeout)
 - **Rationale:**
   - Pre-push hooks: pytest-full (~90s) + docker-smoke-test (~30-60s) = ~2min typical
-  - Hook timeouts: 10 minutes (600s) for safety margin
-  - Bash timeout should be generous but reasonable: 5 minutes covers typical + buffer
-  - Can always tighten if proven excessive
-- **Best Practice:** Match Bash timeout to expected operation duration + buffer
+  - 5-minute default provides generous buffer for slow systems/cold builds
+  - Prevents false timeout failures
 - **Example:** Hotfix push timed out at 2min but hooks completed successfully in background
+- **Best Practice:** Always use wrapper script for git push in automation/AI contexts
+
+**21. GraphQL Schema Evolution Requires Query Updates**
+- **Problem:** v1.23.3 released with 100% failure rate - both metadata providers completely broken
+- **Root Cause:** GraphQL schemas evolved but queries weren't updated
+- **StashDB Issues:**
+  - Missing subfield selections: `images` → `images { url }`
+  - GraphQL validation error: "Field must have a selection of subfields"
+- **ThePornDB Issues:**
+  - Deprecated fields removed: `description`, `url`, `hashes`
+  - Structure changed: `performers.name` → `performers.performer.name`
+- **Impact:** All files routed to failed directory, complete service outage
+- **Resolution:** Hotfix PR #132 (issues #130, #131)
+- **Prevention:**
+  - Add GraphQL schema validation to CI/pre-push hooks
+  - Test against actual API endpoints in integration tests
+  - Monitor API deprecation notices
+- **Lesson:** Schema evolution is a breaking change requiring query updates
+
+**22. Wrapper Scripts Over Documented Parameters**
+- **Problem:** Agents must remember timeout parameters for git push operations
+- **Insight:** Complexity should be encapsulated in tools, not documentation
+- **Solution:** Create wrapper scripts that handle complexity automatically
+- **Example:** `git-push-wrapper.sh` handles timeout, platform detection, fallbacks
+- **Benefits:**
+  - Reduces cognitive load on agents/developers
+  - Ensures consistency across invocations
+  - Centralizes platform-specific logic
+  - Makes operations self-documenting
+- **Pattern:** When an operation requires multiple parameters or conditions, wrap it
+- **Contrast:** Document simple operations, wrap complex operations
+- **Best Practice:** "Make the right thing easy and the wrong thing hard"

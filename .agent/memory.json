@@ -1,0 +1,58 @@
+{
+  "project": "namer",
+  "last_updated": "2025-10-13",
+  "critical_knowledge": {
+    "graphql_providers": {
+      "status": "recently_fixed",
+      "issues": {
+        "stashdb": {
+          "issue": "Missing subfield selections for images field in performer blocks",
+          "fixed_in": "hotfix/graphql-schema-fixes",
+          "pr": 132,
+          "lesson": "GraphQL schema validation needs to be added to CI"
+        },
+        "theporndb": {
+          "issue": "Deprecated fields in queries (description, url, hashes, performer structure)",
+          "fixed_in": "hotfix/graphql-schema-fixes",
+          "pr": 132,
+          "lesson": "Schema evolution requires query updates"
+        }
+      },
+      "prevention": "Add GraphQL schema validation to pre-push hooks or CI"
+    },
+    "git_operations": {
+      "push_wrapper": {
+        "script": "scripts/git-push-wrapper.sh",
+        "purpose": "Handles git push timeout automatically (5 minutes)",
+        "usage": "./scripts/git-push-wrapper.sh origin branch-name",
+        "why": "Pre-push hooks take ~2min, need buffer for slow systems",
+        "lesson": "Wrap complex operations in scripts rather than requiring agents to remember parameters"
+      }
+    }
+  },
+  "recent_releases": {
+    "v1.23.3": {
+      "status": "broken",
+      "issues": ["GraphQL schema mismatches breaking both metadata providers"],
+      "hotfix": "v1.23.4 pending"
+    }
+  },
+  "active_branches": {
+    "hotfix/graphql-schema-fixes": {
+      "purpose": "Fix GraphQL schema validation errors",
+      "status": "PR created (#132)",
+      "target": "main",
+      "issues_fixed": [130, 131]
+    },
+    "chore/increase-bash-timeout": {
+      "purpose": "Add git-push-wrapper.sh and document timeout requirements",
+      "status": "PR created (#133)",
+      "target": "develop"
+    }
+  },
+  "workflow_patterns": {
+    "hotfix_validation": "Hotfix from main is correct for production emergencies affecting all users",
+    "timeout_strategy": "5 minutes for git operations (2min typical + generous buffer)",
+    "wrapper_scripts": "Prefer wrapper scripts over documented parameters for complex operations"
+  }
+}
