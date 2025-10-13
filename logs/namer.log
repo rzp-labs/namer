@@ -1,0 +1,41 @@
+StashDB
+
+2025-10-13 12:20:08 | ℹ️ INFO     | ffmpeg version "6.1.1-3ubuntu5" found
+2025-10-13 12:20:08 | ℹ️ INFO     | ffprobe version "6.1.1-3ubuntu5" found
+2025-10-13 12:20:08 | ℹ️ INFO     | Logged as roznehp (b9e6ab24-c49f-4a46-847f-929999a82947)
+2025-10-13 12:20:08 | ℹ️ INFO     | Start STASHDB metadata watcher.... watching: /app/media/1-watch
+Namer version: 1.23.4
+Built on: 2025-10-13T19:13:15.630Z
+Git Hash: bea5bbf27d98553691cab10784730ed9fe59e558
+2025-10-13 12:20:08 | ℹ️ INFO     | Starting server: http://0.0.0.0:6980/
+2025-10-13 12:22:40 | ℹ️ INFO     | watchdog process called for Jessa Rhodes - [2DropsStudio] - The Glaze.mp4
+2025-10-13 12:23:10 | ℹ️ INFO     | Moving /app/media/1-watch/Jessa Rhodes - [2DropsStudio] - The Glaze.mp4 to /app/media/2-work/Jessa Rhodes - [2DropsStudio] - The Glaze.mp4 for processing
+2025-10-13 12:23:10 | ℹ️ INFO     | Processing: /app/media/2-work/Jessa Rhodes - [2DropsStudio] - The Glaze.mp4
+2025-10-13 12:23:10 | ℹ️ INFO     | Getting phash from db for file "/app/media/2-work/Jessa Rhodes - [2DropsStudio] - The Glaze.mp4"
+2025-10-13 12:23:10 | ℹ️ INFO     | Calculated hashes: {'duration': 535, 'phash': 'e4530a6f644ef32c', 'oshash': '14c61583d9cb9a78'}
+2025-10-13 12:23:11 | ❌ ERROR    | StashDB API error: 422 - {"errors":[{"message":"Field \"urls\" of type \"[URL!]!\" must have a selection of subfields. Did you mean \"urls { ... }\"?","locations":[{"line":7,"column":25}],"extensions":{"code":"GRAPHQL_VALIDATION_FAILED"}},{"message":"Field \"images\" of type \"[Image!]!\" must have a selection of subfields. Did you mean \"images { ... }\"?","locations":[{"line":10,"column":25}],"extensions":{"code":"GRAPHQL_VALIDATION_FAILED"}}],"data":null}
+2025-10-13 12:23:11 | ℹ️ INFO     | PHASH threshold met: 0f1cdfd7-36e3-4602-ba93-ed17f6d06428 accounts for 1.00 of 53 submissions (threshold 1.00). Returning confident match.
+2025-10-13 12:23:11 | ℹ️ INFO     | ffprobe file "/app/media/2-work/Jessa Rhodes - [2DropsStudio] - The Glaze.mp4"
+2025-10-13 12:23:11 | ℹ️ INFO     | Done tagging file: /app/media/3-import/2 Drops - 2021-08-06 - Jessa Rhodes - The Glaze/2 Drops - 2021-08-06 - Jessa Rhodes - The Glaze [WEBDL-2160p].mp4
+2025-10-13 12:23:11 | ✅ SUCCESS  | Done processing file: /app/media/2-work/Jessa Rhodes - [2DropsStudio] - The Glaze.mp4, moved to /app/media/3-import/2 Drops - 2021-08-06 - Jessa Rhodes - The Glaze/2 Drops - 2021-08-06 - Jessa Rhodes - The Glaze [WEBDL-2160p].mp4
+
+ThePornDB
+
+2025-10-13 12:20:08 | ℹ️ INFO     | ffmpeg version "6.1.1-3ubuntu5" found
+2025-10-13 12:20:08 | ℹ️ INFO     | ffprobe version "6.1.1-3ubuntu5" found
+2025-10-13 12:20:08 | ℹ️ INFO     | Logged as rzp (73982)
+2025-10-13 12:20:08 | ℹ️ INFO     | Start THEPORNDB metadata watcher.... watching: /app/media/1-watch
+Namer version: 1.23.4
+Built on: 2025-10-13T19:13:15.630Z
+Git Hash: bea5bbf27d98553691cab10784730ed9fe59e558
+2025-10-13 12:20:08 | ℹ️ INFO     | Starting server: http://0.0.0.0:6980/
+2025-10-13 12:20:28 | ℹ️ INFO     | watchdog process called for Jessa Rhodes - [2DropsStudio] - The Glaze.mp4
+2025-10-13 12:20:58 | ℹ️ INFO     | Moving /app/media/1-watch/Jessa Rhodes - [2DropsStudio] - The Glaze.mp4 to /app/media/2-work/Jessa Rhodes - [2DropsStudio] - The Glaze.mp4 for processing
+2025-10-13 12:20:58 | ℹ️ INFO     | Processing: /app/media/2-work/Jessa Rhodes - [2DropsStudio] - The Glaze.mp4
+2025-10-13 12:20:58 | ℹ️ INFO     | Getting phash from db for file "/app/media/2-work/Jessa Rhodes - [2DropsStudio] - The Glaze.mp4"
+2025-10-13 12:20:58 | ℹ️ INFO     | Calculated hashes: {'duration': 535, 'phash': 'e4530a6f644ef32c', 'oshash': '14c61583d9cb9a78'}
+2025-10-13 12:20:58 | ❌ ERROR    | GraphQL error: Cannot query field "view" on type "URL".
+2025-10-13 12:20:58 | ❌ ERROR    | GraphQL error: Cannot query field "site" on type "Scene". Did you mean "date" or "title"?
+2025-10-13 12:20:58 | ❌ ERROR    | GraphQL error: Cannot query field "image" on type "Performer". Did you mean "images", "age", or "name"?
+2025-10-13 12:20:58 | ℹ️ INFO     | No metadata candidates for /app/media/2-work/Jessa Rhodes - [2DropsStudio] - The Glaze.mp4; routing to failed directory
+2025-10-13 12:20:58 | ℹ️ INFO     | Moving /app/media/2-work/Jessa Rhodes - [2DropsStudio] - The Glaze.mp4 to /app/media/4-failed/Jessa Rhodes - [2DropsStudio] - The Glaze.mp4 for processing

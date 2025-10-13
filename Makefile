@@ -19,6 +19,7 @@ SCRIPT_DIR = ./scripts
         build-local build-local-deps build-local-full \
         run run-port \
         docs branch diff commits \
+        check-schema-drift update-schema-docs \
         quick ci fix
 
 help: ## Show available targets
@@ -256,3 +257,11 @@ quick: lint-fix test-local ## Quick feedback (fix lint + fast tests)
 ci: lint format-check typecheck test-local-all ## Simulate CI checks locally
 
 fix: lint-fix format ## Fix all auto-fixable issues
+
+# --- GraphQL Schema Management ---
+
+check-schema-drift: ## Check for GraphQL schema drift (requires STASHDB_TOKEN, TPDB_TOKEN)
+	@./scripts/check-schema-drift.sh
+
+update-schema-docs: ## Update GraphQL schema documentation (requires STASHDB_TOKEN, TPDB_TOKEN)
+	@./scripts/update-schema-docs.sh
