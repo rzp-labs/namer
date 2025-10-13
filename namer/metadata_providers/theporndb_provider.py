@@ -430,19 +430,16 @@ class ThePornDBProvider(BaseMetadataProvider):
                     id
                     title
                     date
-                    description
                     duration
-                    url
                     urls { view }
                     site { name parent { name } network { name } }
                     performers {
-                        name
-                        parent { name image extras { gender } }
-                        image
-                        extras { gender }
+                        performer {
+                            name
+                            image
+                        }
                     }
                     tags { name }
-                    hashes { hash type duration }
                 }
             }
         """
@@ -484,9 +481,7 @@ class ThePornDBProvider(BaseMetadataProvider):
                     id
                     title
                     date
-                    description
                     duration
-                    url
                     urls {
                         view
                     }
@@ -501,26 +496,13 @@ class ThePornDBProvider(BaseMetadataProvider):
                         }
                     }
                     performers {
-                        name
-                        parent {
+                        performer {
                             name
                             image
-                            extras {
-                                gender
-                            }
-                        }
-                        image
-                        extras {
-                            gender
                         }
                     }
                     tags {
                         name
-                    }
-                    hashes {
-                        hash
-                        type
-                        duration
                     }
                 }
             }
@@ -687,26 +669,13 @@ def _build_graphql_query(query_type: str, variables: Dict[str, Any]) -> Dict[str
                         }
                     }
                     performers {
-                        name
-                        parent {
+                        performer {
                             name
                             image
-                            extras {
-                                gender
-                            }
-                        }
-                        image
-                        extras {
-                            gender
                         }
                     }
                     tags {
                         name
-                    }
-                    hashes {
-                        hash
-                        type
-                        duration
                     }
                 }
             }
@@ -730,26 +699,13 @@ def _build_graphql_query(query_type: str, variables: Dict[str, Any]) -> Dict[str
                         }
                     }
                     performers {
-                        name
-                        parent {
+                        performer {
                             name
                             image
-                            extras {
-                                gender
-                            }
-                        }
-                        image
-                        extras {
-                            gender
                         }
                     }
                     tags {
                         name
-                    }
-                    hashes {
-                        hash
-                        type
-                        duration
                     }
                 }
             }
