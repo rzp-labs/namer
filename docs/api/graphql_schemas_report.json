@@ -1,6 +1,9 @@
 {
   "search_summary": {
-    "platforms_searched": ["stashdb.org", "theporndb.net"],
+    "platforms_searched": [
+      "stashdb.org",
+      "theporndb.net"
+    ],
     "repositories_analyzed": 2,
     "docs_reviewed": 2,
     "introspection_performed": true,
@@ -49,26 +52,90 @@
         "favorite_performer": "favoritePerformer(id: ID!, favorite: Boolean!): Boolean!",
         "favorite_studio": "favoriteStudio(id: ID!, favorite: Boolean!): Boolean!"
       },
-      "fingerprint_algorithms": ["MD5", "PHASH", "OSHASH"],
+      "fingerprint_algorithms": [
+        "MD5",
+        "PHASH",
+        "OSHASH"
+      ],
       "key_types": {
         "Scene": {
-          "fields": ["id", "title", "date", "release_date", "production_date", "urls", "studio", "performers", "tags", "images", "fingerprints", "duration", "director", "code", "deleted"],
-          "notable_features": ["Separate release_date and production_date", "Non-null array fields", "Typed enums for related data"]
+          "fields": [
+            "id",
+            "title",
+            "date",
+            "release_date",
+            "production_date",
+            "urls",
+            "studio",
+            "performers",
+            "tags",
+            "images",
+            "fingerprints",
+            "duration",
+            "director",
+            "code",
+            "deleted"
+          ],
+          "notable_features": [
+            "Separate release_date and production_date",
+            "Non-null array fields",
+            "Typed enums for related data"
+          ]
         },
         "Performer": {
-          "fields": ["id", "name", "aliases", "gender", "birthdate", "ethnicity", "country", "measurements", "tattoos", "piercings", "scene_count"],
-          "notable_features": ["GenderEnum type", "Body modifications as structured data", "Merge tracking (merged_ids, merged_into_id)"]
+          "fields": [
+            "id",
+            "name",
+            "aliases",
+            "gender",
+            "birthdate",
+            "ethnicity",
+            "country",
+            "measurements",
+            "tattoos",
+            "piercings",
+            "scene_count"
+          ],
+          "notable_features": [
+            "GenderEnum type",
+            "Body modifications as structured data",
+            "Merge tracking (merged_ids, merged_into_id)"
+          ]
         },
         "Fingerprint": {
-          "fields": ["hash", "algorithm", "duration", "submissions", "reports", "user_submitted", "user_reported"],
-          "notable_features": ["FingerprintAlgorithm enum", "Mismatch reporting", "User attribution"]
+          "fields": [
+            "hash",
+            "algorithm",
+            "duration",
+            "submissions",
+            "reports",
+            "user_submitted",
+            "user_reported"
+          ],
+          "notable_features": [
+            "FingerprintAlgorithm enum",
+            "Mismatch reporting",
+            "User attribution"
+          ]
         }
       },
       "deprecations": [
-        {"field": "Scene.date", "replacement": "Scene.release_date"},
-        {"field": "Performer.birthdate", "replacement": "Performer.birth_date"},
-        {"field": "Performer.measurements", "replacement": "Individual fields (cup_size, band_size, etc.)"},
-        {"field": "URL.type", "replacement": "URL.site"}
+        {
+          "field": "Scene.date",
+          "replacement": "Scene.release_date"
+        },
+        {
+          "field": "Performer.birthdate",
+          "replacement": "Performer.birth_date"
+        },
+        {
+          "field": "Performer.measurements",
+          "replacement": "Individual fields (cup_size, band_size, etc.)"
+        },
+        {
+          "field": "URL.type",
+          "replacement": "URL.site"
+        }
       ],
       "rate_limiting": {
         "implemented": true,
@@ -116,19 +183,67 @@
         "favorite_performer": "favoritePerformer(id: ID!, favorite: Boolean!): Boolean!",
         "favorite_studio": "favoriteStudio(id: ID!, favorite: Boolean!): Boolean!"
       },
-      "fingerprint_algorithms": ["MD5", "PHASH", "OSHASH", "CRC32"],
+      "fingerprint_algorithms": [
+        "MD5",
+        "PHASH",
+        "OSHASH",
+        "CRC32"
+      ],
       "key_types": {
         "Scene": {
-          "fields": ["id", "title", "date", "release_date", "production_date", "urls", "site", "studio", "performers", "tags", "images", "fingerprints", "duration", "director", "code"],
-          "notable_features": ["Both site and studio fields", "urls[].view for source URLs", "Simpler structure"]
+          "fields": [
+            "id",
+            "title",
+            "date",
+            "release_date",
+            "production_date",
+            "urls",
+            "site",
+            "studio",
+            "performers",
+            "tags",
+            "images",
+            "fingerprints",
+            "duration",
+            "director",
+            "code"
+          ],
+          "notable_features": [
+            "Both site and studio fields",
+            "urls[].view for source URLs",
+            "Simpler structure"
+          ]
         },
         "Performer": {
-          "fields": ["id", "name", "aliases", "gender", "birth_date", "ethnicity", "country", "height", "measurements"],
-          "notable_features": ["String-based gender (not enum)", "Measurements as structured object", "scene_count for popularity"]
+          "fields": [
+            "id",
+            "name",
+            "aliases",
+            "gender",
+            "birth_date",
+            "ethnicity",
+            "country",
+            "height",
+            "measurements"
+          ],
+          "notable_features": [
+            "String-based gender (not enum)",
+            "Measurements as structured object",
+            "scene_count for popularity"
+          ]
         },
         "Fingerprint": {
-          "fields": ["hash", "algorithm", "duration", "submissions", "user_submitted"],
-          "notable_features": ["String-based algorithm (not enum)", "Community submission tracking"]
+          "fields": [
+            "hash",
+            "algorithm",
+            "duration",
+            "submissions",
+            "user_submitted"
+          ],
+          "notable_features": [
+            "String-based algorithm (not enum)",
+            "Community submission tracking"
+          ]
         }
       },
       "deprecations": [],
@@ -250,12 +365,12 @@
       "relevance": "Primary schema source for ThePornDB provider implementation"
     },
     {
-      "citation": "[3] Namer Project. \"stashdb_provider.py.\" GitHub, 2025. /Users/stephen/Projects/rzp-labs/namer/namer/metadata_providers/stashdb_provider.py",
+      "citation": "[3] Namer Project. \"stashdb_provider.py.\" GitHub, 2025. namer/metadata_providers/stashdb_provider.py",
       "type": "code_repository",
       "relevance": "Implementation reference for StashDB GraphQL queries"
     },
     {
-      "citation": "[4] Namer Project. \"theporndb_provider.py.\" GitHub, 2025. /Users/stephen/Projects/rzp-labs/namer/namer/metadata_providers/theporndb_provider.py",
+      "citation": "[4] Namer Project. \"theporndb_provider.py.\" GitHub, 2025. namer/metadata_providers/theporndb_provider.py",
       "type": "code_repository",
       "relevance": "Implementation reference for ThePornDB GraphQL queries"
     }
@@ -265,9 +380,9 @@
     "author": "Technical Research Agent (Claude Code)",
     "version": "1.0",
     "schema_files": {
-      "stashdb": "/tmp/stashdb_schema.json",
-      "theporndb": "/tmp/tpdb_schema.json",
-      "documentation": "/tmp/graphql_schema_documentation.md"
+      "stashdb": "docs/api/stashdb_schema.json",
+      "theporndb": "docs/api/tpdb_schema.json",
+      "documentation": "docs/api/graphql_schema_documentation.md"
     }
   }
 }
