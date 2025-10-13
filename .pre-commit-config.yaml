@@ -47,6 +47,16 @@ repos:
   # Local hooks for pre-commit
   - repo: local
     hooks:
+      # Pre-commit config validation
+      # Only runs when .pre-commit-config.yaml is modified
+      - id: validate-pre-commit-config
+        name: validate pre-commit config
+        entry: pre-commit validate-config
+        language: system
+        files: ^\.pre-commit-config\.yaml$
+        pass_filenames: true
+        stages: [pre-commit]
+
       # Type checking - catch type errors early before they accumulate
       - id: mypy
         name: mypy type checking
