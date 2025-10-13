@@ -5,6 +5,7 @@ This guide explains how to maintain and monitor GraphQL schema documentation for
 ## Overview
 
 Namer integrates with two external GraphQL APIs:
+
 - **StashDB** (stashdb.org)
 - **ThePornDB** (theporndb.net)
 
@@ -113,6 +114,7 @@ query IntrospectionQuery {
 ```
 
 This returns the **entire schema structure** including:
+
 - All types (objects, enums, interfaces, unions)
 - All queries and mutations
 - Field definitions and arguments
@@ -128,6 +130,7 @@ The drift detection process:
 4. **Report** findings with detailed diffs
 
 **Exit codes:**
+
 - `0` = No drift (schemas match)
 - `1` = Drift detected (schemas differ)
 - `2` = No baseline found
@@ -137,16 +140,19 @@ The drift detection process:
 GitHub Actions workflow runs:
 
 **Weekly Schedule:**
+
 - Every Monday at 9 AM UTC
 - Checks for drift automatically
 - Creates GitHub issue if drift detected
 
 **On Pull Requests:**
+
 - When metadata provider code changes
 - When schema docs change
 - Fails PR if drift detected without doc updates
 
 **Manual Trigger:**
+
 - Via GitHub Actions UI
 - For on-demand checks
 
@@ -169,6 +175,7 @@ export TPDB_TOKEN="your_token"
 ```
 
 **Output:**
+
 ```
 === GraphQL Schema Drift Detection ===
 
@@ -203,12 +210,14 @@ export TPDB_TOKEN="your_token"
 ```
 
 This will:
+
 1. Fetch latest schemas
 2. Save to `docs/api/`
 3. Regenerate markdown documentation
 4. Display next steps
 
 **Next steps after update:**
+
 ```bash
 # 1. Review changes
 git diff docs/api/
@@ -228,11 +237,13 @@ git commit -m "docs: update GraphQL schemas"
 The schema drift check workflow runs automatically:
 
 **1. Weekly Schedule (Monday 9 AM UTC)**
+
 - Checks both APIs for changes
 - Creates GitHub issue if drift detected
 - Uploads diff artifacts
 
 **2. Pull Request Changes**
+
 - Runs on changes to:
   - `namer/metadata_providers/**`
   - `docs/api/**`
@@ -240,6 +251,7 @@ The schema drift check workflow runs automatically:
 - Fails PR if schemas outdated
 
 **3. Manual Dispatch**
+
 - Run via Actions UI
 - Useful for ad-hoc checks
 
@@ -252,6 +264,7 @@ When drift is detected on schedule, an issue is automatically created:
 **Labels:** `schema-drift`, `documentation`, `maintenance`
 
 **Content:**
+
 - Summary of changes
 - Link to workflow run
 - Detailed action items
@@ -262,6 +275,7 @@ If an open drift issue already exists, a comment is added instead.
 #### Artifacts
 
 Workflow uploads:
+
 - `*_drift.diff` - Detailed schema diffs
 - `schema_drift_report.md` - Summary report
 
@@ -281,6 +295,7 @@ TPDB_TOKEN       # ThePornDB Bearer token
 ```
 
 **Local development:**
+
 ```bash
 export STASHDB_TOKEN="your_stashdb_key"
 export TPDB_TOKEN="your_theporndb_token"
@@ -289,6 +304,7 @@ export TPDB_TOKEN="your_theporndb_token"
 ### Testing Authentication
 
 **StashDB:**
+
 ```bash
 curl -X POST https://stashdb.org/graphql \
   -H "APIKey: $STASHDB_TOKEN" \
@@ -297,6 +313,7 @@ curl -X POST https://stashdb.org/graphql \
 ```
 
 **ThePornDB:**
+
 ```bash
 curl -X POST https://theporndb.net/graphql \
   -H "Authorization: Bearer $TPDB_TOKEN" \
@@ -305,6 +322,7 @@ curl -X POST https://theporndb.net/graphql \
 ```
 
 **Expected response:**
+
 ```json
 {
   "data": {
@@ -326,18 +344,21 @@ curl -X POST https://theporndb.net/graphql \
 #### 1. **Breaking Changes** (High Priority)
 
 **Indicators:**
+
 - Removed types or fields
 - Changed field types
 - Removed enum values
 - Required fields added
 
 **Action Required:**
+
 - Update integration code immediately
 - Add compatibility layer if needed
 - Update tests
 - Document breaking change
 
 **Example:**
+
 ```diff
 - "name": "studio"
 + "name": "site"
@@ -346,17 +367,20 @@ curl -X POST https://theporndb.net/graphql \
 #### 2. **Additions** (Medium Priority)
 
 **Indicators:**
+
 - New types added
 - New fields added
 - New enum values
 
 **Action Required:**
+
 - Review for useful new features
 - Consider integrating new fields
 - Update documentation
 - Optional: enhance integration
 
 **Example:**
+
 ```diff
   fields: [
     { name: "title" },
@@ -368,15 +392,18 @@ curl -X POST https://theporndb.net/graphql \
 #### 3. **Deprecations** (Medium Priority)
 
 **Indicators:**
+
 - Fields marked deprecated
 - Deprecation reason provided
 
 **Action Required:**
+
 - Plan migration to new fields
 - Test with deprecated fields
 - Schedule update work
 
 **Example:**
+
 ```diff
   fields: [
     {
@@ -391,11 +418,13 @@ curl -X POST https://theporndb.net/graphql \
 #### 4. **Documentation Changes** (Low Priority)
 
 **Indicators:**
+
 - Description text changes
 - Comment updates
 - No structural changes
 
 **Action Required:**
+
 - Update documentation
 - Review for clarifications
 
@@ -406,6 +435,7 @@ curl -X POST https://theporndb.net/graphql \
 ### 1. Regular Checks
 
 Run drift detection:
+
 - **Before** starting integration work
 - **After** API announcements
 - **Weekly** via CI automation
@@ -413,11 +443,13 @@ Run drift detection:
 ### 2. Version Control
 
 Always commit schema updates with:
+
 - Clear commit message
 - Link to API changelog if available
 - Summary of breaking changes
 
 **Example commit:**
+
 ```bash
 git commit -m "docs: update ThePornDB schema - add director field
 
@@ -448,6 +480,7 @@ STASHDB_TOKEN=$STASHDB_TOKEN TPDB_TOKEN=$TPDB_TOKEN \
 ### 4. Communication
 
 When drift detected:
+
 - **Internal:** Update team via issue/PR comments
 - **Documentation:** Update CHANGELOG.md
 - **Users:** Mention in release notes if user-facing
@@ -461,12 +494,14 @@ When drift detected:
 #### 1. Authentication Failures
 
 **Symptom:**
+
 ```
 Error fetching stashdb schema:
 [{"message": "Unauthorized"}]
 ```
 
 **Solutions:**
+
 - Verify token is set: `echo $STASHDB_TOKEN`
 - Test auth manually (see Authentication section)
 - Check token hasn't expired
@@ -475,11 +510,13 @@ Error fetching stashdb schema:
 #### 2. Rate Limiting
 
 **Symptom:**
+
 ```
 Error: 429 Too Many Requests
 ```
 
 **Solutions:**
+
 - Wait before retrying
 - Reduce check frequency
 - Contact API provider for rate limit increase
@@ -490,11 +527,13 @@ Error: 429 Too Many Requests
 Schema diff shows changes but API didn't change.
 
 **Causes:**
+
 - Field order differences (normalized by script)
 - Whitespace differences (normalized by script)
 - JSON formatting differences (normalized by script)
 
 **Solutions:**
+
 - Check if changes are structural or cosmetic
 - Review normalized diffs in `/tmp/`
 - Manually inspect schema files
@@ -502,11 +541,13 @@ Schema diff shows changes but API didn't change.
 #### 4. Network Issues
 
 **Symptom:**
+
 ```
 curl: (6) Could not resolve host
 ```
 
 **Solutions:**
+
 - Check internet connectivity
 - Verify endpoint URLs
 - Check for DNS issues
@@ -543,6 +584,7 @@ curl: (6) Could not resolve host
 ### Breaking API Change Without Notice
 
 **Symptoms:**
+
 - Integration tests suddenly fail
 - Production errors from metadata providers
 - Unexpected API responses
@@ -550,11 +592,13 @@ curl: (6) Could not resolve host
 **Immediate Actions:**
 
 1. **Identify scope:**
+
    ```bash
    make check-schema-drift
    ```
 
 2. **Review diff:**
+
    ```bash
    cat /tmp/*_drift.diff
    ```
@@ -565,6 +609,7 @@ curl: (6) Could not resolve host
    - **Option C:** Update integration code
 
 4. **Update documentation:**
+
    ```bash
    make update-schema-docs
    git add docs/api/
@@ -572,6 +617,7 @@ curl: (6) Could not resolve host
    ```
 
 5. **Test thoroughly:**
+
    ```bash
    poetry run pytest
    ```
@@ -584,23 +630,27 @@ curl: (6) Could not resolve host
 ### Schema File Corruption
 
 **Symptoms:**
+
 - `jq` errors when reading schema files
 - Invalid JSON in baseline files
 
 **Recovery:**
 
 1. **Fetch fresh schemas:**
+
    ```bash
    make update-schema-docs
    ```
 
 2. **Verify JSON validity:**
+
    ```bash
    jq empty docs/api/stashdb_schema.json
    jq empty docs/api/tpdb_schema.json
    ```
 
 3. **If still corrupted, restore from git:**
+
    ```bash
    git checkout HEAD -- docs/api/stashdb_schema.json
    git checkout HEAD -- docs/api/tpdb_schema.json
@@ -615,12 +665,14 @@ curl: (6) Could not resolve host
 When adding a new GraphQL provider:
 
 1. **Add endpoint configuration:**
+
    ```python
    # namer/metadata_providers/new_provider.py
    ENDPOINT = "https://api.example.com/graphql"
    ```
 
 2. **Fetch initial schema:**
+
    ```bash
    # Manually fetch and save baseline
    curl -X POST "$ENDPOINT" \
@@ -631,6 +683,7 @@ When adding a new GraphQL provider:
    ```
 
 3. **Update drift detection script:**
+
    ```bash
    # Add to scripts/check-schema-drift.sh
    fetch_schema "newprovider" "$ENDPOINT" "Authorization" "Bearer $TOKEN"
@@ -638,6 +691,7 @@ When adding a new GraphQL provider:
    ```
 
 4. **Update CI workflow:**
+
    ```yaml
    # Add secret requirement in .github/workflows/schema-drift-check.yml
    env:

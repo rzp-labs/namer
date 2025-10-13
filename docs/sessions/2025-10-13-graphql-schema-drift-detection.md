@@ -16,6 +16,7 @@ Implemented a comprehensive GraphQL schema drift detection system to monitor and
 ## Problem Statement
 
 Namer integrates with two external GraphQL APIs (StashDB and ThePornDB) that can change without notice. Silent API changes can:
+
 - Break production integrations
 - Cause mysterious errors in metadata retrieval
 - Lead to data quality issues
@@ -28,23 +29,27 @@ Namer integrates with two external GraphQL APIs (StashDB and ThePornDB) that can
 ## Solution Architecture
 
 ### 1. Schema Introspection
+
 - Fetch complete schema metadata via GraphQL `__schema` queries
 - Capture types, queries, mutations, fields, and relationships
 - Store baseline schemas in version control
 
 ### 2. Drift Detection
+
 - Normalize schemas (sort, format) to avoid false positives
 - Compare current vs baseline using `diff`
 - Generate detailed diffs with change summaries
 - Classify changes: breaking vs additive
 
 ### 3. CI Integration
+
 - Weekly automated checks (Monday 9 AM UTC)
 - PR validation on provider code changes
 - Automatic GitHub issue creation
 - Artifact storage for investigation
 
 ### 4. Documentation
+
 - Baseline schemas in `docs/api/`
 - Human-readable documentation
 - Operational maintenance guide
@@ -57,6 +62,7 @@ Namer integrates with two external GraphQL APIs (StashDB and ThePornDB) that can
 ### Files Created
 
 **Scripts:**
+
 - `scripts/check-schema-drift.sh` (147 lines)
   - GraphQL introspection queries
   - Schema fetching with authentication
@@ -70,6 +76,7 @@ Namer integrates with two external GraphQL APIs (StashDB and ThePornDB) that can
   - Baseline update workflow
 
 **CI/CD:**
+
 - `.github/workflows/schema-drift-check.yml` (156 lines)
   - Weekly schedule trigger
   - PR validation trigger
@@ -77,6 +84,7 @@ Namer integrates with two external GraphQL APIs (StashDB and ThePornDB) that can
   - Artifact upload (30-day retention)
 
 **Documentation:**
+
 - `docs/api/SCHEMA_MAINTENANCE.md` (500+ lines)
   - Architecture overview
   - Usage instructions
@@ -85,38 +93,45 @@ Namer integrates with two external GraphQL APIs (StashDB and ThePornDB) that can
   - Best practices
 
 **Baseline Schemas:**
+
 - `docs/api/stashdb_schema.json` (212 KB)
 - `docs/api/tpdb_schema.json` (48 KB)
 - `docs/api/graphql_schema_documentation.md` (19 KB)
 - `docs/api/graphql_schemas_report.json` (13 KB)
 
 **Integration:**
+
 - `Makefile` - Added `check-schema-drift` and `update-schema-docs` targets
 - `CLAUDE.md` - Added External API Integration section and Lesson #12
 
 ### Key Technical Decisions
 
 **1. Introspection Over Scraping**
+
 - Decision: Use GraphQL introspection instead of parsing API docs
 - Rationale: More reliable, always current, machine-readable
 - Trade-off: Requires valid API tokens
 
 **2. Normalized Comparison**
+
 - Decision: Sort and format schemas before comparison
 - Rationale: Avoid false positives from formatting changes
 - Implementation: `jq 'walk(if type == "array" then sort_by(.name // .) else . end)'`
 
 **3. Weekly Schedule**
+
 - Decision: Monday 9 AM UTC weekly checks
 - Rationale: Balances monitoring frequency with noise reduction
 - Alternative considered: Daily (too noisy), Monthly (too slow)
 
 **4. Baseline in Version Control**
+
 - Decision: Store complete schemas in `docs/api/`
 - Rationale: Git history tracks API evolution, enables rollback
 - Trade-off: Large JSON files in repo (acceptable at 212 KB + 48 KB)
 
 **5. GitHub Issue Automation**
+
 - Decision: Auto-create issues on drift detection
 - Rationale: Ensures visibility, tracks resolution
 - Implementation: Check for existing open issues to avoid duplicates
@@ -126,24 +141,29 @@ Namer integrates with two external GraphQL APIs (StashDB and ThePornDB) that can
 ## Authentication Details
 
 ### StashDB
+
 ```bash
 curl -X POST https://stashdb.org/graphql \
   -H "APIKey: $STASHDB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"query":"..."}'
 ```
+
 **Note:** Non-standard `APIKey` header (not `Authorization: Bearer`)
 
 ### ThePornDB
+
 ```bash
 curl -X POST https://theporndb.net/graphql \
   -H "Authorization: Bearer $TPDB_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"query":"..."}'
 ```
+
 **Note:** Standard `Authorization: Bearer` header
 
 ### Field Differences
+
 | Feature | StashDB | ThePornDB |
 |---------|---------|-----------|
 | Studio/Site | `studio` | `site` |
@@ -158,6 +178,7 @@ curl -X POST https://theporndb.net/graphql \
 ### Local Development
 
 **Check for drift:**
+
 ```bash
 export STASHDB_TOKEN="your_token"
 export TPDB_TOKEN="your_token"
@@ -165,6 +186,7 @@ make check-schema-drift
 ```
 
 **Update documentation:**
+
 ```bash
 make update-schema-docs
 git add docs/api/
@@ -174,6 +196,7 @@ git commit -m "docs: update GraphQL schemas"
 ### CI/CD
 
 **Weekly Schedule:**
+
 - Runs every Monday at 9 AM UTC
 - Fetches current schemas
 - Compares with baseline
@@ -181,6 +204,7 @@ git commit -m "docs: update GraphQL schemas"
 - Uploads diff artifacts
 
 **PR Validation:**
+
 - Triggers on changes to `namer/metadata_providers/**` or `docs/api/**`
 - Fails PR if schemas outdated
 - Comments on PR with drift details
@@ -190,7 +214,9 @@ git commit -m "docs: update GraphQL schemas"
 ## Key Learnings
 
 ### 1. Introspection Reliability
+
 GraphQL introspection is more reliable than:
+
 - Parsing HTML documentation
 - Scraping API explorers
 - Manual schema documentation
@@ -198,7 +224,9 @@ GraphQL introspection is more reliable than:
 **Benefit:** Always current, machine-readable, complete
 
 ### 2. Normalization Critical
+
 Format-only changes create false positives without normalization:
+
 - Field order differences
 - Whitespace variations
 - JSON formatting style
@@ -206,22 +234,27 @@ Format-only changes create false positives without normalization:
 **Solution:** Sort by name, consistent formatting via `jq`
 
 ### 3. Authentication Gotchas
+
 - StashDB's non-standard `APIKey` header caught us initially
 - Different field names require mapping in integration code
 - Testing auth early (via `me` query) prevents debugging later
 
 ### 4. CI Schedule Balance
+
 - Too frequent = noise, alert fatigue
 - Too infrequent = miss breaking changes
 - Weekly = good balance for these APIs
 
 ### 5. Diff Quality Matters
+
 - Raw JSON diffs are unreadable
 - Summarized changes (types added/removed/modified) essential
 - First 50 lines + full file provides right balance
 
 ### 6. Emergency Response
+
 Having documented procedures for breaking changes:
+
 1. Reduces panic
 2. Ensures consistent handling
 3. Captures knowledge for future incidents
@@ -231,6 +264,7 @@ Having documented procedures for breaking changes:
 ## Testing & Validation
 
 ### Manual Testing
+
 ```bash
 # 1. Test drift detection (expect no drift on first run)
 ./scripts/check-schema-drift.sh
@@ -247,14 +281,18 @@ jq empty docs/api/tpdb_schema.json
 ```
 
 ### Shellcheck Validation
+
 All scripts passed shellcheck with proper:
+
 - Quote handling
 - Variable scoping
 - Error handling
 - Temp file cleanup
 
 ### Actionlint Validation
+
 GitHub Actions workflow validated for:
+
 - Proper shell quoting in run blocks
 - Efficient output redirection patterns
 - Variable interpolation
@@ -264,27 +302,33 @@ GitHub Actions workflow validated for:
 ## ROI & Impact
 
 ### Prevents Production Failures
+
 - Silent API changes detected before breaking production
 - Proactive updates vs reactive firefighting
 - Clear visibility into what changed
 
 ### Reduces Debugging Time
+
 - Detailed diffs eliminate mystery errors
 - Know exactly what changed in API
 - Clear mapping between old/new field names
 
 ### Documents API Evolution
+
 - Git history tracks schema changes over time
 - Baseline schemas serve as point-in-time snapshots
 - Useful for understanding API maturity
 
 ### Time Savings
+
 **Before:**
+
 - Mystery error in production → 2-4 hours debugging
 - Reverse engineer API changes from error messages
 - Emergency hotfix required
 
 **After:**
+
 - CI alert → 15 minutes review diff
 - Update integration code proactively
 - Deploy during normal cycle
@@ -349,11 +393,13 @@ GitHub Actions workflow validated for:
 ### Before Merge
 
 1. **Push branch:**
+
    ```bash
    git push -u origin feature/graphql-schema-drift-detection
    ```
 
 2. **Create PR:**
+
    ```bash
    gh pr create \
      --title "feat: GraphQL schema drift detection system" \
@@ -391,7 +437,7 @@ GitHub Actions workflow validated for:
 - **StashDB Provider:** `namer/metadata_providers/stashdb_provider.py`
 - **ThePornDB Provider:** `namer/metadata_providers/theporndb_provider.py`
 - **CI Workflow:** `.github/workflows/schema-drift-check.yml`
-- **GraphQL Introspection Spec:** https://spec.graphql.org/October2021/#sec-Introspection
+- **GraphQL Introspection Spec:** <https://spec.graphql.org/October2021/#sec-Introspection>
 
 ---
 

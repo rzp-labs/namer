@@ -21,89 +21,112 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 # GraphQL introspection query
 INTROSPECTION_QUERY='query IntrospectionQuery {
   __schema {
-    queryType { name }
-    mutationType { name }
-    subscriptionType { name }
-    types {
-      kind
-      name
-      description
-      fields(includeDeprecated: true) {
-        name
-        description
-        args {
-          name
-          description
-          type { name kind ofType { name kind } }
-        }
-        type { name kind ofType { name kind } }
-        isDeprecated
-        deprecationReason
-      }
-      inputFields {
-        name
-        description
-        type { name kind ofType { name kind } }
-      }
-      interfaces { name }
-      enumValues(includeDeprecated: true) {
-        name
-        description
-        isDeprecated
-        deprecationReason
-      }
-      possibleTypes { name }
-    }
-    directives {
-      name
-      description
-      locations
-      args {
-        name
-        description
-        type { name kind ofType { name kind } }
-      }
-    }
+	queryType { name }
+	mutationType { name }
+	subscriptionType { name }
+	types {
+	  kind
+	  name
+	  description
+	  fields(includeDeprecated: true) {
+		name
+		description
+		args {
+		  name
+		  description
+		  type { name kind ofType { name kind } }
+		}
+		type { name kind ofType { name kind } }
+		isDeprecated
+		deprecationReason
+	  }
+	  inputFields {
+		name
+		description
+		type { name kind ofType { name kind } }
+	  }
+	  interfaces { name }
+	  enumValues(includeDeprecated: true) {
+		name
+		description
+		isDeprecated
+		deprecationReason
+	  }
+	  possibleTypes { name }
+	}
+	directives {
+	  name
+	  description
+	  locations
+	  args {
+		name
+		description
+		type { name kind ofType { name kind } }
+	  }
+	}
   }
 }'
 
 # Function to fetch and save schema
 fetch_and_save_schema() {
-    local service=$1
-    local endpoint=$2
-    local auth_header=$3
-    local token=$4
-    local output_file="$DOCS_DIR/${service}_schema.json"
+	local service=$1
+	local endpoint=$2
+	local auth_header=$3
+	local token=$4
+	local output_file="$DOCS_DIR/${service}_schema.json"
 
-    echo -e "${BLUE}Fetching schema for ${service}...${NC}"
+	echo -e "${BLUE}Fetching schema for ${service}...${NC}"
 
-    local response
-    response=$(curl -s -X POST "$endpoint" \
-        -H "$auth_header: $token" \
-        -H "Content-Type: application/json" \
-        -d "{\"query\":$(echo "$INTROSPECTION_QUERY" | jq -Rs .)}")
+	local response
+	response=$(curl -s -X POST "$endpoint" \
+		-H "$auth_header: $token" \
+		-H "Content-Type: application/json" \
+		-d "{\"query\":$(echo "$INTROSPECTION_QUERY" | jq -Rs .)}")
 
-    if echo "$response" | jq -e '.errors' > /dev/null 2>&1; then
-        echo -e "${RED}Error fetching ${service} schema:${NC}"
-        echo "$response" | jq '.errors'
-        return 1
-    fi
+	if echo "$response" | jq -e '.errors' >/dev/null 2>&1; then
+		echo -e "${RED}Error fetching ${service} schema:${NC}"
+		echo "$response" | jq '.errors'
+		return 1
+	fi
 
-    # Save formatted schema
-    echo "$response" | jq '.data' > "$output_file"
-    echo -e "${GREEN}✓ Schema saved to $output_file${NC}"
+	# Save formatted schema
+	echo "$response" | jq '.data' >"$output_file"
+	echo -e "${GREEN}✓ Schema saved to $output_file${NC}"
 }
 
 # Function to generate markdown documentation
 generate_markdown_docs() {
-    local output_file="$DOCS_DIR/graphql_schema_documentation.md"
+	local output_file="$DOCS_DIR/graphql_schema_documentation.md"
 
-    cat > "$output_file" <<'EOF'
+	# --- Dynamically fetch schema stats ---
+	local STASHDB_SCHEMA="$DOCS_DIR/stashdb_schema.json"
+	local TPDB_SCHEMA="$DOCS_DIR/tpdb_schema.json"
+
+	local STASHDB_TYPES
+	STASHDB_TYPES=$(jq '.__schema.types | length' "$STASHDB_SCHEMA")
+	local STASHDB_QUERIES
+	STASHDB_QUERIES=$(jq --arg qn "$(jq -r '.__schema.queryType.name' "$STASHDB_SCHEMA")" '.__schema.types[] | select(.name == $qn) | .fields | length' "$STASHDB_SCHEMA")
+	local STASHDB_MUTATIONS
+	STASHDB_MUTATIONS=$(jq --arg mn "$(jq -r '.__schema.mutationType.name // ""' "$STASHDB_SCHEMA")" 'if $mn == "" then 0 else .__schema.types[] | select(.name == $mn) | .fields | length end' "$STASHDB_SCHEMA")
+
+	local TPDB_TYPES
+	TPDB_TYPES=$(jq '.__schema.types | length' "$TPDB_SCHEMA")
+	local TPDB_QUERIES
+	TPDB_QUERIES=$(jq --arg qn "$(jq -r '.__schema.queryType.name' "$TPDB_SCHEMA")" '.__schema.types[] | select(.name == $qn) | .fields | length' "$TPDB_SCHEMA")
+	local TPDB_MUTATIONS
+	TPDB_MUTATIONS=$(jq --arg mn "$(jq -r '.__schema.mutationType.name // ""' "$TPDB_SCHEMA")" 'if $mn == "" then 0 else .__schema.types[] | select(.name == $mn) | .fields | length end' "$TPDB_SCHEMA")
+	# --- End stats ---
+
+	# Generate documentation using sed replacements on embedded template
+	local timestamp
+	timestamp=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+	cat >"$output_file" <<'TEMPLATE_EOF'
 # GraphQL Schema Documentation
 
 This document provides comprehensive documentation for the GraphQL APIs used by Namer.
 
-**Last Updated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+**Last Updated:** TIMESTAMP_PLACEHOLDER
 
 ---
 
@@ -145,12 +168,12 @@ curl -X POST https://stashdb.org/graphql \
   -d '{"query":"..."}'
 ```
 
-**Note:** StashDB uses a non-standard `APIKey` header (not `Authorization: Bearer`).
+**Note:** StashDB uses a non-standard \`APIKey\` header (not \`Authorization: Bearer\`).
 
 ### Key Features
-- 181 GraphQL types
-- 35+ queries
-- 70+ mutations
+- STASHDB_TYPES_PLACEHOLDER GraphQL types
+- STASHDB_QUERIES_PLACEHOLDER queries
+- STASHDB_MUTATIONS_PLACEHOLDER mutations
 - Full edit workflow with voting
 - CRUD operations on all entities
 
@@ -200,12 +223,12 @@ curl -X POST https://theporndb.net/graphql \
   -d '{"query":"..."}'
 ```
 
-**Note:** ThePornDB uses standard `Authorization: Bearer` header.
+**Note:** ThePornDB uses standard \`Authorization: Bearer\` header.
 
 ### Key Features
-- 30 GraphQL types
-- 7 queries
-- 5 mutations
+- TPDB_TYPES_PLACEHOLDER GraphQL types
+- TPDB_QUERIES_PLACEHOLDER queries
+- TPDB_MUTATIONS_PLACEHOLDER mutations
 - Streamlined API design
 - Focus on content retrieval
 
@@ -351,15 +374,15 @@ query FindByPHASH($fingerprints: [[FingerprintQueryInput]]!) {
 
 | Feature | StashDB | ThePornDB |
 |---------|---------|-----------|
-| **Auth Header** | `APIKey` | `Authorization: Bearer` |
-| **Total Types** | 181 | 30 |
-| **Queries** | 35+ | 7 |
-| **Mutations** | 70+ | 5 |
+| **Auth Header** | \`APIKey\` | \`Authorization: Bearer\` |
+| **Total Types** | STASHDB_TYPES_PLACEHOLDER | TPDB_TYPES_PLACEHOLDER |
+| **Queries** | STASHDB_QUERIES_PLACEHOLDER | TPDB_QUERIES_PLACEHOLDER |
+| **Mutations** | STASHDB_MUTATIONS_PLACEHOLDER | TPDB_MUTATIONS_PLACEHOLDER |
 | **Edit System** | Full workflow with voting | Draft submissions |
-| **Scene Date Field** | `release_date` | `date` |
-| **Scene URL Field** | `urls[].url` | `urls[].view` |
-| **Studio/Site** | `studio` | `site` |
-| **Images Field** | `images` | `posters`, `background_images` |
+| **Scene Date Field** | \`release_date\` | \`date\` |
+| **Scene URL Field** | \`urls[].url\` | \`urls[].view\` |
+| **Studio/Site** | \`studio\` | \`site\` |
+| **Images Field** | \`images\` | \`posters\`, \`background_images\` |
 
 ---
 
@@ -419,9 +442,9 @@ print(result["data"]["searchScene"])
 ### Common Issues
 
 **1. Authentication Errors**
-- Verify token is set: `echo $STASHDB_TOKEN`
-- Check header format: `APIKey` vs `Authorization: Bearer`
-- Test with `me` query to validate credentials
+- Verify token is set: \`echo $STASHDB_TOKEN\`
+- Check header format: \`APIKey\` vs \`Authorization: Bearer\`
+- Test with \`me\` query to validate credentials
 
 **2. Rate Limiting**
 - Implement exponential backoff
@@ -429,7 +452,7 @@ print(result["data"]["searchScene"])
 - Batch requests where API supports it
 
 **3. Schema Changes**
-- Run `make check-schema-drift` regularly
+- Run \`make check-schema-drift\` regularly
 - Subscribe to API changelog/notifications
 - Test integration after schema updates
 
@@ -448,8 +471,8 @@ make update-schema-docs
 ```
 
 ### View Full Schemas
-- StashDB: `docs/api/stashdb_schema.json`
-- ThePornDB: `docs/api/tpdb_schema.json`
+- StashDB: \`docs/api/stashdb_schema.json\`
+- ThePornDB: \`docs/api/tpdb_schema.json\`
 
 ---
 
@@ -459,46 +482,52 @@ make update-schema-docs
 - [ThePornDB Documentation](https://theporndb.net/docs)
 - [GraphQL Specification](https://spec.graphql.org/)
 - [Namer Implementation](../../namer/metadata_providers/)
-EOF
+TEMPLATE_EOF
 
-    # Replace $(date...) with actual date
-    local current_date
-    current_date=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
-    sed -i.bak "s/\$(date -u +\"%Y-%m-%d %H:%M:%S UTC\")/$current_date/" "$output_file"
-    rm "${output_file}.bak"
+	# Replace placeholders with actual values
+	sed -i.bak \
+		-e "s/TIMESTAMP_PLACEHOLDER/$timestamp/g" \
+		-e "s/STASHDB_TYPES_PLACEHOLDER/$STASHDB_TYPES/g" \
+		-e "s/STASHDB_QUERIES_PLACEHOLDER/$STASHDB_QUERIES/g" \
+		-e "s/STASHDB_MUTATIONS_PLACEHOLDER/$STASHDB_MUTATIONS/g" \
+		-e "s/TPDB_TYPES_PLACEHOLDER/$TPDB_TYPES/g" \
+		-e "s/TPDB_QUERIES_PLACEHOLDER/$TPDB_QUERIES/g" \
+		-e "s/TPDB_MUTATIONS_PLACEHOLDER/$TPDB_MUTATIONS/g" \
+		"$output_file"
+	rm "${output_file}.bak"
 
-    echo -e "${GREEN}✓ Markdown documentation generated: $output_file${NC}"
+	echo -e "${GREEN}✓ Markdown documentation generated: $output_file${NC}"
 }
 
 # Main execution
 main() {
-    echo -e "${BLUE}=== Updating GraphQL Schema Documentation ===${NC}\n"
+	echo -e "${BLUE}=== Updating GraphQL Schema Documentation ===${NC}\n"
 
-    # Check for required environment variables
-    if [[ -z "${STASHDB_TOKEN:-}" ]]; then
-        echo -e "${RED}Error: STASHDB_TOKEN environment variable not set${NC}"
-        exit 1
-    fi
+	# Check for required environment variables
+	if [[ -z "${STASHDB_TOKEN:-}" ]]; then
+		echo -e "${RED}Error: STASHDB_TOKEN environment variable not set${NC}"
+		exit 1
+	fi
 
-    if [[ -z "${TPDB_TOKEN:-}" ]]; then
-        echo -e "${RED}Error: TPDB_TOKEN environment variable not set${NC}"
-        exit 1
-    fi
+	if [[ -z "${TPDB_TOKEN:-}" ]]; then
+		echo -e "${RED}Error: TPDB_TOKEN environment variable not set${NC}"
+		exit 1
+	fi
 
-    # Fetch and save schemas
-    echo -e "${BLUE}Step 1: Fetching schemas${NC}"
-    fetch_and_save_schema "stashdb" "https://stashdb.org/graphql" "APIKey" "$STASHDB_TOKEN"
-    fetch_and_save_schema "tpdb" "https://theporndb.net/graphql" "Authorization" "Bearer $TPDB_TOKEN"
+	# Fetch and save schemas
+	echo -e "${BLUE}Step 1: Fetching schemas${NC}"
+	fetch_and_save_schema "stashdb" "https://stashdb.org/graphql" "APIKey" "$STASHDB_TOKEN"
+	fetch_and_save_schema "tpdb" "https://theporndb.net/graphql" "Authorization" "Bearer $TPDB_TOKEN"
 
-    # Generate markdown documentation
-    echo -e "\n${BLUE}Step 2: Generating documentation${NC}"
-    generate_markdown_docs
+	# Generate markdown documentation
+	echo -e "\n${BLUE}Step 2: Generating documentation${NC}"
+	generate_markdown_docs
 
-    echo -e "\n${GREEN}✅ Schema documentation updated successfully!${NC}"
-    echo -e "${YELLOW}Next steps:${NC}"
-    echo -e "  1. Review changes: git diff $DOCS_DIR"
-    echo -e "  2. Test integration code with updated schemas"
-    echo -e "  3. Commit changes: git add $DOCS_DIR && git commit -m 'docs: update GraphQL schemas'"
+	echo -e "\n${GREEN}✅ Schema documentation updated successfully!${NC}"
+	echo -e "${YELLOW}Next steps:${NC}"
+	echo -e "  1. Review changes: git diff $DOCS_DIR"
+	echo -e "  2. Test integration code with updated schemas"
+	echo -e "  3. Commit changes: git add $DOCS_DIR && git commit -m 'docs: update GraphQL schemas'"
 }
 
 # Run main function
