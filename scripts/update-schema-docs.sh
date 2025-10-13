@@ -78,7 +78,7 @@ fetch_and_save_schema() {
 	echo -e "${BLUE}Fetching schema for ${service}...${NC}"
 
 	local response
-	response=$(curl -s -X POST "$endpoint" \
+	response=$(curl -fsS -X POST "$endpoint" \
 		-H "$auth_header: $token" \
 		-H "Content-Type: application/json" \
 		-d "{\"query\":$(echo "$INTROSPECTION_QUERY" | jq -Rs .)}")
@@ -502,6 +502,15 @@ TEMPLATE_EOF
 # Main execution
 main() {
 	echo -e "${BLUE}=== Updating GraphQL Schema Documentation ===${NC}\n"
+
+	# Check for required dependencies
+	for dep in curl jq; do
+		if ! command -v "$dep" >/dev/null 2>&1; then
+			echo -e "${RED}Error: required dependency '$dep' not found${NC}"
+			echo "Please install: sudo apt-get install curl jq"
+			exit 127
+		fi
+	done
 
 	# Check for required environment variables
 	if [[ -z "${STASHDB_TOKEN:-}" ]]; then
