@@ -18,11 +18,26 @@ fi
 
 # Get the git directory
 GIT_DIR=$(git rev-parse --git-dir)
-PRE_PUSH_HOOK="$GIT_DIR/hooks/pre-push"
+
+# Check if custom hooks path is configured
+if hooks_path=$(git config --get core.hooksPath 2>/dev/null); then
+    # Handle relative paths
+    if [[ "$hooks_path" != /* ]]; then
+        repo_root=$(git rev-parse --show-toplevel)
+        HOOKS_DIR="$repo_root/$hooks_path"
+    else
+        HOOKS_DIR="$hooks_path"
+    fi
+else
+    HOOKS_DIR="$GIT_DIR/hooks"
+fi
+
+PRE_PUSH_HOOK="$HOOKS_DIR/pre-push"
 
 # Check if pre-push hook exists
 if [[ ! -f "$PRE_PUSH_HOOK" ]]; then
     error "Pre-push hook not installed!"
+    log "Hooks directory: $HOOKS_DIR"
     log "Run: make setup-dev"
     exit 1
 fi
