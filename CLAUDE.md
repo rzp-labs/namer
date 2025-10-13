@@ -1365,3 +1365,50 @@ rm -f "${doc}.bak"
   - Standard CI/CD artifact path convention established
   - Clear methodology for responding to automated review feedback
 - **Reference:** `docs/sessions/2025-10-13-pr141-review-response.md`
+
+**16. AI Code Review Issue Management (2025-10-13)**
+
+- **Context:** Converting PR 141 CodeRabbit review feedback to GitHub issues
+- **Challenge:** Extracting actionable items from AI review comments and organizing as trackable work
+- **Process:**
+  1. Extract all review comments from AI reviewers (CodeRabbit, Gemini Code Assist)
+  2. Categorize feedback by priority: Urgent > High > Medium > Low
+  3. Create GitHub issues with comprehensive problem statements
+  4. Link all issues in PR comment for visibility
+  5. Separate already-addressed items from future work
+- **Issue Structure Best Practices:**
+  - **Title:** Emoji prefix for visual priority (🔴 Urgent, 🟡 High, 🔵 Medium, 🟢 Low)
+  - **Problem:** Clear description of what's wrong and why it matters
+  - **Impact:** Business/technical consequences of not addressing
+  - **Solution:** Specific, actionable recommendations with code examples
+  - **Files to Modify:** Exact locations to change
+  - **Success Criteria:** Testable checkboxes for completion
+  - **Related:** Links to PRs, other issues, documentation
+- **Priority Definitions:**
+  - **Urgent**: Security issues, silent failures, data integrity (fix immediately)
+  - **High**: Accuracy problems, best practices violations (fix in follow-up)
+  - **Medium**: Documentation quality, linting issues (fix when convenient)
+  - **Low**: Style preferences, optional improvements (evaluate ROI)
+- **Label Management:**
+  - GitHub labels are case-sensitive: use lowercase (`urgent`, not `Urgent`)
+  - Create missing labels with `gh label create <name> -c <color> -d <description>`
+  - Standard colors: urgent=#d73a4a (red), high=#ededed (gray), medium-term=#ededed, low=#fbca04 (yellow)
+- **Key Benefits:**
+  - Systematic tracking prevents forgotten feedback
+  - Prioritization enables intelligent resource allocation
+  - Issues provide context for future contributors
+  - Prevents scope creep in current PR (defer to follow-ups)
+  - Creates audit trail of decisions made
+- **Real-World Example (PR #141):**
+  - 2 Urgent: Dependency checks, curl error handling
+  - 1 High: Drift summary accuracy
+  - 1 Medium: Markdownlint code fences
+  - 1 Low: Emphasis-as-heading style
+  - Result: 6 items already fixed, 5 issues for follow-up
+- **Integration with PR Workflow:**
+  - Address critical feedback in current PR commit
+  - Create issues for non-blocking items
+  - Add summary comment to PR linking all issues
+  - Mark items as addressed vs deferred
+  - Reference issue numbers in follow-up PRs
+- **Pattern:** Extract → Categorize → Create issues → Link → Track systematically
