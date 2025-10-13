@@ -186,7 +186,6 @@
             "release_date",
             "production_date",
             "urls",
-            "site",
             "studio",
             "performers",
             "tags",
@@ -197,9 +196,8 @@
             "code"
           ],
           "notable_features": [
-            "Both site and studio fields",
-            "urls[].view for source URLs",
-            "Simpler structure"
+            "urls[].url for source URLs",
+            "Simpler structure than StashDB"
           ]
         },
         "Performer": {
@@ -264,7 +262,6 @@
     "pitfalls": [
       "StashDB uses APIKey header, not standard Authorization Bearer",
       "ThePornDB uses nested arrays for batch fingerprint results",
-      "Field names differ slightly (urls[].url vs urls[].view)",
       "StashDB uses typed enums, ThePornDB uses strings",
       "Some mutations may not appear in introspection (check documentation)",
       "Rate limiting can cause unexpected failures without backoff",
@@ -334,7 +331,7 @@
     },
     "scene_search_query": {
       "language": "graphql",
-      "code": "query SearchScene($term: String!) {\n    searchScene(term: $term) {\n        id\n        title\n        date\n        site { name }\n        performers {\n            performer { name }\n        }\n        fingerprints {\n            hash\n            algorithm\n            duration\n        }\n    }\n}"
+      "code": "query SearchScene($term: String!) {\n    searchScene(term: $term) {\n        id\n        title\n        date\n        studio { name }\n        performers {\n            performer { name }\n        }\n        fingerprints {\n            hash\n            algorithm\n            duration\n        }\n    }\n}"
     },
     "fingerprint_submission": {
       "language": "graphql",

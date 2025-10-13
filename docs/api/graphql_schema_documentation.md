@@ -111,14 +111,11 @@ query SearchScene($term: String!) {
     date
     duration
     urls {
-      view
+      url
     }
-    site {
+    studio {
       name
       parent {
-        name
-      }
-      network {
         name
       }
     }
@@ -193,15 +190,12 @@ query GetScene($id: ID!) {
     date
     duration
     urls {
-      view
+      url
     }
     isCollected
-    site {
+    studio {
       name
       parent {
-        name
-      }
-      network {
         name
       }
     }
@@ -441,8 +435,9 @@ mutation FavoriteStudio($id: ID!, $favorite: Boolean!) {
 
 **ThePornDB-Specific Fields:**
 
-- `urls: [URL]` with `view` field
-- `site: Studio` - Alias for studio
+- `urls: [URL]` - URL objects with `url` field for source links
+- `release_date: String` - Release date
+- `production_date: String` - Production date
 - `details: String` - Description
 - `director: String`
 - `code: String` - Scene code/identifier
@@ -577,7 +572,7 @@ enum FingerprintAlgorithm {
 ### 7.3 Field Naming
 
 - **StashDB**: More explicit (e.g., `release_date` vs `date`)
-- **ThePornDB**: More compact (e.g., `urls[].view` vs `urls[].url`)
+- **ThePornDB**: Both use `urls[].url` for URL fields
 - **StashDB**: Uses enums extensively (GenderEnum, EthnicityEnum, etc.)
 - **ThePornDB**: Uses strings for most categorical data
 
@@ -692,7 +687,7 @@ http = Http.request(
   id
   title
   date
-  site {
+  studio {
     name
   }
   performers {
@@ -719,8 +714,8 @@ http = Http.request(
   details
   urls {
     url
-  } # or { view } for ThePornDB
-  site {
+  }
+  studio {
     name
     parent {
       name
@@ -876,10 +871,10 @@ curl -X POST <ENDPOINT> \
 
 ## 14. Appendix: Full Schema Files
 
-The complete introspection schema responses have been saved to:
+The complete introspection schema responses are available in this repository:
 
-- **StashDB**: `/tmp/stashdb_schema.json` (217 KB)
-- **ThePornDB**: `/tmp/tpdb_schema.json` (50 KB)
+- **StashDB**: `docs/api/stashdb_schema.json` (452 KB, 15,065 lines)
+- **ThePornDB**: `docs/api/tpdb_schema.json` (94 KB, 2,951 lines)
 
 These files contain the full type definitions, input types, enums, and field descriptions for both services.
 
