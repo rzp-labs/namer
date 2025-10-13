@@ -75,6 +75,11 @@ See all available targets:
 - `make test-local` - Fast local testing without Docker
 - `make quick` - Quick feedback loop (lint-fix + fast tests)
 
+**GraphQL Schema Management:**
+- `make check-schema-drift` - Detect API changes (requires STASHDB_TOKEN, TPDB_TOKEN)
+- `make update-schema-docs` - Refresh schema documentation
+- See `docs/api/SCHEMA_MAINTENANCE.md` for complete guide
+
 **Note:** Docker image builds/pushes to GHCR are **always** done through CI/CD (GitHub Actions), never locally.
 
 ## Technology Stack
@@ -279,6 +284,61 @@ docker run -p 6980:6980 nehpz/namer:latest
 - Implement proper authentication and authorization
 - Sanitize data before database operations
 - Use HTTPS for production deployments
+
+## External API Integration
+
+### Metadata Providers
+
+Namer integrates with two external GraphQL APIs for video metadata:
+
+**StashDB (stashdb.org)**
+- Endpoint: `https://stashdb.org/graphql`
+- Authentication: `APIKey` header (non-standard)
+- Schema: 181 types, 35+ queries, full CRUD + voting
+- Implementation: `namer/metadata_providers/stashdb_provider.py`
+
+**ThePornDB (theporndb.net)**
+- Endpoint: `https://theporndb.net/graphql`
+- Authentication: `Authorization: Bearer` header (standard)
+- Schema: 30 types, 7 queries, streamlined design
+- Implementation: `namer/metadata_providers/theporndb_provider.py`
+
+### Schema Drift Detection
+
+**Automated Monitoring:**
+- Weekly CI checks every Monday at 9 AM UTC
+- PR validation when provider code changes
+- Automatic GitHub issue creation on drift
+- Detailed diff artifacts stored for 30 days
+
+**Manual Operations:**
+```bash
+# Check for schema changes
+export STASHDB_TOKEN="your_token"
+export TPDB_TOKEN="your_token"
+make check-schema-drift
+
+# Update documentation after drift
+make update-schema-docs
+git add docs/api/ && git commit -m "docs: update GraphQL schemas"
+```
+
+**Documentation:**
+- `docs/api/stashdb_schema.json` - Complete StashDB schema
+- `docs/api/tpdb_schema.json` - Complete ThePornDB schema
+- `docs/api/graphql_schema_documentation.md` - Human-readable guide
+- `docs/api/SCHEMA_MAINTENANCE.md` - Operations manual
+
+**Key Differences:**
+| Feature | StashDB | ThePornDB |
+|---------|---------|-----------|
+| Auth Header | `APIKey` | `Authorization: Bearer` |
+| Field: Studio/Site | `studio` | `site` |
+| Field: URLs | `urls[].url` | `urls[].view` |
+| Field: Date | `release_date` | `date` |
+| Schema Size | 181 types | 30 types |
+
+See `docs/api/SCHEMA_MAINTENANCE.md` for complete operational guide.
 
 ## Git Flow Workflow
 
@@ -923,3 +983,46 @@ gh issue create ... > "$temp_file"
   - Python code: ~15-20s commit + ~90s push
   - Dockerfile: ~15-20s commit + ~60s push
   - Shell scripts: ~5s commit + instant push
+
+**12. GraphQL Schema Drift Detection via Introspection**
+- **Problem:** External APIs (StashDB, ThePornDB) change without notice, breaking integration
+- **Solution:** Automated schema introspection + drift detection + CI monitoring
+- **Architecture:**
+  1. **Baseline Documentation** - Store complete schema snapshots in `docs/api/`
+  2. **Introspection Queries** - Fetch live schemas via GraphQL `__schema` queries
+  3. **Normalized Comparison** - Sort/format consistently to avoid false positives
+  4. **Automated Monitoring** - Weekly CI checks + PR validation
+  5. **GitHub Integration** - Auto-create issues when drift detected
+- **Key Learnings:**
+  - Introspection is more reliable than parsing API docs
+  - Normalization critical for avoiding format-only diffs
+  - Weekly schedule balances monitoring vs noise
+  - PR validation prevents merging outdated integrations
+  - Detailed diffs essential for understanding breaking changes
+- **Implementation:**
+  - `make check-schema-drift` - Manual drift detection
+  - `make update-schema-docs` - Refresh documentation
+  - `.github/workflows/schema-drift-check.yml` - Automated monitoring
+  - `docs/api/SCHEMA_MAINTENANCE.md` - Operations guide
+- **Best Practices:**
+  - Store baseline schemas in version control
+  - Use normalized comparisons (sorted JSON)
+  - Generate human-readable diffs
+  - Document breaking vs additive changes
+  - Test integration code after schema updates
+- **Emergency Response:**
+  1. Detect breaking change via CI alert
+  2. Review diff to understand impact
+  3. Update integration code + tests
+  4. Refresh documentation: `make update-schema-docs`
+  5. Commit all changes together
+- **Authentication Gotchas:**
+  - StashDB uses non-standard `APIKey` header (not `Authorization: Bearer`)
+  - ThePornDB uses standard `Authorization: Bearer` header
+  - Different field names: `studio` vs `site`, `urls[].url` vs `urls[].view`
+  - Test auth early: `curl` with `me` query validates tokens
+- **ROI:**
+  - Prevents production failures from silent API changes
+  - Reduces debugging time (clear diffs vs mystery errors)
+  - Enables proactive updates vs reactive firefighting
+  - Documents API evolution over time
