@@ -414,11 +414,11 @@ Total: ~15-20s
 **Pre-push Hook Performance (~3-5 minutes):**
 ```
 Breakdown:
-- Full pytest with coverage: ~30-45s (timeout: 3min)
+- Full pytest with coverage: ~90s (timeout: 10min - generous for slow systems)
 - Codacy security analysis: ~60-90s (timeout: 5min)
 - CodeRabbit AI review: ~60-120s (timeout: 10min - faster for small commits!)
 - Docker smoke test: ~30-60s (timeout: 5min)
-Total: ~3-5 minutes
+Total: ~3-5 minutes typical, up to 10min for comprehensive runs
 
 Note: Timeouts are generous to handle network delays and complex reviews.
       Smaller commits complete much faster than the timeout limits.
@@ -452,7 +452,7 @@ Note: Timeouts are generous to handle network delays and complex reviews.
 - Example: Instead of one 2000-line commit, create 5 focused 400-line commits
 
 **Hook timeout guidelines:**
-- pytest full suite: 3 minutes max
+- pytest full suite: 10 minutes max (typically completes in ~90s)
 - Codacy analysis: 5 minutes max
 - CodeRabbit review: 10 minutes max (faster for small commits!)
 - Docker smoke test: 5 minutes max

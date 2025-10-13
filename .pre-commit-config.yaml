@@ -75,10 +75,10 @@ repos:
 
   - repo: local
     hooks:
-      # Full test suite with coverage (timeout: 3 minutes)
+      # Full test suite with coverage (timeout: 10 minutes)
       - id: pytest-full
         name: pytest (full test suite with coverage)
-        entry: ./scripts/timeout-wrapper.sh 180 poetry run pytest --cov --cov-report=term-missing:skip-covered
+        entry: ./scripts/timeout-wrapper.sh 600 poetry run pytest --cov --cov-report=term-missing:skip-covered
         language: system
         pass_filenames: false
         stages: [pre-push]
