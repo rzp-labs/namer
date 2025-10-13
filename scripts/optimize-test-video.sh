@@ -19,7 +19,6 @@
 #
 # Options:
 #   --target-crf CRF    Target CRF value (default: 60, range: 0-63)
-#   --max-crf CRF       Maximum CRF to test (default: 63)
 #   --min-width WIDTH   Minimum width to test (default: 160)
 #   --preset PRESET     FFmpeg preset (default: 8, range: 0-13)
 #   --skip-verify       Skip PHASH verification
@@ -36,7 +35,6 @@ set -euo pipefail
 
 # Default configuration
 DEFAULT_TARGET_CRF=60
-DEFAULT_MAX_CRF=63
 DEFAULT_MIN_WIDTH=160
 DEFAULT_PRESET=8
 SKIP_VERIFY=false
@@ -198,7 +196,6 @@ encode_video() {
 INPUT_FILE=""
 OUTPUT_FILE=""
 TARGET_CRF=$DEFAULT_TARGET_CRF
-MAX_CRF=$DEFAULT_MAX_CRF
 MIN_WIDTH=$DEFAULT_MIN_WIDTH
 PRESET=$DEFAULT_PRESET
 
@@ -209,10 +206,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --target-crf)
             TARGET_CRF="$2"
-            shift 2
-            ;;
-        --max-crf)
-            MAX_CRF="$2"
             shift 2
             ;;
         --min-width)
@@ -343,17 +336,17 @@ if [[ "$SKIP_VERIFY" == "false" ]]; then
         log_error "  New:      $NEW_PHASH"
         
         # Try lower CRF
-        if [[ "$TARGET_CRF" -lt "$MAX_CRF" ]]; then
+        if [[ "$TARGET_CRF" -gt 0 ]]; then
             log_warn "Trying lower CRF values..."
-            
-            for crf in $(seq $((TARGET_CRF - 5)) 5 0); do
+
+            for (( crf=TARGET_CRF - 5; crf>=0; crf-=5 )); do
                 log_info "Testing CRF ${crf}..."
                 TEST_OUTPUT="${TEMP_DIR}/test-w${MIN_WIDTH}-crf${crf}.mp4"
-                
+
                 encode_video "$INPUT_FILE" "$TEST_OUTPUT" "$crf" "$MIN_WIDTH" "$PRESET" "$KEEP_AUDIO"
-                
+
                 TEST_PHASH=$(get_phash "$TEST_OUTPUT")
-                
+
                 if [[ "$TEST_PHASH" == "$ORIGINAL_PHASH" ]]; then
                     log_success "PHASH match found at CRF ${crf}"
                     TEMP_OUTPUT="$TEST_OUTPUT"

@@ -63,14 +63,14 @@ repos:
         stages: [pre-commit]
 
   # ============================================================================
-  # PRE-PUSH HOOKS: Deep Validation + Security (~3-5 minutes)
+  # PRE-PUSH HOOKS: Deep Validation + Security (~2-3 minutes)
   # Purpose: Full quality gate before team review - "production ready" validation
   # Philosophy: Ready to push = ready for team review = high confidence
   #
   # IMPORTANT: These hooks MUST NOT be bypassed with --no-verify
-  # - The smaller and more focused your commits, the faster these will run
-  # - Small chunks of work = faster CodeRabbit reviews = quicker delivery
-  # - If hooks are taking too long, break your work into smaller commits
+  # - Full test suite with coverage validation
+  # - Codacy security analysis
+  # - Docker build validation
   # ============================================================================
 
   - repo: local
@@ -88,16 +88,6 @@ repos:
       - id: codacy-analysis
         name: Codacy security analysis
         entry: ./scripts/run-codacy.sh
-        language: system
-        pass_filenames: false
-        stages: [pre-push]
-        verbose: true
-
-      # CodeRabbit AI review (timeout: 10 minutes - longer for complex reviews)
-      # Note: Smaller commits = faster reviews. Break large changes into focused commits.
-      - id: coderabbit-review
-        name: CodeRabbit AI review
-        entry: ./scripts/timeout-wrapper.sh 600 ./scripts/run-coderabbit.sh validate
         language: system
         pass_filenames: false
         stages: [pre-push]

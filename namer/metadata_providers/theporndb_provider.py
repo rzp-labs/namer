@@ -7,7 +7,7 @@ This provider uses ThePornDB's GraphQL endpoint.
 import os
 import orjson
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Set
 from loguru import logger
 
 from namer.comparison_results import ComparisonResults, LookedUpFileInfo, SceneType, HashType, Performer, SceneHash
@@ -176,7 +176,7 @@ class ThePornDBProvider(BaseMetadataProvider):
         performers_data = scene_data.get('performers') or []
 
         def _extract_gender(*sources: Mapping[str, Any]) -> Optional[str]:
-            def _from_dict(payload: Mapping[str, Any], visited: set[int]) -> Optional[str]:
+            def _from_dict(payload: Mapping[str, Any], visited: Set[int]) -> Optional[str]:
                 # Prevent infinite recursion on circular parent references
                 payload_id = id(payload)
                 if payload_id in visited:
