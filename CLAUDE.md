@@ -383,6 +383,23 @@ We use a **stratified approach** that separates fast commit-time validation from
 - Update hooks: `pre-commit autoupdate`
 - Skip hooks (not recommended): `git commit --no-verify` or `git push --no-verify`
 
+### Before Committing ANY Files
+**CRITICAL PRE-COMMIT CHECKLIST:**
+1. **Check `git status` for untracked files** - ALWAYS review what you're about to commit
+2. **Verify against `.gitignore`** - Check if new files should be ignored:
+   - `logs/` - Runtime logs (NEVER commit)
+   - `database/` - Local database files (NEVER commit)
+   - `*.backup` - Backup files (NEVER commit)
+   - `.env` - Environment secrets (NEVER commit)
+3. **Update `.gitignore` FIRST** if adding ignored file types
+4. **Use `git add <specific-files>`** - NEVER use `git add .` or `git add -A` blindly
+
+**Common mistakes to AVOID:**
+- ❌ Committing `logs/` directory - contains runtime data
+- ❌ Committing temp files generated during development
+- ❌ Using `git add .` without reviewing `git status` first
+- ❌ Forgetting to update `.gitignore` for new file types
+
 ### Before Pushing
 **Comprehensive validation:**
 - `make validate` - Full validation suite (required before PR)
@@ -923,3 +940,45 @@ gh issue create ... > "$temp_file"
   - Python code: ~15-20s commit + ~90s push
   - Dockerfile: ~15-20s commit + ~60s push
   - Shell scripts: ~5s commit + instant push
+**12. Accidental Logs Commit & Prevention System (2025-10-13)**
+- **Incident:** Committed `logs/namer.log` in feature branch (commit 3902525)
+- **Root Causes:**
+  1. Used `git add -A` without reviewing `git status` first
+  2. No `.gitignore` entry for root `logs/` directory
+  3. No automated enforcement to block logs/ commits
+- **Impact:**
+  - Committed runtime logs to feature branch
+  - Created PR #138 with unwanted files
+  - Had to close PR (GitHub doesn't allow full deletion)
+  - Wasted time on cleanup and recovery
+- **Prevention System Implemented (PR #139):**
+  1. **Pre-commit hook** (`check-logs-directory`) - Automated enforcement
+  2. **`.gitignore` entry** - `logs/` directory ignored by git
+  3. **CLAUDE.md checklist** - "Before Committing ANY Files" section
+- **Key Learning:** Manual checklists insufficient - need automated enforcement
+- **Pattern:** Add pre-commit hooks for common mistakes that slip through review
+- **Testing:** Try `git add logs/ && git commit` - should fail with clear error
+
+**13. Git Flow Discipline: Never Push Directly to Develop**
+- **Violation:** Pushed 2 commits directly to `develop` (16a814a, 563897f)
+- **Why This Matters:**
+  - Bypasses code review process
+  - Breaks Git Flow branching model
+  - Violates team collaboration patterns
+  - No opportunity for feedback/validation
+- **Correct Git Flow Process:**
+  1. Create feature branch from `develop`
+  2. Make commits on feature branch
+  3. Push feature branch to remote
+  4. Create PR to `develop`
+  5. Merge after review
+- **Recovery Process:**
+  1. `git reset --hard HEAD~2` on local develop
+  2. `git push --force-with-lease` to revert remote develop
+  3. Create feature branch: `git checkout -b feature/name develop`
+  4. Cherry-pick commits: `git cherry-pick <sha1> <sha2>`
+  5. Push feature branch and create PR properly
+- **Rule:** ALWAYS use feature branches, even for "small" documentation fixes
+- **Exception:** None - proper process takes <5 minutes, no valid excuse
+- **Reminder:** Even fixes to prevent mistakes must follow proper Git Flow
+- **Pattern:** If you break Git Flow, stop immediately and fix it before continuing

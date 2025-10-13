@@ -36,6 +36,14 @@ repos:
   # Local hooks for pre-commit
   - repo: local
     hooks:
+      # Prevent committing logs directory
+      - id: check-logs-directory
+        name: check for logs/ directory
+        entry: "ERROR - Attempting to commit files from the 'logs/' directory. Logs should never be committed to git."
+        language: fail
+        files: '^logs/'
+        stages: [pre-commit]
+
       # Type checking - catch type errors early before they accumulate
       - id: mypy
         name: mypy type checking
