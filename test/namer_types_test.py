@@ -138,7 +138,7 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
 
         config1 = NamerConfig()
         config1.new_relative_path_name = '{whahha}/{site} - {date}'
-        success = verify_configuration(config, PartialFormatter())
+        success = verify_configuration(config1, PartialFormatter())
         self.assertEqual(success, False)
 
 

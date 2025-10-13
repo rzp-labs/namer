@@ -20,17 +20,17 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 error() {
-    echo -e "${RED}ERROR: $*${NC}" >&2
+	echo -e "${RED}ERROR: $*${NC}" >&2
 }
 
 warn() {
-    echo -e "${YELLOW}WARNING: $*${NC}" >&2
+	echo -e "${YELLOW}WARNING: $*${NC}" >&2
 }
 
 # Validate arguments
 if [ $# -lt 2 ]; then
-    error "Usage: $0 <timeout_seconds> <command> [args...]"
-    exit 1
+	error "Usage: $0 <timeout_seconds> <command> [args...]"
+	exit 1
 fi
 
 TIMEOUT_SECONDS="$1"
@@ -38,26 +38,26 @@ shift
 
 # Validate timeout is a number
 if ! [[ "$TIMEOUT_SECONDS" =~ ^[0-9]+$ ]]; then
-    error "Timeout must be a positive integer, got: $TIMEOUT_SECONDS"
-    exit 1
+	error "Timeout must be a positive integer, got: $TIMEOUT_SECONDS"
+	exit 1
 fi
 
 # Detect available timeout command
 # Try gtimeout first (common on macOS via coreutils), then timeout (Linux)
 TIMEOUT_CMD=""
 if command -v gtimeout >/dev/null 2>&1; then
-    TIMEOUT_CMD="gtimeout"
+	TIMEOUT_CMD="gtimeout"
 elif command -v timeout >/dev/null 2>&1; then
-    TIMEOUT_CMD="timeout"
+	TIMEOUT_CMD="timeout"
 fi
 
 # Execute command with or without timeout
 if [ -n "$TIMEOUT_CMD" ]; then
-    # Timeout available - use it
-    exec "$TIMEOUT_CMD" "$TIMEOUT_SECONDS" "$@"
+	# Timeout available - use it
+	exec "$TIMEOUT_CMD" "$TIMEOUT_SECONDS" "$@"
 else
-    # No timeout command available - warn and run without timeout
-    warn "Neither 'timeout' nor 'gtimeout' found. Running without timeout limit."
-    warn "Install coreutils (brew install coreutils) for timeout support on macOS."
-    exec "$@"
+	# No timeout command available - warn and run without timeout
+	warn "Neither 'timeout' nor 'gtimeout' found. Running without timeout limit."
+	warn "Install coreutils (brew install coreutils) for timeout support on macOS."
+	exec "$@"
 fi
