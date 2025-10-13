@@ -7,7 +7,7 @@ This provider uses ThePornDB's GraphQL endpoint.
 import os
 import orjson
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Set
 from loguru import logger
 
 from namer.comparison_results import ComparisonResults, LookedUpFileInfo, SceneType, HashType, Performer, SceneHash
@@ -86,7 +86,7 @@ class ThePornDBProvider(BaseMetadataProvider):
         - dict: urls_field.get('url') or fallback
         - list: iterate entries, return first 'url' or 'view' found
         - fallback: scene_data.get('url', '')
-        
+
         Always returns a string (empty string if no URL found).
         """
         urls_field = scene_data.get('urls')
@@ -176,7 +176,7 @@ class ThePornDBProvider(BaseMetadataProvider):
         performers_data = scene_data.get('performers') or []
 
         def _extract_gender(*sources: Mapping[str, Any]) -> Optional[str]:
-            def _from_dict(payload: Mapping[str, Any], visited: set[int]) -> Optional[str]:
+            def _from_dict(payload: Mapping[str, Any], visited: Set[int]) -> Optional[str]:
                 # Prevent infinite recursion on circular parent references
                 payload_id = id(payload)
                 if payload_id in visited:
@@ -276,7 +276,7 @@ class ThePornDBProvider(BaseMetadataProvider):
             # Get and normalize the algorithm name
             hash_type_value = hash_entry.get('algorithm') or hash_entry.get('type')
             if not hash_type_value or not isinstance(hash_type_value, str) or not hash_type_value.strip():
-                logger.debug("Skipping hash entry with missing or empty algorithm field")
+                logger.debug('Skipping hash entry with missing or empty algorithm field')
                 continue
 
             algorithm = hash_type_value.strip().upper()
@@ -285,20 +285,19 @@ class ThePornDBProvider(BaseMetadataProvider):
             try:
                 hash_type = HashType[algorithm]
             except KeyError:
-                logger.debug("Skipping unknown hash algorithm: %s (valid: %s)",
-                             algorithm, ', '.join(t.name for t in HashType))
+                logger.debug('Skipping unknown hash algorithm: %s (valid: %s)', algorithm, ', '.join(t.name for t in HashType))
                 continue
 
             raw_hash = hash_entry.get('hash')
             # Skip if hash is None, empty, or would stringify to invalid value
             if raw_hash is None or raw_hash == '':
-                logger.debug("Skipping hash entry with missing/empty hash value")
+                logger.debug('Skipping hash entry with missing/empty hash value')
                 continue
-            
+
             # Normalize hash value
             hash_value = raw_hash.strip() if isinstance(raw_hash, str) else str(raw_hash).strip()
             if not hash_value or hash_value.lower() == 'none':
-                logger.debug("Skipping invalid hash value: %s", raw_hash)
+                logger.debug('Skipping invalid hash value: %s', raw_hash)
                 continue
 
             scene_hash = SceneHash(hash_value, hash_type, hash_entry.get('duration'))

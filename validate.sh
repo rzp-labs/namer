@@ -113,12 +113,6 @@ if [[ ${#missing_tools[@]} -gt 0 ]]; then
     exit 1
 fi
 
-# Enforce pnpm usage
-echo "   Enforcing pnpm as package manager..."
-if ! ./scripts/enforce-pnpm.sh; then
-    exit 1
-fi
-
 echo "✅ All build tools available"
 echo ""
 
@@ -188,23 +182,26 @@ else
     echo "✅ Skipping Docker integration tests"
   fi
 fi
-# Step 7: CodeRabbit AI review (optional)
-echo "7️⃣ Running CodeRabbit AI review..."
-CODERABBIT_SUMMARY="SKIPPED (disabled)"
-if [[ "${CODERABBIT_VALIDATE:-1}" == "0" ]]; then
-  echo "   Skipping CodeRabbit review (CODERABBIT_VALIDATE=0)."
-  CODERABBIT_SUMMARY="SKIPPED (CODERABBIT_VALIDATE=0)"
-elif [[ -x "scripts/run-coderabbit.sh" ]]; then
-  if scripts/run-coderabbit.sh validate; then
-    CODERABBIT_SUMMARY="PASSED"
+# Step 7: CodeRabbit AI review (optional - not part of pre-push pipeline)
+echo "7️⃣ CodeRabbit AI review (optional)..."
+CODERABBIT_SUMMARY="SKIPPED (not in pre-push pipeline)"
+if [[ "${CODERABBIT_VALIDATE:-0}" == "1" ]]; then
+  echo "   Running CodeRabbit review (CODERABBIT_VALIDATE=1)..."
+  if [[ -x "scripts/run-coderabbit.sh" ]]; then
+    if scripts/run-coderabbit.sh validate; then
+      CODERABBIT_SUMMARY="PASSED"
+    else
+      CODERABBIT_SUMMARY="FAILED (issues found)"
+      echo "⚠️  CodeRabbit review reported issues. Review manually with 'make review'."
+      # Don't exit - CodeRabbit is optional
+    fi
   else
-    CODERABBIT_SUMMARY="FAILED"
-    echo "❌ CodeRabbit review reported issues. Address them before proceeding."
-    exit 1
+    echo "⚠️  scripts/run-coderabbit.sh not found or not executable."
+    CODERABBIT_SUMMARY="SKIPPED (missing script)"
   fi
 else
-  echo "⚠️  scripts/run-coderabbit.sh not found or not executable; skipping CodeRabbit review."
-  CODERABBIT_SUMMARY="SKIPPED (missing scripts/run-coderabbit.sh)"
+  echo "   Skipping CodeRabbit review (not required for pre-push)."
+  echo "   💡 Run manually with: make review"
 fi
 echo ""
 
@@ -220,11 +217,7 @@ if [[ "$FAST" -eq 1 ]]; then
 else
   echo "✅ Docker integration: PASSED"
 fi
-if [[ "$CODERABBIT_SUMMARY" == "PASSED" ]]; then
-  echo "✅ CodeRabbit review: PASSED"
-else
-  echo "ℹ️  CodeRabbit review: $CODERABBIT_SUMMARY"
-fi
+echo "ℹ️  CodeRabbit review: $CODERABBIT_SUMMARY"
 echo ""
 
 echo "🎉 All validations passed! Ready to push."

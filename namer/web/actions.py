@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 
 try:  # pragma: no cover - optional dependency
     import orjson  # type: ignore[import]  # Optional dependency for performance
+
     HAS_ORJSON = True
 except ImportError:  # pragma: no cover - optional dependency
     orjson = None  # type: ignore[assignment]
@@ -241,14 +242,27 @@ def get_search_results(query: str, search_type: SearchType, file: str, config: N
 def get_phash_results(file: str, _search_type: SearchType, config: NamerConfig) -> Dict:
     """
     Search results by phash for user selection using the configured metadata provider.
-    
+
     Args:
         file: The filename to search for
         _search_type: Reserved for future filtering by content type (currently unused)
         config: Namer configuration
     """
     failed_dir = _require_path(config.failed_dir, 'failed_dir')
-    phash_file = failed_dir / file
+    failed_dir_resolved = failed_dir.resolve()
+    phash_file = (failed_dir / file).resolve()
+
+    # Verify target is strictly within failed_dir (path traversal protection)
+    try:
+        phash_file.relative_to(failed_dir_resolved)
+    except ValueError:
+        logger.warning(
+            'Path traversal attempt detected for phash lookup: %s is not within %s',
+            phash_file,
+            failed_dir_resolved,
+        )
+        return {'file': file, 'files': []}
+
     if not phash_file.is_file():
         return {'file': file, 'files': []}
 
@@ -294,46 +308,46 @@ def get_phash_results(file: str, _search_type: SearchType, config: NamerConfig) 
 def delete_file(file_name_str: str, config: NamerConfig) -> bool:
     """
     Delete selected file with path traversal protection.
-    
+
     Security: file_name_str is user-provided but validated with relative_to()
     to ensure it stays within failed_dir before any file operations.
     """
     failed_dir = _require_path(config.failed_dir, 'failed_dir')
     failed_dir_resolved = failed_dir.resolve()
-    
+
     # Sanitize user input: remove any path traversal sequences
     # This prevents ../../../etc/passwd style attacks
     sanitized_name = Path(file_name_str).as_posix().replace('..', '').lstrip('/')
-    
+
     # Normalize and resolve the target path (validated below with relative_to)
     file_name = (failed_dir / sanitized_name).resolve()
-    
+
     # Verify target is strictly within failed_dir (path traversal protection)
     try:
         file_name.relative_to(failed_dir_resolved)
     except ValueError:
         logger.warning('Path traversal attempt detected: %s is not within %s', file_name, failed_dir_resolved)
         return False
-    
+
     if not is_acceptable_file(file_name, config) or not config.allow_delete_files:
         return False
 
     if config.del_other_files and file_name.is_dir():
         # Use the already-resolved full path to delete exact directory
         target_name = file_name  # Already resolved and validated above
-        
+
         # Prevent deleting the root failed_dir itself
         if target_name == failed_dir_resolved:
             logger.warning('Attempted to delete root failed_dir itself: %s', target_name)
             return False
-        
+
         # Double-check it's still within failed_dir (should always pass)
         try:
             target_name.relative_to(failed_dir_resolved)
         except ValueError:
             logger.warning('Path traversal attempt detected in directory delete: %s', target_name)
             return False
-        
+
         shutil.rmtree(target_name)
     else:
         # Preserve directory structure when computing log file path
@@ -345,7 +359,7 @@ def delete_file(file_name_str: str, config: NamerConfig) -> bool:
         except ValueError:
             logger.warning('Path traversal attempt detected for log file: %s', log_file)
             return False
-        
+
         if log_file.is_file():
             log_file.unlink()
 

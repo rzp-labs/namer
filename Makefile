@@ -11,7 +11,15 @@ SCRIPT_DIR = ./scripts
 .PHONY: all help build build-fast build-full build-dev \
         build-amd64 build-arm64 build-multiarch ensure-builder \
         test test-basic test-integration validate clean clean-deep config \
-        setup-dev review
+        setup-dev review \
+        lint lint-fix format format-check typecheck security-scan \
+        test-local test-local-all test-local-coverage test-watch \
+        precommit pre-push \
+        deps-install deps-update deps-show deps-outdated deps-lock \
+        build-local build-local-deps build-local-full \
+        run run-port \
+        docs branch diff commits \
+        quick ci fix
 
 help: ## Show available targets
 	@echo "🏗️  Namer Build System"
@@ -121,13 +129,6 @@ release-prep: validate build-full test-integration ## Full release preparation
 review: ## Run CodeRabbit branch review (optional)
 	@./scripts/run-coderabbit.sh branch
 
-# Docker operations (using native commands)
-push: ## Push built image to registry
-	@docker push $(IMAGE_NAME):$(VERSION)
-	@docker push $(IMAGE_NAME):latest
-pull: ## Pull image from registry
-	@echo "Pulling $(IMAGE_NAME):$(VERSION)..."
-	@docker pull $(IMAGE_NAME):$(VERSION)
 
 # Developer setup
 setup-dev: ## Bootstrap Poetry + deps, then install local hooks (pre-commit + pre-push)
@@ -148,3 +149,110 @@ setup-dev: ## Bootstrap Poetry + deps, then install local hooks (pre-commit + pr
 	  poetry install; \
 	  chmod +x scripts/install-hooks.sh || true; \
 	  ./scripts/install-hooks.sh'
+
+# --- Code Quality Targets ---
+
+lint: ## Run Ruff linting checks
+	@poetry run ruff check .
+
+lint-fix: ## Run Ruff linting with auto-fix
+	@poetry run ruff check --fix .
+
+format: ## Format code with Ruff
+	@poetry run ruff format .
+
+format-check: ## Check formatting without changes
+	@poetry run ruff format --check .
+
+typecheck: ## Run mypy type checking
+	@poetry run mypy namer/
+
+security-scan: ## Run bandit security checks
+	@poetry run bandit -r namer/
+
+# --- Local Testing Targets ---
+
+test-local: ## Run local pytest (fast tests only)
+	@poetry run pytest -m "not slow"
+
+test-local-all: ## Run all local pytest tests (including slow)
+	@poetry run pytest
+
+test-local-coverage: ## Run local tests with coverage report
+	@poetry run pytest --cov=namer --cov-report=html
+	@echo "Coverage report: htmlcov/index.html"
+
+test-watch: ## Run tests in watch mode (requires pytest-watch)
+	@poetry run pytest-watch -m "not slow"
+
+# --- Pre-commit/Pre-push Shortcuts ---
+
+precommit: ## Quick pre-commit checks (format + fast tests)
+	@poetry run poe precommit
+
+pre-push: validate ## Alias for validate (comprehensive pre-push checks)
+
+# --- Dependency Management ---
+
+deps-install: ## Install/update all dependencies
+	@poetry install
+
+deps-update: ## Update all dependencies
+	@poetry update
+
+deps-show: ## Show installed dependencies
+	@poetry show
+
+deps-outdated: ## Check for outdated dependencies
+	@poetry show --outdated
+
+deps-lock: ## Regenerate poetry.lock
+	@poetry lock --no-update
+
+# --- Local Build Targets (Non-Docker) ---
+
+build-local: ## Build Python package locally (non-Docker)
+	@poetry run poe build_namer
+
+build-local-deps: ## Build dependencies (npm + videohashes)
+	@poetry run poe build_deps
+
+build-local-full: ## Full local build with all deps
+	@poetry run poe build_all
+
+# --- Run Targets ---
+
+run: ## Run namer locally (development mode)
+	@poetry run python -m namer
+
+run-port: ## Run namer on custom port (use PORT=8080)
+	@poetry run python -m namer --port $(PORT)
+
+# --- Documentation ---
+
+docs: ## Open project documentation
+	@echo "Documentation locations:"
+	@echo "  - Main README: readme.rst"
+	@echo "  - Claude guide: CLAUDE.md"
+	@echo "  - Project docs: docs/"
+
+# --- Git Helpers ---
+
+branch: ## Show current branch and status
+	@git branch --show-current
+	@echo ""
+	@git status --short
+
+diff: ## Show git diff
+	@git diff
+
+commits: ## Show recent commits
+	@git log --oneline -10
+
+# --- Shortcuts for Common Workflows ---
+
+quick: lint-fix test-local ## Quick feedback (fix lint + fast tests)
+
+ci: lint format-check typecheck test-local-all ## Simulate CI checks locally
+
+fix: lint-fix format ## Fix all auto-fixable issues

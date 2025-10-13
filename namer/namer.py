@@ -63,11 +63,14 @@ def write_ambiguous_metadata(
     # Build candidate details with scene names
     candidates_with_names = []
     if search_results:
-        guid_to_name = {
-            (r.looked_up.guid or r.looked_up.uuid): r.looked_up.name
-            for r in search_results.results
-            if r.looked_up and (r.looked_up.guid or r.looked_up.uuid) and r.looked_up.name
-        }
+        # Build dict with both guid AND uuid as keys to handle both lookup strategies
+        guid_to_name = {}
+        for r in search_results.results:
+            if r.looked_up and r.looked_up.name:
+                if r.looked_up.guid:
+                    guid_to_name[r.looked_up.guid] = r.looked_up.name
+                if r.looked_up.uuid:
+                    guid_to_name[r.looked_up.uuid] = r.looked_up.name
         for guid in candidate_ids:
             candidates_with_names.append({'guid': guid, 'name': guid_to_name.get(guid, 'Unknown')})
 
@@ -266,7 +269,7 @@ def process_file(command: Command) -> Optional[Command]:
                             # Create subdirectory for this ambiguous file with unique identifier
                             file_stem = command.target_movie_file.stem
                             unique_id = str(uuid.uuid4())[:8]
-                            ambiguous_subdir = ambiguous_dir / f"{file_stem}_{unique_id}"
+                            ambiguous_subdir = ambiguous_dir / f'{file_stem}_{unique_id}'
                             ambiguous_subdir.mkdir(parents=True, exist_ok=True)
                             logger.info('Routing to ambiguous_dir due to ambiguous decision -> {}', ambiguous_subdir)
                             moved = move_command_files(command, ambiguous_subdir)
@@ -315,11 +318,7 @@ def process_file(command: Command) -> Optional[Command]:
             if command.config.manual_mode and command.is_auto:
                 failed_dir = command.config.failed_dir
                 if failed_dir is None:
-                    logger.error(
-                        'Cannot process file {} in manual_mode: NamerConfig.failed_dir is not configured. '
-                        'Manual mode requires failed_dir to be set.',
-                        command.input_file
-                    )
+                    logger.error('Cannot process file {} in manual_mode: NamerConfig.failed_dir is not configured. ' 'Manual mode requires failed_dir to be set.', command.input_file)
                     raise ValueError('NamerConfig.failed_dir must be set when manual_mode is enabled')
                 failed = move_command_files(command, failed_dir)
                 if failed is not None and search_results is not None and failed.config.write_namer_failed_log:
@@ -364,11 +363,7 @@ def process_file(command: Command) -> Optional[Command]:
         elif command.inplace is False:
             failed_dir = command.config.failed_dir
             if failed_dir is None:
-                logger.error(
-                    'Cannot process file {} with inplace=False: NamerConfig.failed_dir is not configured. '
-                    'Non-inplace mode requires failed_dir to be set for failed matches.',
-                    command.input_file
-                )
+                logger.error('Cannot process file {} with inplace=False: NamerConfig.failed_dir is not configured. ' 'Non-inplace mode requires failed_dir to be set for failed matches.', command.input_file)
                 raise ValueError('NamerConfig.failed_dir must be configured when inplace is False')
 
             # Ensure failed_dir exists before moving files
@@ -388,7 +383,7 @@ def process_file(command: Command) -> Optional[Command]:
                     # Create subdirectory for this ambiguous file with unique identifier
                     file_stem = command.target_movie_file.stem
                     unique_id = str(uuid.uuid4())[:8]
-                    ambiguous_subdir = ambiguous_dir / f"{file_stem}_{unique_id}"
+                    ambiguous_subdir = ambiguous_dir / f'{file_stem}_{unique_id}'
                     ambiguous_subdir.mkdir(parents=True, exist_ok=True)
                     moved = move_command_files(command, ambiguous_subdir)
                     if moved is not None:

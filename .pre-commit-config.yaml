@@ -1,44 +1,150 @@
 repos:
+  # ============================================================================
+  # PRE-COMMIT HOOKS: Fast Quality + Functional Validation (~15-20 seconds)
+  # Purpose: Immediate feedback on code quality AND functionality
+  # Philosophy: Fast enough not to disrupt flow, thorough enough to catch real issues
+  #
+  # Ordering Strategy:
+  #   1. Config validation (ensure hooks can run)
+  #   2. Fast formatters (auto-fix, fail fast)
+  #   3. Linters (check after formatting)
+  #   4. Type checking (static analysis)
+  #   5. Tests (most expensive, run last)
+  # ============================================================================
+
+  # ============================================================================
+  # 1. CONFIG VALIDATION - Validates hook configuration before running hooks
+  # ============================================================================
+  - repo: local
+    hooks:
+      - id: validate-pre-commit-config
+        name: validate pre-commit config
+        entry: pre-commit validate-config
+        language: system
+        files: ^\.pre-commit-config\.yaml$
+        pass_filenames: true
+        stages: [pre-commit]
+
+  # ============================================================================
+  # 2. FORMATTERS - Auto-fix code formatting issues (fast, ~3-4 seconds)
+  # ============================================================================
+
+  # Python formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.14.0
     hooks:
       - id: ruff
         args: ["--fix"]
         exclude: ^(namer/ffmpeg(_enhanced)?\.py)$
+        stages: [pre-commit]
       - id: ruff-format
         exclude: ^(namer/ffmpeg(_enhanced)?\.py)$
+        stages: [pre-commit]
 
-  # Shell linting for our scripts
+  # Shell formatting (format before linting)
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.12.0-2
+    hooks:
+      - id: shfmt
+        name: shfmt
+        args: ["-w", "-i", "0"]  # -w: write, -i 0: tabs for indentation
+        files: ^scripts/
+        types: [shell]
+        stages: [pre-commit]
+
+  # ============================================================================
+  # 3. LINTERS - Check code quality after formatting (~2-3 seconds)
+  # ============================================================================
+
+  # Shell linting
   - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.10.0.1
+    rev: v0.11.0.1
     hooks:
       - id: shellcheck
         name: shellcheck
         files: ^(scripts/|docker-entrypoint-user.sh)
         types: [shell]
+        stages: [pre-commit]
 
-  # Optional Dockerfile linting (non-blocking at first; set `--failure-threshold` to `warning`)
+  # GitHub Actions workflow linting
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.8
+    hooks:
+      - id: actionlint
+        stages: [pre-commit]
+
+  # Dockerfile linting (optional, non-blocking)
   - repo: local
     hooks:
-      - id: coderabbit-pre-commit
-        name: CodeRabbit CLI (pre-commit, optional)
-        entry: ./scripts/run-coderabbit.sh pre-commit
-        language: system
-        pass_filenames: false
-        stages: [pre-commit]
       - id: hadolint
         name: hadolint
-        entry: bash -lc 'command -v hadolint >/dev/null 2>&1 && hadolint Dockerfile || echo "hadolint not installed; skipping"'
+        entry: bash -lc 'if ! command -v hadolint >/dev/null 2>&1; then echo "hadolint not installed; skipping"; exit 0; fi; hadolint Dockerfile'
         language: system
+        types: [dockerfile]
         pass_filenames: false
         files: ^Dockerfile$
+        stages: [pre-commit]
 
-  # Run validate fast on pre-push
+  # ============================================================================
+  # 4. TYPE CHECKING - Static analysis (~2-3 seconds)
+  # ============================================================================
   - repo: local
     hooks:
-      - id: validate-fast
-        name: validate.sh --fast (pre-push)
-        entry: ./validate.sh --fast
+      - id: mypy
+        name: mypy type checking
+        entry: poetry run mypy .
         language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-commit]
+
+  # ============================================================================
+  # 5. TESTS - Functional validation, run last (~4-5 seconds)
+  # ============================================================================
+  - repo: local
+    hooks:
+      - id: pytest-fast
+        name: pytest (fast tests only)
+        entry: poetry run pytest -m "not slow" --quiet --tb=short
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-commit]
+
+  # ============================================================================
+  # PRE-PUSH HOOKS: Deep Validation (~2 minutes)
+  # Purpose: Full quality gate before team review - "production ready" validation
+  # Philosophy: Ready to push = ready for team review = high confidence
+  #
+  # IMPORTANT: These hooks MUST NOT be bypassed with --no-verify
+  # - Full test suite with coverage validation
+  # - Docker build validation
+  #
+  # Note: Codacy security analysis runs in CI only (requires CODACY_PROJECT_TOKEN)
+  # ============================================================================
+
+  - repo: local
+    hooks:
+      # Full test suite with coverage (timeout: 10 minutes)
+      # Only runs when Python files are modified (skips for docs/config-only changes)
+      - id: pytest-full
+        name: pytest (full test suite with coverage)
+        entry: ./scripts/timeout-wrapper.sh 600 poetry run pytest --cov --cov-report=term-missing:skip-covered
+        language: system
+        types: [python]
         pass_filenames: false
         stages: [pre-push]
+        verbose: true
+
+      # Docker smoke test - catch build errors locally (timeout: 10 minutes)
+      # Only runs when files that affect Docker build are modified
+      # Includes: Dockerfile, Python source, frontend assets, dependencies, and Docker entrypoint scripts
+      - id: docker-smoke-test
+        name: Docker smoke test (build validation)
+        entry: ./scripts/run-docker-smoke-test.sh
+        language: system
+        types_or: [dockerfile, python, javascript, json, toml, shell]
+        files: ^(Dockerfile|docker-entrypoint.*\.sh|scripts/(install-intel-firmware-fast|detect-intel-gpu)\.sh|namer/|src/|test/|package\.json|package-lock\.json|pyproject\.toml|poetry\.lock|\.npmrc|webpack\.config\.js)
+        pass_filenames: false
+        stages: [pre-push]
+        verbose: true

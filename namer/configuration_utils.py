@@ -25,15 +25,15 @@ T = TypeVar('T')
 def require_not_none(value: Optional[T], name: str, context: str = '') -> T:
     """
     Validate that a value is not None.
-    
+
     Args:
         value: The value to check
         name: Name of the value for error message
         context: Additional context for when this is required
-    
+
     Returns:
         The value if not None
-    
+
     Raises:
         ValueError: If value is None
     """
@@ -48,15 +48,15 @@ def require_not_none(value: Optional[T], name: str, context: str = '') -> T:
 def require_config_path(config: NamerConfig, attr_name: str, context: str = '') -> Path:
     """
     Validate that a required config path is set.
-    
+
     Args:
         config: Configuration object
         attr_name: Name of the path attribute (e.g., 'dest_dir')
         context: Description of when this is required
-    
+
     Returns:
         The validated Path
-    
+
     Raises:
         ValueError: If the path is None with detailed message
     """
@@ -544,7 +544,7 @@ def from_config(config: ConfigUpdater, namer_config: NamerConfig) -> NamerConfig
                     setattr(namer_config, name, new_value)
 
     if not hasattr(namer_config, 'retry_time') or namer_config.retry_time is None:
-        setattr(namer_config, 'retry_time', f"03:{secrets.randbelow(60):0>2}")
+        setattr(namer_config, 'retry_time', f'03:{secrets.randbelow(60):0>2}')
 
     return namer_config
 

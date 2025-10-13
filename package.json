@@ -7,7 +7,6 @@
   "author": "nehpz",
   "main": "",
   "scripts": {
-    "prepare": "husky",
     "build": "webpack --config webpack.prod.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -44,8 +43,6 @@
     "file-loader": "^6.2.0",
     "globals": "^16.4.0",
     "html-minimizer-webpack-plugin": "^5.0.3",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.2.0",
     "mini-css-extract-plugin": "^2.9.4",
     "postcss": "^8.5.6",
     "postcss-loader": "^8.1.1",

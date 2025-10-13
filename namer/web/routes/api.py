@@ -85,7 +85,7 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
 
     @blueprint.route('/v1/rename', methods=['POST'])
     @logger.catch(reraise=True)
-    def rename() -> Response:
+    def rename() -> Union[Response, tuple[Response, int]]:
         data = request.json
 
         res: Any = False
@@ -93,7 +93,10 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
             failed_dir = config.failed_dir
             work_dir = config.work_dir
             if failed_dir is None or work_dir is None:
-                raise ValueError('NamerConfig.failed_dir and work_dir must be configured for rename operations')
+                raise ValueError('NamerConfig.failed_dir and NamerConfig.work_dir must be configured for rename operations')
+
+            if 'file' not in data or 'scene_id' not in data:
+                return jsonify({'error': 'Request must contain "file" and "scene_id" fields'}), 400
 
             movie = failed_dir / Path(data['file'])
             command = make_command_relative_to(movie, failed_dir, config=config, is_auto=False)
@@ -101,6 +104,7 @@ def get_routes(config: NamerConfig, command_queue: Queue) -> Blueprint:
             if moved_command:
                 moved_command.tpdb_id = data['scene_id']
                 command_queue.put(moved_command)  # Todo pass selection
+                res = True
 
         return jsonify(res)
 

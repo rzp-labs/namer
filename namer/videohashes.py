@@ -30,7 +30,7 @@ def main(args_list: List[str]):
 
     # All errors bubble up to @logger.catch for proper logging with context
     file_hash = calculate_phash(args.file.resolve(), config)
-    
+
     if file_hash is None:
         raise RuntimeError(f'Unable to calculate perceptual hash for {args.file}: no hash returned')
 
