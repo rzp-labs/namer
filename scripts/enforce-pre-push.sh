@@ -102,7 +102,6 @@ show_bypass_education() {
 Using --no-verify bypasses critical quality and security checks:
   ❌ Full test suite with coverage
   ❌ Codacy security vulnerability scanning
-  ❌ CodeRabbit AI review for design issues
   ❌ Docker build validation
 
 WHY PRE-PUSH HOOKS MATTER:
@@ -113,17 +112,18 @@ WHY PRE-PUSH HOOKS MATTER:
 
 IF HOOKS ARE TOO SLOW:
   ✅ Break your work into smaller, focused commits
-  ✅ Smaller commits = faster CodeRabbit reviews
   ✅ Smaller commits = easier code review
   ✅ Smaller commits = better git history
 
 TIME BREAKDOWN:
-  • pytest (full suite): ~30-45 seconds
+  • pytest (full suite): ~90 seconds
   • Codacy security: ~60-90 seconds
-  • CodeRabbit review: ~60-120 seconds (faster for small commits!)
   • Docker smoke test: ~30-60 seconds
 
-  Total: 3-5 minutes for high-confidence code quality
+  Total: 2-3 minutes for high-confidence code quality
+
+OPTIONAL TOOLS:
+  • CodeRabbit AI review: Run manually with 'make review'
 
 REMEMBER:
   "Small chunks of work with appropriate complexity enable quicker

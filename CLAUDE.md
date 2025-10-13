@@ -355,14 +355,15 @@ We use a **stratified approach** that separates fast commit-time validation from
   - Actionlint - GitHub Actions workflow validation
   - Hadolint - Dockerfile linting (optional)
 
-**Pre-push Hooks: Deep Validation + Security (~3-5 minutes)**
+**Pre-push Hooks: Deep Validation + Security (~2-3 minutes)**
 - **Purpose:** Full quality gate before team review - "production ready" validation
 - **Philosophy:** Ready to push = ready for team review = high confidence in quality and security
 - **Checks:**
   - Full pytest suite with coverage - All tests including watchdog, web, videophash, and slow tests
   - Codacy security analysis - Security vulnerabilities, code quality, complexity analysis
-  - CodeRabbit AI review - Design patterns, best practices, security concerns
   - Docker smoke test - Quick build validation to catch Dockerfile/build errors
+
+**Note:** CodeRabbit AI review can be run manually via `make review` or `./scripts/run-coderabbit.sh validate` but is not part of the automated pre-push pipeline to prevent SSH timeout issues.
 
 **Why this approach:**
 1. **Type safety shift-left** - Catch type errors at commit time before they pile up
@@ -411,17 +412,16 @@ Breakdown:
 Total: ~15-20s
 ```
 
-**Pre-push Hook Performance (~3-5 minutes):**
+**Pre-push Hook Performance (~2-3 minutes):**
 ```
 Breakdown:
 - Full pytest with coverage: ~90s (timeout: 10min - generous for slow systems)
 - Codacy security analysis: ~60-90s (timeout: 5min)
-- CodeRabbit AI review: ~60-120s (timeout: 10min - faster for small commits!)
 - Docker smoke test: ~30-60s (timeout: 10min - generous for cold builds)
-Total: ~3-5 minutes typical, up to 10min for comprehensive runs
+Total: ~2-3 minutes typical
 
-Note: Timeouts are generous to handle network delays, cold builds, and complex reviews.
-      Smaller commits complete much faster than the timeout limits.
+Note: Timeouts are generous to handle network delays, cold builds, and slow systems.
+      CodeRabbit AI review available via 'make review' for manual execution.
 ```
 
 **Why stratified hooks work:**
@@ -437,7 +437,7 @@ Note: Timeouts are generous to handle network delays, cold builds, and complex r
 - ❌ Bypassing skips security scans, tests, and quality gates
 - ❌ Puts broken code into shared branches
 - ✅ If hooks are slow, **break work into smaller commits**
-- ✅ Small commits = faster CodeRabbit reviews = quicker delivery
+- ✅ Small commits = faster reviews = quicker delivery
 
 **Why this policy:**
 1. **Security first** - Codacy catches vulnerabilities before they're shared
@@ -454,7 +454,6 @@ Note: Timeouts are generous to handle network delays, cold builds, and complex r
 **Hook timeout guidelines:**
 - pytest full suite: 10 minutes max (typically completes in ~90s)
 - Codacy analysis: 5 minutes max (typically completes in ~60-90s)
-- CodeRabbit review: 10 minutes max (typically completes in ~60-120s, faster for small commits!)
 - Docker smoke test: 10 minutes max (typically completes in ~30-60s, generous for cold builds)
 
 **Common hook issues:**
@@ -462,7 +461,6 @@ Note: Timeouts are generous to handle network delays, cold builds, and complex r
 2. **Type errors** - Run `poetry run mypy .` locally first (caught in pre-commit)
 3. **Test failures** - Fix tests before pushing (caught in pre-commit fast tests)
 4. **Security issues** - Address Codacy findings
-5. **CodeRabbit feedback** - Address design/quality issues
 
 ### Type Checking Tips
 
@@ -515,12 +513,11 @@ Note: Timeouts are generous to handle network delays, cold builds, and complex r
   - Catches type errors with mypy
   - Runs 78 fast tests for functional coverage
   - Validates scripts and configs
-- **Pre-push (~3-5min):** Comprehensive quality gate
+- **Pre-push (~2-3min):** Comprehensive quality gate
   - Full test suite with coverage (all tests, no filtering)
   - Codacy security analysis
-  - CodeRabbit AI review
   - Docker build validation
-- **Manual:** `make validate` for full CI simulation with Docker integration
+- **Manual:** `make validate` for full CI simulation, `make review` for CodeRabbit AI review
 
 ### Dependency Management
 
