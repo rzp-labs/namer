@@ -1,9 +1,6 @@
 {
   "search_summary": {
-    "platforms_searched": [
-      "stashdb.org",
-      "theporndb.net"
-    ],
+    "platforms_searched": ["stashdb.org", "theporndb.net"],
     "repositories_analyzed": 2,
     "docs_reviewed": 2,
     "introspection_performed": true,
@@ -52,11 +49,7 @@
         "favorite_performer": "favoritePerformer(id: ID!, favorite: Boolean!): Boolean!",
         "favorite_studio": "favoriteStudio(id: ID!, favorite: Boolean!): Boolean!"
       },
-      "fingerprint_algorithms": [
-        "MD5",
-        "PHASH",
-        "OSHASH"
-      ],
+      "fingerprint_algorithms": ["MD5", "PHASH", "OSHASH"],
       "key_types": {
         "Scene": {
           "fields": [
@@ -183,12 +176,7 @@
         "favorite_performer": "favoritePerformer(id: ID!, favorite: Boolean!): Boolean!",
         "favorite_studio": "favoriteStudio(id: ID!, favorite: Boolean!): Boolean!"
       },
-      "fingerprint_algorithms": [
-        "MD5",
-        "PHASH",
-        "OSHASH",
-        "CRC32"
-      ],
+      "fingerprint_algorithms": ["MD5", "PHASH", "OSHASH", "CRC32"],
       "key_types": {
         "Scene": {
           "fields": [
