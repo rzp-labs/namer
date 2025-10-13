@@ -666,6 +666,43 @@ fi
 - Centralize platform-specific logic in reusable scripts
 - Test on both macOS and Linux before merging
 
+**Filename Sanitization Patterns** (Critical for scripts):
+```bash
+# ❌ Wrong - triggers shellcheck warnings
+SAFE_BRANCH=$(echo "$BRANCH" | sed 's|/|-|g')
+
+# ✅ Correct - bash parameter expansion (shellcheck compliant)
+SAFE_BRANCH="${BRANCH//\//-}"
+
+# Use case: Branch names with slashes (feature/name) break filename construction
+FEEDBACK_FILE="${TIMESTAMP}_${SAFE_BRANCH}_${COMMIT}.txt"
+```
+
+**Robust Filename Parsing** (Critical for structured filenames):
+```bash
+# Problem: Simple cut breaks with underscores in branch names
+# Bad: BRANCH=$(echo "$FILENAME" | cut -d'_' -f2)  # Fragile!
+
+# ✅ Extract from edges inward
+FILENAME=$(basename "$FILE" .txt)
+COMMIT=$(echo "$FILENAME" | rev | cut -d'_' -f1 | rev)  # Last field
+BRANCH=$(echo "$FILENAME" | sed "s/^[^_]*_//; s/_${COMMIT}$//")  # Middle
+
+# Handles: 2025-10-13-06-11-39_feat-my_feature_name_abc123.txt correctly
+```
+
+**Race Condition Prevention**:
+```bash
+# ❌ Wrong - hardcoded temp file causes race conditions
+gh issue create ... > /tmp/issue_url.txt
+
+# ✅ Correct - unique temp file with cleanup
+local temp_file
+temp_file=$(mktemp)
+trap 'rm -f "$temp_file"' RETURN
+gh issue create ... > "$temp_file"
+```
+
 ---
 
 ## Lessons Learned
@@ -701,3 +738,22 @@ fi
 - Sequential PRs (building on each other) easier than parallel splits
 - Resolve conflicts by keeping more complete implementation
 - Document resolution rationale in merge commit message
+
+**6. Selective Fix Application (Atomic PR Extraction)**
+- Cherry-picking entire commits can include unrelated changes
+- **Better approach:** Manually apply only relevant fixes per feature area
+- **Process:** Review `git show <sha>`, identify target files, apply selectively
+- **Example:** Commit had 5 fixes, but PR only needed 3 (other 2 belonged elsewhere)
+- **Benefit:** Maintains true atomic PRs, prevents scope creep
+
+**7. Shellcheck Compliance During Refactoring**
+- Unused variables block commits when shellcheck is enabled
+- **Pattern:** Remove unused code when refactoring - don't leave dead variables
+- **Example:** Removed `MAX_CRF` variable and `--max-crf` option after loop refactor
+- **Impact:** Keeps codebase clean, prevents confusion
+
+**8. Data Extraction from Nested JSON**
+- AI review comments often nested deep in GraphQL responses
+- **Pattern:** Use `.reviews[] | select(.author.login == "gemini-code-assist")`
+- **Challenge:** Comments may be in `.reviews[].comments.nodes[]` requiring graph traversal
+- **Solution:** GraphQL queries more reliable than parsing comment HTML
