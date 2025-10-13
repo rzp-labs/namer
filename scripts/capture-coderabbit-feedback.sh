@@ -209,6 +209,10 @@ else
     warn "Found $ISSUE_COUNT issue(s) to review"
 fi
 
+# Count critical issues (potential_issue, security, refactor_suggestion)
+# These MUST be fixed before pushing
+CRITICAL_COUNT=$(grep -c "^Type: potential_issue$\|^Type: security$\|^Type: refactor_suggestion$" "$FEEDBACK_FILE" 2>/dev/null || echo "0")
+
 # Update tracking file
 update_tracker "$FEEDBACK_FILE" "$ISSUE_COUNT" "SUCCESS"
 
@@ -225,6 +229,31 @@ if [[ "${CODERABBIT_CREATE_ISSUES:-0}" == "1" ]] && [[ "$ISSUE_COUNT" -gt 0 ]]; 
     else
         warn "Failed to create GitHub issues (non-blocking)"
     fi
+fi
+
+# Fail the push if critical issues are found
+if [[ "$CRITICAL_COUNT" -gt 0 ]]; then
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    error "PUSH BLOCKED: Found $CRITICAL_COUNT critical issue(s) that MUST be fixed"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Critical issue types:"
+    echo "  • potential_issue - Security/correctness bugs that could cause failures"
+    echo "  • security - Security vulnerabilities that must be addressed"
+    echo "  • refactor_suggestion - Design issues that violate best practices"
+    echo ""
+    echo "Style and performance issues are informational only and won't block push."
+    echo ""
+    echo "What to do:"
+    echo "  1. Review the feedback: cat $FEEDBACK_FILE"
+    echo "  2. Fix the critical issues"
+    echo "  3. Commit your fixes: git add -A && git commit -m 'fix: address CodeRabbit critical issues'"
+    echo "  4. Try pushing again"
+    echo ""
+    echo "The feedback has been saved and tracked for your review."
+    echo ""
+    exit 1
 fi
 
 exit 0

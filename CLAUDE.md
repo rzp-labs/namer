@@ -362,6 +362,8 @@ We use a **stratified approach** that separates fast commit-time validation from
   - Full pytest suite with coverage - All tests including watchdog, web, videophash, and slow tests
   - Codacy security analysis - Security vulnerabilities, code quality, complexity analysis
   - CodeRabbit AI review - Design patterns, best practices, security concerns
+    - **Blocks push on critical issues** (potential_issue, security, refactor_suggestion)
+    - **Informational only** for style and performance suggestions
     - **Feedback is automatically captured** to `.coderabbit/feedback/` for later review
     - See "CodeRabbit Feedback Tracking" section below for details
   - Docker smoke test - Quick build validation to catch Dockerfile/build errors
@@ -520,8 +522,9 @@ git push origin feature/my-feature
 **Integration with Development Workflow:**
 - **Option 1: Manual tracking** - Review `.coderabbit/feedback-tracker.md` and implement directly
 - **Option 2: GitHub issues** - Create issues for planning and prioritization alongside other work
-- Feedback doesn't block pushes (informational only)
-- Review and implement in subsequent focused commits
+- **Critical issues BLOCK pushes** - potential_issue, security, refactor_suggestion types must be fixed
+- **Style/performance are informational** - Won't block push, review and implement as appropriate
+- Review and implement critical issues immediately, defer non-critical to focused commits
 - Small commits = faster subsequent CodeRabbit reviews
 - Track progress using checkbox status in tracker OR GitHub issue status
 
@@ -557,7 +560,8 @@ git push origin feature/my-feature
 2. **Type errors** - Run `poetry run mypy .` locally first (caught in pre-commit)
 3. **Test failures** - Fix tests before pushing (caught in pre-commit fast tests)
 4. **Security issues** - Address Codacy findings
-5. **CodeRabbit feedback** - Address design/quality issues
+5. **CodeRabbit critical issues** - Push BLOCKED until fixed (potential_issue/security/refactor_suggestion)
+6. **CodeRabbit style/performance** - Informational only, won't block push
 
 ### Type Checking Tips
 
