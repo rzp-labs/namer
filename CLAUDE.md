@@ -923,3 +923,17 @@ gh issue create ... > "$temp_file"
   - Python code: ~15-20s commit + ~90s push
   - Dockerfile: ~15-20s commit + ~60s push
   - Shell scripts: ~5s commit + instant push
+
+**20. Bash Command Timeout Configuration for Git Operations**
+- **Problem:** Default Bash tool timeout (120s/2min) insufficient for pre-push hooks
+- **Root Cause:** Pre-push hooks have 10-minute timeouts but Bash command times out at 2 minutes
+- **Impact:** Git push appears to fail even though hooks are running and passing
+- **Solution:** Use 300 seconds (5 minutes) timeout for git push operations
+- **Pattern:** `Bash(git push:*, timeout: 300000)` - 5 minutes for git operations
+- **Rationale:**
+  - Pre-push hooks: pytest-full (~90s) + docker-smoke-test (~30-60s) = ~2min typical
+  - Hook timeouts: 10 minutes (600s) for safety margin
+  - Bash timeout should be generous but reasonable: 5 minutes covers typical + buffer
+  - Can always tighten if proven excessive
+- **Best Practice:** Match Bash timeout to expected operation duration + buffer
+- **Example:** Hotfix push timed out at 2min but hooks completed successfully in background
