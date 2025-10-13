@@ -165,14 +165,17 @@ encode_video() {
 	local preset="$5"
 	local keep_audio="$6"
 
+	local map_args=("-map" "0:v:0")
 	local audio_opts=("-an")
 	if [[ "$keep_audio" == "true" ]]; then
+		# Map all audio streams if present; copy without re-encode
+		map_args+=("-map" "0:a?")
 		audio_opts=("-c:a" "copy")
 	fi
 
 	local ffmpeg_cmd=(
 		ffmpeg -hide_banner -y -i "$input"
-		-map 0:v:0
+		"${map_args[@]}"
 		-c:v libsvtav1
 		-crf "$crf"
 		-preset "$preset"
