@@ -1,7 +1,7 @@
 import time
 from pathlib import Path
 from threading import Thread
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Dict, Optional
 
 from flask import Blueprint, make_response, request
 from flask.wrappers import Response
@@ -21,7 +21,7 @@ def get_routes(responses: Dict[str, Any]) -> Blueprint:
         # args = request.args
         output = responses.get(request.full_path)
         value = None
-        if isinstance(output, Callable):
+        if callable(output):
             output = output()
         if isinstance(output, bytearray):
             value = output

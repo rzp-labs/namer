@@ -31,7 +31,10 @@ def wait_until_processed(watcher: MovieWatcher, duration: int | None = None):
     if duration is None:
         duration = DEFAULT_WAIT_SECONDS
     config = watcher.get_config()
-    Wait().seconds(duration).checking(1).until(lambda: len(list(config.watch_dir.iterdir())) > 0 or len(list(config.work_dir.iterdir())) > 0).is_false()
+    watch_dir = config.watch_dir
+    work_dir = config.work_dir
+    if watch_dir and work_dir:
+        Wait().seconds(duration).checking(1).until(lambda: len(list(watch_dir.iterdir())) > 0 or len(list(work_dir.iterdir())) > 0).is_false()
     watcher.stop()
 
 

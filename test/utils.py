@@ -57,7 +57,7 @@ class Wait:
             if not self._predicate:
                 raise RuntimeError('you must set a predicate to wait on before calling attempting to wait.')
             predicate = self._predicate
-            if predicate and predicate() == state:
+            if predicate() == state:
                 return
             sleep(self._checking)
         raise RuntimeError(f'Timed out waiting for predicate {self._predicate} to return {state}')
