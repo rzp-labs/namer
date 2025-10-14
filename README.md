@@ -23,7 +23,7 @@ Automatically renames and tags adult video files using metadata from ThePornDB a
 
 ### Project Structure
 
-```
+```plaintext
 namer/                   # Main package (NOT src/)
 ├── __main__.py          # Application entry point
 ├── configuration.py     # Config file parsing
