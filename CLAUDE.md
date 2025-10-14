@@ -1277,7 +1277,8 @@ jq '.sessions[] | select(.tags[] | contains("performance"))' .agent/memory.json
 jq '.sessions[] | select(.tags[] | contains("git-hooks")) | {title, pattern}' .agent/memory.json
 ```
 
-**18. Stratified Hooks Validation in Real Release Cycle**
+### 18. Stratified Hooks Validation in Real Release Cycle
+
 - **Evidence from Release/1.23.3:**
   - Pre-commit caught: Type errors, formatting issues, test failures
   - Pre-push caught: Full test suite coverage, Docker build validation
@@ -1293,7 +1294,8 @@ jq '.sessions[] | select(.tags[] | contains("git-hooks")) | {title, pattern}' .a
 
 ### Branch Lifecycle and Cleanup
 
-**19. Thorough Investigation Before Cherry-Picking**
+### 19. Thorough Investigation Before Cherry-Picking
+
 - **Context:** Attempted to extract "security improvements" from 12-day-old branch (chore/urgent-ci-hardening)
 - **Initial Assessment:** Branch appeared to have valuable changes (secrets.choice, defusedxml, path sanitization)
 - **Discovery Process:**
@@ -1313,7 +1315,8 @@ jq '.sessions[] | select(.tags[] | contains("git-hooks")) | {title, pattern}' .a
 - **Time Investment:** Spent ~30 minutes investigating only to find nothing was needed
 - **Benefit:** Prevented duplicate code and unnecessary merge conflicts
 
-**20. Respect Intentional Architectural Decisions**
+### 20. Respect Intentional Architectural Decisions
+
 - **Context:** Attempted to "improve security" by replacing corepack with npm --ignore-scripts
 - **User Challenge:** "I thought we used corepack for a specific reason"
 - **Investigation:** Found PR #108 (commit c6d12b6c) established corepack intentionally
@@ -1335,7 +1338,8 @@ jq '.sessions[] | select(.tags[] | contains("git-hooks")) | {title, pattern}' .a
 - **Recovery:** Abandoned change, closed PR, deleted branches
 - **Best Practice:** Document significant architectural decisions in commit messages or ADRs
 
-**21. Branch Obsolescence Patterns**
+### 21. Branch Obsolescence Patterns
+
 - **Pattern 1 - Squash Merged:** Branches with content in main but different commit SHAs
   - Example: hotfix/graphql-schema-fixes (commit 9af0765 vs main's bea5bbf)
   - Identification: Content is in target branch but `git branch --contains` returns false
@@ -1357,7 +1361,7 @@ jq '.sessions[] | select(.tags[] | contains("git-hooks")) | {title, pattern}' .a
   - Identification: Compare actual code, not just commit history
   - Solution: Verify with `git diff`, then delete if truly incorporated
 
-**22. Efficient Obsolescence Detection Workflow**
+### 22. Efficient Obsolescence Detection Workflow
 
 Systematic approach to identifying and cleaning up obsolete branches:
 
@@ -1416,7 +1420,7 @@ git remote prune origin
 git branch -a
 ```
 
-**23. PR Closure Communication**
+### 23. PR Closure Communication
 
 When closing obsolete PRs, provide clear rationale for future reference:
 
