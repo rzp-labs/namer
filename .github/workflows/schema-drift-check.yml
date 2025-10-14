@@ -38,7 +38,22 @@ jobs:
           STASHDB_TOKEN: ${{ secrets.STASHDB_TOKEN }}
           TPDB_TOKEN: ${{ secrets.TPDB_TOKEN }}
         run: |
-          # Run drift detection (exits 1 if drift detected)
+          # Check if secrets are available (not available in forked PRs)
+          if [[ -z "$STASHDB_TOKEN" || -z "$TPDB_TOKEN" ]]; then
+            echo "drift_detected=skipped" >> "$GITHUB_OUTPUT"
+            {
+              echo "## ℹ️ Schema Drift Check Skipped"
+              echo ""
+              echo "Schema drift detection was skipped because API tokens are not available."
+              echo ""
+              echo "**Reason:** Secrets are not accessible in pull requests from forks for security reasons."
+              echo ""
+              echo "**Note:** This check will run automatically after the PR is merged."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # Run drift detection (exits 1 if drift detected, 0 if no drift)
           if ./scripts/check-schema-drift.sh; then
             echo "drift_detected=false" >> "$GITHUB_OUTPUT"
             {
@@ -148,6 +163,11 @@ jobs:
         run: |
           echo "::error::Schema drift detected. Update documentation or revert provider changes."
           exit 1
+
+      - name: Summary for skipped check
+        if: steps.drift_check.outputs.drift_detected == 'skipped'
+        run: |
+          echo "::notice::Schema drift check was skipped due to missing API tokens (forked PR)"
 
   test-drift-scripts:
     name: Test Drift Detection Scripts
