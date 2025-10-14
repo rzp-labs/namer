@@ -279,7 +279,7 @@ main() {
 	if [[ $STASHDB_DRIFT -eq 2 || $TPDB_DRIFT -eq 2 ]]; then
 		echo -e "\n${YELLOW}⚠ One or more baseline schemas are missing. No validation performed.${NC}"
 		echo -e "${BLUE}Run 'make update-schema-docs' to create baseline files.${NC}"
-		exit 0
+		exit 2
 	# Check for schema drift (exit code 1)
 	elif [[ $STASHDB_DRIFT -eq 1 || $TPDB_DRIFT -eq 1 ]]; then
 		echo -e "\n${YELLOW}⚠ Schema drift detected. Review changes and update documentation.${NC}"

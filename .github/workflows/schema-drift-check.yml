@@ -53,15 +53,39 @@ jobs:
             exit 0
           fi
 
-          # Run drift detection (exits 1 if drift detected, 0 if no drift)
-          if ./scripts/check-schema-drift.sh; then
+          # Run drift detection and capture exit status
+          # Exit codes: 0 = no drift, 1 = drift detected, 2 = missing baseline
+          set +e
+          ./scripts/check-schema-drift.sh
+          EXIT_CODE=$?
+          set -e
+
+          # Handle different exit codes
+          if [[ $EXIT_CODE -eq 0 ]]; then
+            # No drift detected
             echo "drift_detected=false" >> "$GITHUB_OUTPUT"
             {
               echo "## ✅ No Schema Drift Detected"
               echo ""
               echo "All GraphQL schemas are up to date."
             } >> "$GITHUB_STEP_SUMMARY"
+          elif [[ $EXIT_CODE -eq 2 ]]; then
+            # Missing baseline - not an error, just informational
+            echo "drift_detected=baseline_missing" >> "$GITHUB_OUTPUT"
+            {
+              echo "## ℹ️ Schema Drift Check Skipped (No Baselines)"
+              echo ""
+              echo "Schema drift detection was skipped because baseline schema files are not present."
+              echo ""
+              echo "**This is expected for:**"
+              echo "- Infrastructure-only changes"
+              echo "- Documentation-only changes"
+              echo "- Initial setup PRs"
+              echo ""
+              echo "**Note:** Baseline files will be created when \`make update-schema-docs\` is run."
+            } >> "$GITHUB_STEP_SUMMARY"
           else
+            # Drift detected (exit code 1 or other non-zero)
             echo "drift_detected=true" >> "$GITHUB_OUTPUT"
             {
               echo "## ⚠️ Schema Drift Detected"
