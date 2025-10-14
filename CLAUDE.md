@@ -1138,322 +1138,141 @@ rm -f "${doc}.bak"
 
 ---
 
-## Lessons Learned
+## Lessons Learned (Distilled Patterns)
 
-### Key Insights from Practice
+### PR Workflow Patterns
 
-**1. Atomic PRs Deliver Measurable ROI**
+**Atomic PRs**: 200-500 lines per PR, single focused concern.
 
-- Investment: ~1 hour to split large branch
-- Return: 20x faster review time (30s vs 10min)
-- Benefit: Parallel progress, lower risk, easier rollback
-- Pattern: 200-500 lines per PR = optimal reviewer experience
+- Investment: ~1 hour to split
+- Return: 20x faster review time
+- Pattern: Sequential PRs for evolving docs/config, parallel for independent changes
 
-**2. Respect Auto-Formatting Configuration**
+**Splitting Strategy**:
 
-- Don't make manual changes that conflict with Ruff
-- If formatting is problematic, update Ruff config project-wide
-- Consistency across codebase > isolated "readability" improvements
-- Pre-commit hooks will revert manual formatting changes
+1. Analyze commits: `git log develop..HEAD --oneline`
+2. Create atomic branches from develop
+3. Cherry-pick relevant commits: `git cherry-pick <hash>`
+4. Apply fixes selectively (don't cherry-pick entire commits blindly)
 
-**3. Generous Timeouts Prevent False Failures**
+**Strategic Decision Reassessment**: When upstream decisions change, reassess dependent features before merging.
 
-- 10min timeout with ~90s typical execution = best UX
-- Accommodates: slow systems, network delays, first-time package downloads
-- Prevents frustration from timeout failures on edge cases
-- Pattern: Generous safety margin + fast typical execution
+_Reference: `.agent/memory.json` (lesson-001, lesson-005, lesson-006, lesson-010, lesson-013, lesson-014) for detailed ROI metrics, workflows, and separation strategies_
 
-**4. Context-Appropriate Hook Bypass**
+---
+
+### Git Hook Patterns
+
+**File Type Filtering**: Hooks ONLY run when relevant files change.
+
+```yaml
+# Single file type
+- id: pytest-fast
+  types: [python]
+
+# Multiple file types
+- id: docker-smoke-test
+  types_or: [dockerfile, python, javascript, json, toml, shell]
+```
+
+**Impact**: 70%+ time savings on docs-only workflows (instant vs 2min).
+
+**Timeout Configuration**: Generous timeouts (10min) with fast typical execution (~90s).
+
+**Hook Bypass Guidelines**:
 
 - ✅ Acceptable: When modifying hook system itself (chicken-egg problem)
-- ✅ Acceptable: Atomic PRs missing build scripts (focused scope)
 - ❌ Never: To skip failing tests or security scans
-- ❌ Never: To bypass hooks before pushing to shared branches
 
-**5. Sequential > Parallel for Evolving Documentation**
+_Reference: `.agent/memory.json` (lesson-002, lesson-003, lesson-004, lesson-009, lesson-011) for performance benchmarks, optimization philosophy, and bypass guidelines_
 
-- When CLAUDE.md or configs evolve across commits, expect conflicts
-- Sequential PRs (building on each other) easier than parallel splits
-- Resolve conflicts by keeping more complete implementation
-- Document resolution rationale in merge commit message
+---
 
-**6. Selective Fix Application (Atomic PR Extraction)**
+### Shell Scripting Patterns
 
-- Cherry-picking entire commits can include unrelated changes
-- **Better approach:** Manually apply only relevant fixes per feature area
-- **Process:** Review `git show <sha>`, identify target files, apply selectively
-- **Example:** Commit had 5 fixes, but PR only needed 3 (other 2 belonged elsewhere)
-- **Benefit:** Maintains true atomic PRs, prevents scope creep
+**Shellcheck Compliance**: Remove unused variables during refactoring.
 
-**7. Shellcheck Compliance During Refactoring**
+**Heredoc with Non-Shell Code**: Use quoted delimiter + sed replacement.
 
-- Unused variables block commits when shellcheck is enabled
-- **Pattern:** Remove unused code when refactoring - don't leave dead variables
-- **Example:** Removed `MAX_CRF` variable and `--max-crf` option after loop refactor
-- **Impact:** Keeps codebase clean, prevents confusion
+```bash
+cat >"$file" <<'TEMPLATE_EOF'
+Content with PLACEHOLDER
+TEMPLATE_EOF
+sed -i.bak "s/PLACEHOLDER/$value/g" "$file"
+rm -f "${file}.bak"
+```
 
-**8. Data Extraction from Nested JSON**
+**Filename Sanitization**: Use bash parameter expansion.
 
-- AI review comments often nested deep in GraphQL responses
-- **Pattern:** Use `.reviews[] | select(.author.login == "gemini-code-assist")`
-- **Challenge:** Comments may be in `.reviews[].comments.nodes[]` requiring graph traversal
-- **Solution:** GraphQL queries more reliable than parsing comment HTML
+```bash
+SAFE_BRANCH="${BRANCH//\//-}"  # shellcheck compliant
+```
 
-**9. Hook Optimization Philosophy: Skip When Files Don't Affect Outcomes**
+_Reference: `.agent/memory.json` (lesson-007, lesson-015) for parser issues, debugging journeys, and systematic review response_
 
-- **Insight:** "There should be zero changes between commit and push, so re-linting doesn't make sense"
-- **Pattern:** Use `types` or `types_or` filters on ALL expensive hooks
-- **Impact:** 70%+ time savings on docs-only changes (2min → instant)
-- **Best Practice:** Hooks should ONLY run when files affecting their outcome are modified
-- **Example:** pytest skips on markdown-only changes, Docker skips on docs-only changes
+---
 
-**10. Strategic Decision Reassessment**
+### CI/CD Patterns
 
-- **Pattern:** When upstream decisions change, reassess dependent features before merging
-- **Example:** PR #126 removed CodeRabbit automation → PR #124 feedback capture became obsolete
-- **Process:**
-  1. Check if upstream decisions invalidate pending work
-  2. Verify assumptions still hold before merging
-  3. Close obsolete PRs with clear rationale
-  4. Update documentation to reflect new decisions
-- **Impact:** Prevents merging features that are no longer needed or compatible
+**Artifact Paths**: `${RUNNER_TEMP:-/tmp}` in scripts, `${{ runner.temp }}` in workflows.
 
-**11. File Type Filter Patterns**
+**Exit Code Semantics**: Distinct codes for distinct states (0=success, 1=failure, 2=informational).
 
-- **Single type:** `types: [python]` - pytest, mypy
-- **Single type:** `types: [dockerfile]` - hadolint
-- **Multiple types:** `types_or: [dockerfile, python, javascript, json, toml, shell]` - docker-smoke-test
-- **Performance matrix established:**
-  - Docs/Markdown changes: Instant commit + instant push
-  - Config-only changes: Instant commit + instant push
-  - Python code: ~15-20s commit + ~90s push
-  - Dockerfile: ~15-20s commit + ~60s push
-  - Shell scripts: ~5s commit + instant push
+```bash
+if [ $EXIT_CODE -eq 1 ]; then
+    echo "actionable_failure=true"
+elif [ $EXIT_CODE -eq 2 ]; then
+    echo "informational=true"
+fi
+```
 
-**12. GraphQL Schema Drift Detection via Introspection**
+**Dynamic Documentation**: Extract statistics from source data, never hardcode.
 
-- **Problem:** External APIs (StashDB, ThePornDB) change without notice, breaking integration
-- **Solution:** Automated schema introspection + drift detection + CI monitoring
-- **Architecture:**
-  1. **Baseline Documentation** - Store complete schema snapshots in `docs/api/`
-  2. **Introspection Queries** - Fetch live schemas via GraphQL `__schema` queries
-  3. **Normalized Comparison** - Sort/format consistently to avoid false positives
-  4. **Automated Monitoring** - Weekly CI checks + PR validation
-  5. **GitHub Integration** - Auto-create issues when drift detected
-- **Key Learnings:**
-  - Introspection is more reliable than parsing API docs
-  - Normalization critical for avoiding format-only diffs
-  - Weekly schedule balances monitoring vs noise
-  - PR validation prevents merging outdated integrations
-  - Detailed diffs essential for understanding breaking changes
-- **Implementation:**
-  - `make check-schema-drift` - Manual drift detection
-  - `make update-schema-docs` - Refresh documentation
-  - `.github/workflows/schema-drift-check.yml` - Automated monitoring
-  - `docs/api/SCHEMA_MAINTENANCE.md` - Operations guide
-- **Best Practices:**
-  - Store baseline schemas in version control
-  - Use normalized comparisons (sorted JSON)
-  - Generate human-readable diffs
-  - Document breaking vs additive changes
-  - Test integration code after schema updates
-- **Emergency Response:**
-  1. Detect breaking change via CI alert
-  2. Review diff to understand impact
-  3. Update integration code + tests
-  4. Refresh documentation: `make update-schema-docs`
-  5. Commit all changes together
-- **Authentication Gotchas:**
-  - StashDB uses non-standard `APIKey` header (not `Authorization: Bearer`)
-  - ThePornDB uses standard `Authorization: Bearer` header
-  - Different field names: `studio` vs `site`, `urls[].url` vs `urls[].view`
-  - Test auth early: `curl` with `me` query validates tokens
-- **ROI:**
-  - Prevents production failures from silent API changes
-  - Reduces debugging time (clear diffs vs mystery errors)
-  - Enables proactive updates vs reactive firefighting
-  - Documents API evolution over time
+**Schema Drift Detection**: Automated introspection + CI monitoring.
 
-**13. PR Merge and Cleanup Workflow (2025-10-13)**
+- `make check-schema-drift` - Manual detection
+- `make update-schema-docs` - Refresh documentation
+- Weekly CI checks + PR validation
+- Auto-create GitHub issues on drift
 
-- **Context:** Merging approved PRs and performing Git Flow cleanup
-- **Workflow Steps:**
-  1. **Verify PR Status** - Check `mergeability`, `mergeStateStatus`, and review approvals
-  2. **Re-run Failed Checks** - Use `gh run rerun <id> --failed` to retry transient CI failures
-  3. **Merge with Cleanup** - Use `gh pr merge --squash --delete-branch` for atomic merges
-  4. **Local Cleanup** - Switch to develop, pull latest, delete local feature branch
-  5. **Remote Cleanup** - Use `git remote prune origin` to remove stale tracking branches
-- **Key Commands:**
-  - `gh pr view <num> --json mergeable,mergeStateStatus,reviews` - Check PR status
-  - `gh pr checks <num>` - View CI check status
-  - `gh run rerun <id> --failed` - Retry failed workflow runs
-  - `gh pr merge <num> --squash --delete-branch` - Merge and cleanup
-  - `git remote prune origin` - Clean stale remote tracking branches
-- **Git Flow Discipline:**
-  - NEVER push directly to `develop` - always use feature branches + PRs
-  - Branch protection enforces PR requirement (good practice)
-  - Even "small" doc fixes must go through proper Git Flow
-  - Reset and create feature branch if you accidentally commit to develop
-- **Lessons Learned:**
-  - Branch protection prevents direct pushes (caught Git Flow violation)
-  - Stash changes when switching branches to avoid losing work
-  - Verify branch cleanup with `git branch -a` after prune
-  - Schema docs from PR 140 should not be duplicated in drift detection PR
-- **Pattern:** Systematic merge → cleanup → verification prevents clutter
+_Reference: `.agent/memory.json` (lesson-012, lesson-015, lesson-017) for implementation patterns, architecture details, emergency response workflows, and iterative PR review resolution_
 
-**14. Separating Infrastructure from Documentation (2025-10-13)**
+---
 
-- **Problem:** PR 138 included both drift detection infrastructure AND schema documentation
-- **Root Cause:** Schema docs were merged separately in PR 140, creating duplication
-- **Solution:** Split infrastructure (new) from documentation (already merged)
-- **Process:**
-  1. Apply all changes from closed PR to new feature branch
-  2. Identify which files already exist in develop (from other PRs)
-  3. Unstage duplicate files: `git reset HEAD <files>`
-  4. Restore duplicates from develop: `git checkout develop -- <files>`
-  5. Commit only the new infrastructure without duplicates
-- **Files Kept (Infrastructure):**
-  - `.github/workflows/schema-drift-check.yml` - CI automation
-  - `scripts/check-schema-drift.sh` - Drift detection script
-  - `scripts/update-schema-docs.sh` - Documentation update script
-  - `docs/api/SCHEMA_MAINTENANCE.md` - Operations guide
-  - `docs/sessions/*.md` - Session notes
-  - `Makefile` - New targets for drift detection
-  - `CLAUDE.md` - External API Integration section
-- **Files Excluded (Already in PR 140):**
-  - `docs/api/graphql_schema_documentation.md` - Human-readable guide
-  - `docs/api/graphql_schemas_report.json` - Schema comparison report
-  - `docs/api/stashdb_schema.json` - StashDB baseline schema
-  - `docs/api/tpdb_schema.json` - ThePornDB baseline schema
-- **Best Practices:**
-  - Review what's already merged before creating new PRs from closed PRs
-  - Use `git diff develop...HEAD --name-only` to see what's truly new
-  - Keep infrastructure separate from documentation when possible
-  - Reference related PRs in commit messages for context
-- **Pattern:** Infrastructure PRs should focus on tooling, not duplicate docs
+### Code Review Patterns
 
-**15. Heredocs with Non-Shell Code & Systematic Review Response (2025-10-13)**
+**Systematic Response**: Create todo list → Prioritize (CRITICAL > HIGH > MAJOR > Minor) → Address systematically.
 
-- **Context:** PR #141 review feedback - CodeRabbit + Gemini Code Assist
-- **Challenge:** Shell formatting (shfmt) incompatible with heredocs containing GraphQL/JSON code
-- **Root Cause:** Parser interprets shell-like syntax (braces, brackets) in code samples as shell constructs
-- **Solution Discovery Process:**
-  1. Attempted escaping, indentation removal, various bracket strategies - all failed
-  2. User intervention identified fundamental parser incompatibility
-  3. Solution: Quoted heredoc (`<<'DELIMITER'`) + sed replacement pattern
-- **Implementation:**
+**Issue Management**: Convert AI feedback to GitHub issues with priority labels.
 
-  ```bash
-  # Quoted heredoc prevents shell interpretation
-  cat >"$file" <<'TEMPLATE_EOF'
-  Content with PLACEHOLDER tokens and code samples
-  TEMPLATE_EOF
+```bash
+gh issue create \
+  --title "🔴 [Urgent] Issue title" \
+  --label urgent,bug \
+  --body "## Problem\n...\n\n## Impact\n...\n\n## Solution\n..."
+```
 
-  # Sed replaces placeholders after file creation
-  sed -i.bak "s/PLACEHOLDER/$variable/g" "$file"
-  rm -f "${file}.bak"
-  ```
+**JSON Extraction**: Use GraphQL queries for nested data structures.
 
-- **Additional Learnings:**
-  - **CI/CD Artifact Paths:** Always use `${RUNNER_TEMP:-/tmp}` in scripts, `${{ runner.temp }}` in workflows
-  - **Exit Code Semantics:** Use distinct codes (0=success, 1=actionable failure, 2=informational) and check explicitly (`-eq 1`)
-  - **Dynamic Documentation:** Extract statistics from data sources, never hardcode
-  - **Systematic PR Review:** Create todo list → Prioritize (CRITICAL > HIGH > MAJOR > Minor) → Address systematically
-  - **Graceful Degradation:** Distinguish required files from context-dependent files (warnings vs errors)
-- **Impact:**
-  - Reusable pattern for documentation generation scripts
-  - Standard CI/CD artifact path convention established
-  - Clear methodology for responding to automated review feedback
-- **Reference:** `docs/sessions/2025-10-13-pr141-review-response.md`
+```bash
+jq '.data.repository.pullRequest.reviews[] | select(.author.login == "gemini-code-assist")'
+```
 
-**16. AI Code Review Issue Management (2025-10-13)**
+_Reference: `.agent/memory.json` (lesson-008, lesson-016) for tools, workflows, issue structure best practices, and label management_
 
-- **Context:** Converting PR 141 CodeRabbit review feedback to GitHub issues
-- **Challenge:** Extracting actionable items from AI review comments and organizing as trackable work
-- **Process:**
-  1. Extract all review comments from AI reviewers (CodeRabbit, Gemini Code Assist)
-  2. Categorize feedback by priority: Urgent > High > Medium > Low
-  3. Create GitHub issues with comprehensive problem statements
-  4. Link all issues in PR comment for visibility
-  5. Separate already-addressed items from future work
-- **Issue Structure Best Practices:**
-  - **Title:** Emoji prefix for visual priority (🔴 Urgent, 🟡 High, 🔵 Medium, 🟢 Low)
-  - **Problem:** Clear description of what's wrong and why it matters
-  - **Impact:** Business/technical consequences of not addressing
-  - **Solution:** Specific, actionable recommendations with code examples
-  - **Files to Modify:** Exact locations to change
-  - **Success Criteria:** Testable checkboxes for completion
-  - **Related:** Links to PRs, other issues, documentation
-- **Priority Definitions:**
-  - **Urgent**: Security issues, silent failures, data integrity (fix immediately)
-  - **High**: Accuracy problems, best practices violations (fix in follow-up)
-  - **Medium**: Documentation quality, linting issues (fix when convenient)
-  - **Low**: Style preferences, optional improvements (evaluate ROI)
-- **Label Management:**
-  - GitHub labels are case-sensitive: use lowercase (`urgent`, not `Urgent`)
-  - Create missing labels with `gh label create <name> -c <color> -d <description>`
-  - Standard colors: urgent=#d73a4a (red), high=#ededed (gray), medium-term=#ededed, low=#fbca04 (yellow)
-- **Key Benefits:**
-  - Systematic tracking prevents forgotten feedback
-  - Prioritization enables intelligent resource allocation
-  - Issues provide context for future contributors
-  - Prevents scope creep in current PR (defer to follow-ups)
-  - Creates audit trail of decisions made
-- **Real-World Example (PR #141):**
-  - 2 Urgent: Dependency checks, curl error handling
-  - 1 High: Drift summary accuracy
-  - 1 Medium: Markdownlint code fences
-  - 1 Low: Emphasis-as-heading style
-  - Result: 6 items already fixed, 5 issues for follow-up
-- **Integration with PR Workflow:**
-  - Address critical feedback in current PR commit
-  - Create issues for non-blocking items
-  - Add summary comment to PR linking all issues
-  - Mark items as addressed vs deferred
-  - Reference issue numbers in follow-up PRs
-- **Pattern:** Extract → Categorize → Create issues → Link → Track systematically
+---
 
-**17. Iterative PR Review Resolution (2025-10-14)**
+**Complete Historical Context**: See `.agent/memory.json` for full session details, ROI analysis, debugging journeys, and 17 structured lessons with code examples.
 
-- **Context:** Resolving PR #141 blocking issues through iterative fixes
-- **Challenge:** Multiple interrelated issues requiring careful coordination and exit code semantics
-- **Resolution Process:**
-  1. **Issues #142 & #143** - Script error handling (dependency checks, curl flags)
-  2. **Console Output** - Missing baseline detection in main() exit logic
-  3. **Report Generation** - Banner accuracy in generate_report() function
-  4. **Forked PR Handling** - Graceful skip when secrets unavailable in workflow
-  5. **Exit Code Semantics** - Proper distinction between 0/1/2 in script and workflow
-- **Exit Code Architecture:**
-  - **Script Exit Codes:** 0=success, 1=drift, 2=missing baseline, 127=missing dependencies
-  - **Workflow Outputs:** skipped, baseline_missing, false, true
-  - **Priority Order:** secrets → baseline → drift → success
-- **Key Implementation Patterns:**
-  - **Dependency Validation:** Check curl/jq before execution, exit 127 with helpful message
-  - **HTTP Error Handling:** Use `curl -fsS` to fail fast on 4xx/5xx errors
-  - **Priority Branching:** Check missing baseline (code 2) BEFORE drift (code 1) to avoid misclassification
-  - **Report Logic:** Match console output priority in report generation for consistency
-  - **Workflow Exit Capture:** Use `set +e; command; EXIT_CODE=$?; set -e` to capture exit status
-  - **Forked PR Detection:** Pre-check secrets availability, skip gracefully with clear messaging
-- **Lessons Learned:**
-  - **Consistency is Critical:** Exit code handling must match between script main(), generate_report(), and workflow
-  - **Priority Matters:** Order of checks determines accuracy (missing baseline before drift check)
-  - **Exit Code 2 is Informational:** Not an error, just indicates no validation occurred
-  - **Forked PRs Need Special Handling:** Secrets unavailable by design for security
-  - **Clear Messaging:** Each state needs distinct, helpful message explaining what happened and why
-  - **Semantic Exit Codes:** Use distinct codes for distinct states, check explicitly with `-eq` not `-ne 0`
-- **Real-World Impact:**
-  - 5 commits to fully resolve all interconnected issues
-  - Script: 2 fixes (dependency checks + exit code change)
-  - Workflow: 2 fixes (forked PR handling + exit code branching)
-  - Report: 1 fix (banner logic priority)
-- **Testing Pattern:**
-  - Validate shell syntax: `bash -n script.sh`
-  - Static analysis: `shellcheck script.sh`
-  - Workflow validation: `actionlint workflow.yml`
-  - All hooks passing before each commit
-- **Integration Success:**
-  - PR #141 merged successfully with squash
-  - Issues #142 & #143 closed automatically
-  - Branch cleanup completed (local + remote)
-  - Documentation updated in CLAUDE.md
-- **Pattern:** Iterative fixes → Consistent priority logic → Clear state messaging → Comprehensive testing → Successful merge
+**Query Examples**:
+
+```bash
+# Search by category
+jq '.sessions[] | select(.category == "pr-workflow")' .agent/memory.json
+
+# Search by tag
+jq '.sessions[] | select(.tags[] | contains("performance"))' .agent/memory.json
+
+# Get all patterns for a topic
+jq '.sessions[] | select(.tags[] | contains("git-hooks")) | {title, pattern}' .agent/memory.json
+```
