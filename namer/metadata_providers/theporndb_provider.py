@@ -431,12 +431,12 @@ class ThePornDBProvider(BaseMetadataProvider):
                     title
                     date
                     duration
-                    urls { view }
-                    site { name parent { name } network { name } }
+                    urls { url }
+                    studio { name parent { name } }
                     performers {
                         performer {
                             name
-                            image
+                            images { url }
                         }
                     }
                     tags { name }
@@ -483,22 +483,21 @@ class ThePornDBProvider(BaseMetadataProvider):
                     date
                     duration
                     urls {
-                        view
+                        url
                     }
                     isCollected
-                    site {
+                    studio {
                         name
                         parent {
-                            name
-                        }
-                        network {
                             name
                         }
                     }
                     performers {
                         performer {
                             name
-                            image
+                            images {
+                                url
+                            }
                         }
                     }
                     tags {
@@ -658,20 +657,19 @@ def _build_graphql_query(query_type: str, variables: Dict[str, Any]) -> Dict[str
                     title
                     date
                     duration
-                    urls { view }
-                    site {
+                    urls { url }
+                    studio {
                         name
                         parent {
-                            name
-                        }
-                        network {
                             name
                         }
                     }
                     performers {
                         performer {
                             name
-                            image
+                            images {
+                                url
+                            }
                         }
                     }
                     tags {
@@ -687,21 +685,20 @@ def _build_graphql_query(query_type: str, variables: Dict[str, Any]) -> Dict[str
                     title
                     date
                     duration
-                    urls { view }
+                    urls { url }
                     isCollected
-                    site {
+                    studio {
                         name
                         parent {
-                            name
-                        }
-                        network {
                             name
                         }
                     }
                     performers {
                         performer {
                             name
-                            image
+                            images {
+                                url
+                            }
                         }
                     }
                     tags {
