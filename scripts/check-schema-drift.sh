@@ -156,13 +156,39 @@ Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
 EOF
 
-	if [[ ${STASHDB_DRIFT:-0} -eq 0 && ${TPDB_DRIFT:-0} -eq 0 ]]; then
+	# Check for missing baselines first (exit code 2)
+	if [[ ${STASHDB_DRIFT:-0} -eq 2 || ${TPDB_DRIFT:-0} -eq 2 ]]; then
 		cat >>"$output_file" <<EOF
-✅ **All schemas are up to date**
+⚠️ **Baseline schemas missing - no validation performed**
 
-No drift detected in either StashDB or ThePornDB schemas.
 EOF
-	else
+		if [[ ${STASHDB_DRIFT:-0} -eq 2 ]]; then
+			cat >>"$output_file" <<EOF
+### StashDB Baseline Missing
+
+No baseline file found at \`$DOCS_DIR/stashdb_schema.json\`.
+
+EOF
+		fi
+
+		if [[ ${TPDB_DRIFT:-0} -eq 2 ]]; then
+			cat >>"$output_file" <<EOF
+### ThePornDB Baseline Missing
+
+No baseline file found at \`$DOCS_DIR/tpdb_schema.json\`.
+
+EOF
+		fi
+
+		cat >>"$output_file" <<EOF
+
+## Required Action
+
+Run \`make update-schema-docs\` to create baseline schema files.
+
+EOF
+	# Check for schema drift (exit code 1)
+	elif [[ ${STASHDB_DRIFT:-0} -eq 1 || ${TPDB_DRIFT:-0} -eq 1 ]]; then
 		cat >>"$output_file" <<EOF
 ⚠️ **Schema drift detected**
 
@@ -185,24 +211,6 @@ See detailed diff: \`$ARTIFACT_DIR/tpdb_drift.diff\`
 EOF
 		fi
 
-		if [[ ${STASHDB_DRIFT:-0} -eq 2 ]]; then
-			cat >>"$output_file" <<EOF
-### StashDB Baseline Missing
-
-No baseline file found. Run \`make update-schema-docs\` to create it.
-
-EOF
-		fi
-
-		if [[ ${TPDB_DRIFT:-0} -eq 2 ]]; then
-			cat >>"$output_file" <<EOF
-### ThePornDB Baseline Missing
-
-No baseline file found. Run \`make update-schema-docs\` to create it.
-
-EOF
-		fi
-
 		cat >>"$output_file" <<EOF
 
 ## Recommended Actions
@@ -212,6 +220,13 @@ EOF
 3. Update documentation: \`make update-schema-docs\`
 4. Update tests if API behavior changed
 5. Commit updated schema files to baseline
+EOF
+	# All schemas validated successfully (exit code 0)
+	else
+		cat >>"$output_file" <<EOF
+✅ **All schemas are up to date**
+
+No drift detected in either StashDB or ThePornDB schemas.
 EOF
 	fi
 
