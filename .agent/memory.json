@@ -449,3 +449,135 @@
     }
   ]
 }
+{
+  "version": "1.0.0",
+  "last_updated": "2025-10-14",
+  "sessions": [
+    {
+      "id": "session-001",
+      "date": "2025-10-14",
+      "title": "Branch Lifecycle Management and Cleanup",
+      "category": "git-workflow",
+      "tags": ["branch-cleanup", "git-flow", "pr-management", "architectural-decisions"],
+      "summary": "Comprehensive git branch cleanup session that uncovered important patterns for identifying and handling obsolete branches, respecting architectural decisions, and communicating PR closures effectively.",
+      "activities": [
+        {
+          "type": "cleanup",
+          "description": "Deleted 4 local branches (merged/superseded)",
+          "branches": [
+            "feature/improve-dev-tooling",
+            "hotfix/graphql-schema-fixes",
+            "dependabot/npm_and_yarn/minor-and-patch-ea2fef1"
+          ]
+        },
+        {
+          "type": "cleanup",
+          "description": "Deleted 5 remote branches from closed PRs",
+          "branches": [
+            "chore/urgent-ci-hardening",
+            "feature/npm-security-hardening",
+            "fire-16/fire-17"
+          ]
+        },
+        {
+          "type": "investigation",
+          "description": "Security improvements investigation",
+          "finding": "All improvements from chore/urgent-ci-hardening already incorporated into develop through refactoring",
+          "time_invested": "30 minutes",
+          "outcome": "Prevented duplicate work and unnecessary merge conflicts"
+        },
+        {
+          "type": "architectural-review",
+          "description": "Corepack vs npm security decision",
+          "finding": "Corepack intentionally chosen in PR #108 (commit c6d12b6c) for pnpm version enforcement",
+          "outcome": "Abandoned proposed change, respected existing architectural decision"
+        },
+        {
+          "type": "pr-closure",
+          "description": "Closed 3 obsolete PRs with detailed explanations",
+          "prs": [
+            {"number": 93, "reason": "regressive", "delta": "-24000 lines"},
+            {"number": 138, "reason": "incorporated"},
+            {"number": 139, "reason": "obsolete"}
+          ]
+        }
+      ],
+      "lessons": [
+        {
+          "number": 19,
+          "title": "Thorough Investigation Before Cherry-Picking",
+          "key_insight": "Old branches may appear valuable, but refactoring often incorporates improvements. Always diff current code against 'improvements' before cherry-picking.",
+          "pattern": "git diff develop old-branch -- path/to/file.py",
+          "impact": "Prevented 30min of wasted effort on duplicate work"
+        },
+        {
+          "number": 20,
+          "title": "Respect Intentional Architectural Decisions",
+          "key_insight": "Before 'improving' something, research WHY it was done that way. Use git log --grep and PR search to understand rationale.",
+          "pattern": "git log --all --grep='keyword' and gh pr list --search 'keyword'",
+          "impact": "Prevented breaking pnpm enforcement strategy for hypothetical security benefit"
+        },
+        {
+          "number": 21,
+          "title": "Branch Obsolescence Patterns",
+          "key_insight": "5 distinct patterns: squash-merged, superseded-dependabot, working-branches, regressive, incorporated",
+          "patterns": {
+            "squash_merged": "Content in main but different commit SHAs",
+            "superseded_dependabot": "Old PRs replaced by newer versions",
+            "working_branches": "Staging for atomic PRs, never meant to merge",
+            "regressive": "Outdated base would remove newer work (-24k lines)",
+            "incorporated": "Content cherry-picked into other work via refactoring"
+          }
+        },
+        {
+          "number": 22,
+          "title": "Efficient Obsolescence Detection Workflow",
+          "key_insight": "5-step systematic approach: PR status � content location � line counts � commit dates � unique value verification",
+          "decision_matrix": {
+            "recent_open_positive": "Keep (active development)",
+            "old_closed_negative": "Delete (regressive)",
+            "old_closed_positive": "Verify incorporated first"
+          },
+          "time_savings": "Systematic approach prevents repeated investigations"
+        },
+        {
+          "number": 23,
+          "title": "PR Closure Communication",
+          "key_insight": "Clear closure comments prevent re-investigation and document project history",
+          "template": "Reason � Investigation results � Branch issues � Conclusion",
+          "benefit": "Future readers understand decisions without re-investigation"
+        }
+      ],
+      "metrics": {
+        "branches_deleted": 9,
+        "prs_closed": 3,
+        "investigation_time": "30 minutes",
+        "documentation_added": "150+ lines in CLAUDE.md",
+        "patterns_identified": 5
+      },
+      "files_modified": [
+        "/Users/stephen/Projects/rzp-labs/namer/CLAUDE.md",
+        "/Users/stephen/Projects/rzp-labs/namer/.agent/memory.json"
+      ],
+      "references": {
+        "pr_108": "Established corepack for pnpm enforcement",
+        "pr_93": "Example of regressive branch (-24k lines)",
+        "commit_c6d12b6c": "Corepack architectural decision"
+      }
+    }
+  ],
+  "statistics": {
+    "total_sessions": 1,
+    "total_lessons": 23,
+    "categories": {
+      "pr-workflow": 5,
+      "git-hooks": 6,
+      "shell-scripting": 2,
+      "ci-cd": 3,
+      "code-review": 2,
+      "git-workflow": 5
+    },
+    "most_recent_lesson": 23,
+    "last_category": "git-workflow"
+  }
+}
