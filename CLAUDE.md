@@ -1412,3 +1412,48 @@ rm -f "${doc}.bak"
   - Mark items as addressed vs deferred
   - Reference issue numbers in follow-up PRs
 - **Pattern:** Extract → Categorize → Create issues → Link → Track systematically
+
+**17. Iterative PR Review Resolution (2025-10-14)**
+
+- **Context:** Resolving PR #141 blocking issues through iterative fixes
+- **Challenge:** Multiple interrelated issues requiring careful coordination and exit code semantics
+- **Resolution Process:**
+  1. **Issues #142 & #143** - Script error handling (dependency checks, curl flags)
+  2. **Console Output** - Missing baseline detection in main() exit logic
+  3. **Report Generation** - Banner accuracy in generate_report() function
+  4. **Forked PR Handling** - Graceful skip when secrets unavailable in workflow
+  5. **Exit Code Semantics** - Proper distinction between 0/1/2 in script and workflow
+- **Exit Code Architecture:**
+  - **Script Exit Codes:** 0=success, 1=drift, 2=missing baseline, 127=missing dependencies
+  - **Workflow Outputs:** skipped, baseline_missing, false, true
+  - **Priority Order:** secrets → baseline → drift → success
+- **Key Implementation Patterns:**
+  - **Dependency Validation:** Check curl/jq before execution, exit 127 with helpful message
+  - **HTTP Error Handling:** Use `curl -fsS` to fail fast on 4xx/5xx errors
+  - **Priority Branching:** Check missing baseline (code 2) BEFORE drift (code 1) to avoid misclassification
+  - **Report Logic:** Match console output priority in report generation for consistency
+  - **Workflow Exit Capture:** Use `set +e; command; EXIT_CODE=$?; set -e` to capture exit status
+  - **Forked PR Detection:** Pre-check secrets availability, skip gracefully with clear messaging
+- **Lessons Learned:**
+  - **Consistency is Critical:** Exit code handling must match between script main(), generate_report(), and workflow
+  - **Priority Matters:** Order of checks determines accuracy (missing baseline before drift check)
+  - **Exit Code 2 is Informational:** Not an error, just indicates no validation occurred
+  - **Forked PRs Need Special Handling:** Secrets unavailable by design for security
+  - **Clear Messaging:** Each state needs distinct, helpful message explaining what happened and why
+  - **Semantic Exit Codes:** Use distinct codes for distinct states, check explicitly with `-eq` not `-ne 0`
+- **Real-World Impact:**
+  - 5 commits to fully resolve all interconnected issues
+  - Script: 2 fixes (dependency checks + exit code change)
+  - Workflow: 2 fixes (forked PR handling + exit code branching)
+  - Report: 1 fix (banner logic priority)
+- **Testing Pattern:**
+  - Validate shell syntax: `bash -n script.sh`
+  - Static analysis: `shellcheck script.sh`
+  - Workflow validation: `actionlint workflow.yml`
+  - All hooks passing before each commit
+- **Integration Success:**
+  - PR #141 merged successfully with squash
+  - Issues #142 & #143 closed automatically
+  - Branch cleanup completed (local + remote)
+  - Documentation updated in CLAUDE.md
+- **Pattern:** Iterative fixes → Consistent priority logic → Clear state messaging → Comprehensive testing → Successful merge
