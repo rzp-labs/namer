@@ -33,6 +33,9 @@ namer-prod.cfg
 .github/workflows/ci.yml.backup
 namer/tools/*
 
+# Logs
+logs/
+
 # Test artifacts
 test/failed/
 test/integration/config/namer.cfg.old
@@ -49,7 +52,6 @@ test/integration/media/5-ambiguous/*
 # Ignore windsurf AI rules
 .windsurfrules
 .mcp.json
-.agent/
 .claude/
 
 # npm artifacts

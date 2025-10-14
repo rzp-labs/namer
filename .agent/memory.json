@@ -1,0 +1,451 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2025-10-14T03:30:00Z",
+    "total_sessions": 18,
+    "description": "Historical learning data from development sessions. This structured archive preserves rich context and debugging journeys while keeping CLAUDE.md focused on actionable patterns."
+  },
+  "sessions": [
+    {
+      "id": "lesson-001",
+      "date": "2025-10-13",
+      "title": "Atomic PRs Deliver Measurable ROI",
+      "category": "pr-workflow",
+      "tags": ["pr-strategy", "code-review", "developer-experience", "roi"],
+      "problem": "Large PRs (1,445 lines, 12 commits) take 10+ minutes to review, causing slow feedback cycles and increasing merge risk.",
+      "solution": "Split large branches into sequential or parallel PRs based on logical concerns. Target 200-500 lines per PR with single focused concern.",
+      "pattern": "Sequential PRs for evolving docs/config: (1) Analyze commits with `git log develop..HEAD --oneline`, (2) Create atomic branches from develop, (3) Cherry-pick commits with `git cherry-pick <hash>`, (4) Handle conflicts strategically with `git checkout --ours` for complete implementations. Parallel PRs for independent changes with no shared file modifications.",
+      "impact": {
+        "roi": "Investment: ~1 hour to split large branch. Return: 20x faster review time (30s vs 10min per PR).",
+        "performance": "Original: 1 PR, 1,445 lines, 10+ min review. Split: 5 PRs averaging 300 lines, <5 min review each.",
+        "quality": "Faster reviews, parallel progress, lower merge risk, easier rollback."
+      },
+      "related_files": [],
+      "related_prs": [],
+      "code_examples": []
+    },
+    {
+      "id": "lesson-002",
+      "date": "2025-10-13",
+      "title": "Respect Auto-Formatting Configuration",
+      "category": "code-quality",
+      "tags": ["ruff", "formatting", "pre-commit", "consistency"],
+      "problem": "Manual formatting changes that conflict with Ruff configuration get reverted by pre-commit hooks, wasting effort and creating confusion.",
+      "solution": "Never make manual formatting changes that conflict with Ruff. If formatting is problematic, update Ruff config project-wide for consistency.",
+      "pattern": "Consistency across codebase > isolated 'readability' improvements. Pre-commit hooks enforce configured standards automatically.",
+      "impact": {
+        "roi": "Prevents wasted effort on manual formatting that gets reverted.",
+        "performance": "Zero time spent on formatting conflicts.",
+        "quality": "Consistent code style across entire codebase."
+      },
+      "related_files": [".pre-commit-config.yaml", "pyproject.toml"],
+      "related_prs": [],
+      "code_examples": []
+    },
+    {
+      "id": "lesson-003",
+      "date": "2025-10-13",
+      "title": "Generous Timeouts Prevent False Failures",
+      "category": "git-hooks",
+      "tags": ["timeouts", "performance", "user-experience", "edge-cases"],
+      "problem": "Tight timeouts cause false failures on slow systems, network delays, or first-time package downloads, frustrating developers.",
+      "solution": "Use generous timeouts (10min) with fast typical execution (~90s). Accommodates edge cases without impacting normal workflows.",
+      "pattern": "Generous safety margin + fast typical execution = best UX. Example: pytest full suite timeout 10min, typical execution ~90s. Docker smoke test timeout 10min, typical execution ~30-60s.",
+      "impact": {
+        "roi": "Prevents frustration from timeout failures on legitimate edge cases.",
+        "performance": "Typical execution unaffected, edge cases handled gracefully.",
+        "quality": "Robust hooks that work across diverse development environments."
+      },
+      "related_files": [".pre-commit-config.yaml", "scripts/timeout-wrapper.sh"],
+      "related_prs": [],
+      "code_examples": []
+    },
+    {
+      "id": "lesson-004",
+      "date": "2025-10-13",
+      "title": "Context-Appropriate Hook Bypass",
+      "category": "git-hooks",
+      "tags": ["bypass", "git-hooks", "workflow", "exceptions"],
+      "problem": "When to use --no-verify for git hooks is context-dependent and requires clear guidelines to prevent abuse.",
+      "solution": "Define acceptable and prohibited bypass scenarios. Acceptable: modifying hook system itself (chicken-egg problem), atomic PRs missing build scripts (focused scope). Never: skip failing tests, security scans, or before pushing to shared branches.",
+      "pattern": "Hook bypass acceptable ONLY for meta-changes (hooks themselves) or deliberate atomic scope decisions. Never to hide quality issues.",
+      "impact": {
+        "roi": "Clear guidelines prevent bypass abuse while allowing legitimate exceptions.",
+        "performance": "No impact on normal workflow.",
+        "quality": "Maintains quality gates while acknowledging practical exceptions."
+      },
+      "related_files": [],
+      "related_prs": [],
+      "code_examples": []
+    },
+    {
+      "id": "lesson-005",
+      "date": "2025-10-13",
+      "title": "Sequential > Parallel for Evolving Documentation",
+      "category": "pr-workflow",
+      "tags": ["pr-strategy", "documentation", "conflicts", "sequential"],
+      "problem": "When CLAUDE.md or configs evolve across commits, parallel PRs create merge conflicts that are harder to resolve than sequential PRs.",
+      "solution": "Use sequential PRs (building on each other) for evolving documentation. Resolve conflicts by keeping more complete implementation and documenting rationale.",
+      "pattern": "Sequential PRs easier when docs/config evolve. Parallel PRs work for independent changes only. Document conflict resolution rationale in merge commit messages.",
+      "impact": {
+        "roi": "Reduces time spent resolving conflicts in evolving documentation.",
+        "performance": "Faster conflict resolution with clear complete implementation to keep.",
+        "quality": "Better documentation continuity, clearer evolution history."
+      },
+      "related_files": ["CLAUDE.md"],
+      "related_prs": [],
+      "code_examples": []
+    },
+    {
+      "id": "lesson-006",
+      "date": "2025-10-13",
+      "title": "Selective Fix Application (Atomic PR Extraction)",
+      "category": "pr-workflow",
+      "tags": ["cherry-pick", "atomic-pr", "scope", "manual-application"],
+      "problem": "Cherry-picking entire commits can include unrelated changes, breaking atomic PR boundaries and causing scope creep.",
+      "solution": "Manually apply only relevant fixes per feature area instead of cherry-picking entire commits. Review with `git show <sha>`, identify target files, apply selectively.",
+      "pattern": "Better approach: Review commit � Identify relevant changes � Apply selectively to target files. Maintains true atomic PRs, prevents scope creep.",
+      "impact": {
+        "roi": "Investment: Extra 5-10 min per commit review. Return: Truly atomic PRs with clear boundaries.",
+        "performance": "Example: Commit had 5 fixes, PR only needed 3 (other 2 belonged elsewhere).",
+        "quality": "Prevents scope creep, maintains atomic boundaries, clearer PR purpose."
+      },
+      "related_files": [],
+      "related_prs": [],
+      "code_examples": [
+        {
+          "language": "bash",
+          "label": "Review commit before applying",
+          "code": "git show <sha>\n# Identify which files belong in this PR\n# Apply only relevant changes manually"
+        }
+      ]
+    },
+    {
+      "id": "lesson-007",
+      "date": "2025-10-13",
+      "title": "Shellcheck Compliance During Refactoring",
+      "category": "shell-scripting",
+      "tags": ["shellcheck", "refactoring", "unused-variables", "code-quality"],
+      "problem": "Unused variables block commits when shellcheck is enabled, but are often left behind during refactoring.",
+      "solution": "Remove unused code when refactoring - don't leave dead variables or code paths. Pattern: Remove unused code immediately, prevents confusion.",
+      "pattern": "When refactoring removes code paths, remove associated variables/options completely. Example: Removed `MAX_CRF` variable and `--max-crf` option after loop refactor.",
+      "impact": {
+        "roi": "Keeps codebase clean, prevents confusion from dead code.",
+        "performance": "No performance impact.",
+        "quality": "Cleaner codebase, easier maintenance, no dead code confusion."
+      },
+      "related_files": ["scripts/*.sh"],
+      "related_prs": [],
+      "code_examples": []
+    },
+    {
+      "id": "lesson-008",
+      "date": "2025-10-13",
+      "title": "Data Extraction from Nested JSON",
+      "category": "code-review",
+      "tags": ["json", "jq", "graphql", "ai-review"],
+      "problem": "AI review comments are often nested deep in GraphQL responses, requiring graph traversal to extract. Parsing HTML comments is unreliable.",
+      "solution": "Use GraphQL queries and jq filters for structured data extraction. Pattern: `.reviews[] | select(.author.login == \"gemini-code-assist\")`. Challenge: Comments may be in `.reviews[].comments.nodes[]` requiring careful traversal.",
+      "pattern": "GraphQL queries more reliable than parsing comment HTML. Use jq filters for nested JSON navigation.",
+      "impact": {
+        "roi": "Reliable extraction of AI feedback for issue creation.",
+        "performance": "Structured queries faster than HTML parsing.",
+        "quality": "Accurate extraction, no parsing errors from HTML formatting changes."
+      },
+      "related_files": [],
+      "related_prs": [],
+      "code_examples": [
+        {
+          "language": "bash",
+          "label": "Extract AI review comments",
+          "code": "gh api graphql -f query='...' | jq '.data.repository.pullRequest.reviews[] | select(.author.login == \"gemini-code-assist\")'"
+        }
+      ]
+    },
+    {
+      "id": "lesson-009",
+      "date": "2025-10-13",
+      "title": "Hook Optimization Philosophy: Skip When Files Don't Affect Outcomes",
+      "category": "git-hooks",
+      "tags": ["pre-commit", "performance", "file-type-filtering", "user-feedback"],
+      "problem": "Git hooks ran on ALL file changes, causing 2min+ delays for docs-only commits. User observation: 'There should be zero changes between commit and push, so re-linting doesn't make sense'",
+      "solution": "Implemented file type filters using `types` and `types_or` in .pre-commit-config.yaml. Hooks now skip when irrelevant files change.",
+      "pattern": "Use `types: [single-type]` for single file type hooks (pytest � python, hadolint � dockerfile, shellcheck � shell, actionlint � yaml). Use `types_or: [type1, type2, ...]` for multi-file dependencies (docker-smoke-test � dockerfile, python, javascript, json, toml, shell).",
+      "impact": {
+        "roi": "70%+ time savings on documentation workflows. 50%+ on config-only changes.",
+        "performance": "Docs-only changes: 2min � instant (both commit and push). Config-only changes: 2min � instant. Python code: ~15-20s commit + ~90s push (baseline). Dockerfile: ~15-20s commit + ~60s push. Shell scripts: ~5s commit + instant push.",
+        "quality": "Clear separation of concerns, reduced developer frustration, no bypass temptation. Files that should NEVER trigger hooks: .md, .txt, .png, .jpg, non-executable configs."
+      },
+      "related_files": [".pre-commit-config.yaml"],
+      "related_prs": [],
+      "code_examples": [
+        {
+          "language": "yaml",
+          "label": "Single file type filter",
+          "code": "- id: pytest-fast\n  types: [python]          # Only Python files trigger"
+        },
+        {
+          "language": "yaml",
+          "label": "Multiple file types filter",
+          "code": "- id: docker-smoke-test\n  types_or: [dockerfile, python, javascript, json, toml, shell]\n  # Only build-related files trigger"
+        }
+      ]
+    },
+    {
+      "id": "lesson-010",
+      "date": "2025-10-13",
+      "title": "Strategic Decision Reassessment",
+      "category": "pr-workflow",
+      "tags": ["decision-making", "dependencies", "obsolescence", "pr-management"],
+      "problem": "When upstream decisions change (e.g., PR #126 removed CodeRabbit automation), dependent features (e.g., PR #124 feedback capture) become obsolete but may still be in flight.",
+      "solution": "Before merging any PR, check if upstream decisions invalidate pending work. Verify assumptions still hold, close obsolete PRs with clear rationale, update documentation to reflect new decisions.",
+      "pattern": "Process: (1) Check if upstream decisions invalidate pending work, (2) Verify assumptions still hold before merging, (3) Close obsolete PRs with clear rationale, (4) Update documentation to reflect new decisions.",
+      "impact": {
+        "roi": "Prevents merging features that are no longer needed or compatible.",
+        "performance": "Saves time implementing and reviewing obsolete features.",
+        "quality": "Keeps codebase aligned with current architecture decisions."
+      },
+      "related_files": [],
+      "related_prs": ["#126", "#124"],
+      "code_examples": []
+    },
+    {
+      "id": "lesson-011",
+      "date": "2025-10-13",
+      "title": "File Type Filter Patterns",
+      "category": "git-hooks",
+      "tags": ["pre-commit", "file-types", "performance", "filter-patterns"],
+      "problem": "Need clear patterns for when to use `types` vs `types_or` filters to optimize hook performance.",
+      "solution": "Single type: `types: [python]` for pytest/mypy. `types: [dockerfile]` for hadolint. `types: [shell]` for shellcheck. `types: [yaml]` for actionlint. Multiple types: `types_or: [dockerfile, python, javascript, json, toml, shell]` for docker-smoke-test.",
+      "pattern": "Use `types` for single file type validation. Use `types_or` for hooks depending on multiple file types. Document performance matrix for different change types.",
+      "impact": {
+        "roi": "Established performance matrix for all change types.",
+        "performance": "Docs/Markdown changes: Instant commit + instant push. Config-only changes: Instant commit + instant push. Python code: ~15-20s commit + ~90s push. Dockerfile: ~15-20s commit + ~60s push. Shell scripts: ~5s commit + instant push.",
+        "quality": "Clear patterns for hook optimization, documented performance expectations."
+      },
+      "related_files": [".pre-commit-config.yaml"],
+      "related_prs": [],
+      "code_examples": []
+    },
+    {
+      "id": "lesson-012",
+      "date": "2025-10-13",
+      "title": "GraphQL Schema Drift Detection via Introspection",
+      "category": "ci-cd",
+      "tags": ["graphql", "schema-drift", "introspection", "monitoring", "automation"],
+      "problem": "External APIs (StashDB, ThePornDB) change without notice, breaking integration code. No proactive monitoring for schema changes.",
+      "solution": "Automated schema introspection + drift detection + CI monitoring. Architecture: (1) Baseline documentation in docs/api/, (2) Introspection queries via GraphQL __schema, (3) Normalized comparison (sorted JSON), (4) Weekly CI checks + PR validation, (5) Auto-create GitHub issues on drift.",
+      "pattern": "Implementation: `make check-schema-drift` for manual detection, `make update-schema-docs` to refresh documentation, `.github/workflows/schema-drift-check.yml` for CI automation, `docs/api/SCHEMA_MAINTENANCE.md` for operations guide. Best practices: Store baseline schemas in version control, use normalized comparisons, generate human-readable diffs, document breaking vs additive changes, test integration code after schema updates.",
+      "impact": {
+        "roi": "Prevents production failures from silent API changes. Reduces debugging time (clear diffs vs mystery errors). Enables proactive updates vs reactive firefighting. Documents API evolution over time.",
+        "performance": "Weekly CI checks balance monitoring vs noise. PR validation prevents merging outdated integrations.",
+        "quality": "Introspection more reliable than parsing API docs. Normalization critical for avoiding false positives. Detailed diffs essential for understanding breaking changes."
+      },
+      "related_files": [
+        ".github/workflows/schema-drift-check.yml",
+        "scripts/check-schema-drift.sh",
+        "scripts/update-schema-docs.sh",
+        "docs/api/SCHEMA_MAINTENANCE.md",
+        "docs/api/stashdb_schema.json",
+        "docs/api/tpdb_schema.json"
+      ],
+      "related_prs": ["#138", "#140", "#141"],
+      "code_examples": [
+        {
+          "language": "bash",
+          "label": "Emergency response workflow",
+          "code": "# 1. Detect breaking change via CI alert\n# 2. Review diff to understand impact\n# 3. Update integration code + tests\n# 4. Refresh documentation\nmake update-schema-docs\n# 5. Commit all changes together\ngit add docs/api/ && git commit -m \"docs: update GraphQL schemas\""
+        },
+        {
+          "language": "bash",
+          "label": "Authentication gotchas",
+          "code": "# StashDB uses non-standard APIKey header\ncurl -H \"APIKey: $STASHDB_TOKEN\" https://stashdb.org/graphql\n\n# ThePornDB uses standard Authorization Bearer\ncurl -H \"Authorization: Bearer $TPDB_TOKEN\" https://theporndb.net/graphql\n\n# Test auth early with 'me' query"
+        }
+      ]
+    },
+    {
+      "id": "lesson-013",
+      "date": "2025-10-13",
+      "title": "PR Merge and Cleanup Workflow",
+      "category": "pr-workflow",
+      "tags": ["git-flow", "pr-merge", "branch-cleanup", "gh-cli"],
+      "problem": "Merging approved PRs and performing Git Flow cleanup requires systematic workflow to prevent branch clutter and ensure clean repository state.",
+      "solution": "Workflow: (1) Verify PR status with `gh pr view`, (2) Re-run failed checks with `gh run rerun --failed`, (3) Merge with `gh pr merge --squash --delete-branch`, (4) Local cleanup: switch to develop, pull, delete local feature branch, (5) Remote cleanup: `git remote prune origin`.",
+      "pattern": "Key commands: `gh pr view <num> --json mergeable,mergeStateStatus,reviews`, `gh pr checks <num>`, `gh run rerun <id> --failed`, `gh pr merge <num> --squash --delete-branch`, `git remote prune origin`. Pattern: Systematic merge � cleanup � verification prevents clutter.",
+      "impact": {
+        "roi": "Clean repository state, no stale branches, clear history.",
+        "performance": "Systematic workflow faster than ad-hoc cleanup.",
+        "quality": "Git Flow discipline: NEVER push directly to develop, always use feature branches + PRs. Branch protection enforces PR requirement. Even 'small' doc fixes must go through proper Git Flow."
+      },
+      "related_files": [],
+      "related_prs": [],
+      "code_examples": [
+        {
+          "language": "bash",
+          "label": "Branch cleanup strategy",
+          "code": "# 1. Find local branches tracking deleted remotes\ngit branch -vv | grep \": gone]\"\n\n# 2. Verify branches from closed PRs\ngh pr list --state closed --author @me\n\n# 3. Delete obsolete local branches\ngit branch -D feature/old-branch\n\n# 4. Clean up stale remote tracking branches\ngit remote prune origin\n\n# 5. Verify cleanup\ngit branch -a"
+        }
+      ]
+    },
+    {
+      "id": "lesson-014",
+      "date": "2025-10-13",
+      "title": "Separating Infrastructure from Documentation",
+      "category": "pr-workflow",
+      "tags": ["pr-scope", "infrastructure", "documentation", "duplication"],
+      "problem": "PR 138 included both drift detection infrastructure AND schema documentation. Schema docs were merged separately in PR 140, creating duplication and confusion.",
+      "solution": "Split infrastructure (new) from documentation (already merged). Process: (1) Apply changes from closed PR to new feature branch, (2) Identify files already in develop, (3) Unstage duplicates with `git reset HEAD <files>`, (4) Restore duplicates from develop with `git checkout develop -- <files>`, (5) Commit only new infrastructure.",
+      "pattern": "Review what's already merged before creating new PRs from closed PRs. Use `git diff develop...HEAD --name-only` to see what's truly new. Keep infrastructure separate from documentation when possible. Reference related PRs in commit messages for context. Pattern: Infrastructure PRs should focus on tooling, not duplicate docs.",
+      "impact": {
+        "roi": "Prevents duplicate work, clearer PR boundaries.",
+        "performance": "Faster reviews with focused scope.",
+        "quality": "Infrastructure changes separated from documentation updates for clarity."
+      },
+      "related_files": [
+        ".github/workflows/schema-drift-check.yml",
+        "scripts/check-schema-drift.sh",
+        "scripts/update-schema-docs.sh",
+        "docs/api/SCHEMA_MAINTENANCE.md"
+      ],
+      "related_prs": ["#138", "#140"],
+      "code_examples": [
+        {
+          "language": "bash",
+          "label": "Separate infrastructure from docs",
+          "code": "# Identify what's already merged\ngit diff develop...HEAD --name-only\n\n# Unstage duplicate files\ngit reset HEAD docs/api/graphql_schema_documentation.md\ngit reset HEAD docs/api/stashdb_schema.json\n\n# Restore duplicates from develop\ngit checkout develop -- docs/api/graphql_schema_documentation.md\ngit checkout develop -- docs/api/stashdb_schema.json\n\n# Commit only new infrastructure\ngit commit -m \"feat: add schema drift detection infrastructure\""
+        }
+      ]
+    },
+    {
+      "id": "lesson-015",
+      "date": "2025-10-13",
+      "title": "Heredocs with Non-Shell Code & Systematic Review Response",
+      "category": "shell-scripting",
+      "tags": ["heredoc", "shfmt", "parser", "review-response", "ci-cd"],
+      "problem": "Shell formatting (shfmt) incompatible with heredocs containing GraphQL/JSON code. Parser interprets shell-like syntax (braces, brackets) in code samples as shell constructs.",
+      "solution": "Use quoted heredoc (`<<'DELIMITER'`) + sed replacement pattern. Solution discovery: (1) Attempted escaping, indentation removal, various bracket strategies - all failed, (2) User intervention identified fundamental parser incompatibility, (3) Solution: Quoted heredoc prevents shell interpretation, sed replaces placeholders after file creation.",
+      "pattern": "Pattern: (1) Use quoted delimiter (`<<'DELIMITER'`) for literal content, (2) Use placeholder tokens for variables (e.g., VARIABLE_PLACEHOLDER), (3) Use sed replacements after heredoc to substitute actual values, (4) Remove backup files created by sed (-i.bak). Why: `<<'DELIMITER'` prevents shell interpretation, content can contain any syntax, shfmt can parse correctly.",
+      "impact": {
+        "roi": "Reusable pattern for documentation generation scripts. Standard CI/CD artifact path convention established. Clear methodology for responding to automated review feedback.",
+        "performance": "No performance impact, solves parser incompatibility.",
+        "quality": "Additional learnings: CI/CD Artifact Paths (${RUNNER_TEMP:-/tmp} in scripts, ${{ runner.temp }} in workflows), Exit Code Semantics (0=success, 1=actionable failure, 2=informational), Dynamic Documentation (extract statistics from data sources), Systematic PR Review (todo list � Prioritize � Address systematically), Graceful Degradation (warnings vs errors for context-dependent files)."
+      },
+      "related_files": ["scripts/update-schema-docs.sh"],
+      "related_prs": ["#141"],
+      "code_examples": [
+        {
+          "language": "bash",
+          "label": "Quoted heredoc + sed replacement",
+          "code": "# Quoted heredoc prevents shell interpretation\ncat >\"$file\" <<'TEMPLATE_EOF'\nContent with PLACEHOLDER tokens and code samples\nTEMPLATE_EOF\n\n# Sed replaces placeholders after file creation\nsed -i.bak \"s/PLACEHOLDER/$variable/g\" \"$file\"\nrm -f \"${file}.bak\""
+        },
+        {
+          "language": "bash",
+          "label": "CI/CD artifact paths",
+          "code": "# In shell scripts - use RUNNER_TEMP with fallback\nARTIFACT_DIR=\"${RUNNER_TEMP:-/tmp}\"\nDIFF_FILE=\"${ARTIFACT_DIR}/diff.txt\"\n\n# In GitHub Actions workflows - use runner.temp\n# path: ${{ runner.temp }}/diff.txt"
+        },
+        {
+          "language": "bash",
+          "label": "Exit code semantics",
+          "code": "# Use distinct exit codes\nexit 0  # Success\nexit 1  # Actionable failure\nexit 2  # Informational state\n\n# Check explicitly\nif [ $EXIT_CODE -eq 1 ]; then\n    echo \"actionable_failure=true\"\nelif [ $EXIT_CODE -eq 2 ]; then\n    echo \"informational=true\"\nfi"
+        }
+      ]
+    },
+    {
+      "id": "lesson-016",
+      "date": "2025-10-13",
+      "title": "AI Code Review Issue Management",
+      "category": "code-review",
+      "tags": ["ai-review", "issue-management", "github-issues", "prioritization"],
+      "problem": "Converting PR 141 CodeRabbit review feedback to GitHub issues required extracting actionable items from AI review comments and organizing as trackable work.",
+      "solution": "Process: (1) Extract all review comments from AI reviewers, (2) Categorize by priority (Urgent > High > Medium > Low), (3) Create GitHub issues with comprehensive problem statements, (4) Link all issues in PR comment, (5) Separate already-addressed items from future work.",
+      "pattern": "Issue structure: Title (emoji prefix for visual priority), Problem (what's wrong and why), Impact (consequences), Solution (actionable recommendations with code examples), Files to Modify (exact locations), Success Criteria (testable checkboxes), Related (links to PRs/issues/docs). Priority definitions: Urgent (security, silent failures, data integrity), High (accuracy problems, best practices violations), Medium (documentation quality, linting), Low (style preferences, optional improvements). Pattern: Extract � Categorize � Create issues � Link � Track systematically.",
+      "impact": {
+        "roi": "Systematic tracking prevents forgotten feedback. Prioritization enables intelligent resource allocation. Issues provide context for future contributors. Prevents scope creep in current PR. Creates audit trail of decisions made.",
+        "performance": "Real-world example (PR #141): 2 Urgent, 1 High, 1 Medium, 1 Low. Result: 6 items already fixed, 5 issues for follow-up.",
+        "quality": "Label management: GitHub labels case-sensitive (use lowercase), create missing labels with `gh label create`, standard colors (urgent=#d73a4a red, high=#ededed gray, medium-term=#ededed, low=#fbca04 yellow). Integration: Address critical feedback in current PR, create issues for non-blocking items, add summary comment linking all issues, mark items as addressed vs deferred, reference issue numbers in follow-up PRs."
+      },
+      "related_files": [],
+      "related_prs": ["#141"],
+      "code_examples": [
+        {
+          "language": "bash",
+          "label": "Create prioritized issue",
+          "code": "gh issue create \\\n  --title \"=4 [Urgent] Issue title\" \\\n  --label urgent,bug \\\n  --body \"## Problem\\n...\\n\\n## Impact\\n...\\n\\n## Solution\\n...\""
+        }
+      ]
+    },
+    {
+      "id": "lesson-017",
+      "date": "2025-10-14",
+      "title": "Iterative PR Review Resolution",
+      "category": "pr-workflow",
+      "tags": ["pr-review", "iterative-fixes", "exit-codes", "ci-cd"],
+      "problem": "Resolving PR #141 blocking issues through iterative fixes. Multiple interrelated issues requiring careful coordination and exit code semantics.",
+      "solution": "Resolution process: (1) Issues #142 & #143 - Script error handling (dependency checks, curl flags), (2) Console output - Missing baseline detection in main() exit logic, (3) Report generation - Banner accuracy in generate_report(), (4) Forked PR handling - Graceful skip when secrets unavailable, (5) Exit code semantics - Proper distinction between 0/1/2 in script and workflow.",
+      "pattern": "Exit code architecture: Script (0=success, 1=drift, 2=missing baseline, 127=missing dependencies), Workflow outputs (skipped, baseline_missing, false, true), Priority order (secrets � baseline � drift � success). Key patterns: Dependency validation (check curl/jq before execution), HTTP error handling (curl -fsS fails fast on 4xx/5xx), Priority branching (check missing baseline BEFORE drift), Report logic (match console output priority), Workflow exit capture (set +e; command; EXIT_CODE=$?; set -e), Forked PR detection (pre-check secrets availability).",
+      "impact": {
+        "roi": "5 commits to fully resolve all interconnected issues. Script: 2 fixes (dependency checks + exit code change). Workflow: 2 fixes (forked PR handling + exit code branching). Report: 1 fix (banner logic priority).",
+        "performance": "Testing pattern: bash -n (syntax), shellcheck (static analysis), actionlint (workflow validation), all hooks passing before each commit.",
+        "quality": "Lessons: Consistency critical (exit code handling must match between script main(), generate_report(), and workflow), Priority matters (order of checks determines accuracy), Exit code 2 is informational (not an error), Forked PRs need special handling (secrets unavailable by design), Clear messaging (each state needs distinct helpful message), Semantic exit codes (use -eq not -ne 0). Integration success: PR #141 merged with squash, Issues #142 & #143 closed automatically, Branch cleanup completed, Documentation updated. Pattern: Iterative fixes � Consistent priority logic � Clear state messaging � Comprehensive testing � Successful merge."
+      },
+      "related_files": [
+        "scripts/check-schema-drift.sh",
+        ".github/workflows/schema-drift-check.yml"
+      ],
+      "related_prs": ["#141"],
+      "code_examples": [
+        {
+          "language": "bash",
+          "label": "Exit code architecture",
+          "code": "# Script exit codes\nexit 0   # Success\nexit 1   # Drift detected\nexit 2   # Missing baseline\nexit 127 # Missing dependencies\n\n# Workflow exit capture\nset +e\n./scripts/check-schema-drift.sh\nEXIT_CODE=$?\nset -e\n\n# Check priority order: secrets � baseline � drift � success\nif [ $EXIT_CODE -eq 2 ]; then\n    echo \"baseline_missing=true\" >> \"$GITHUB_OUTPUT\"\nelif [ $EXIT_CODE -eq 1 ]; then\n    echo \"drift_detected=true\" >> \"$GITHUB_OUTPUT\"\nfi"
+        }
+      ]
+    },
+    {
+      "id": "lesson-018",
+      "date": "2025-10-14",
+      "title": "Production Hotfix Workflow & GraphQL Schema Validation",
+      "category": "git-flow",
+      "tags": ["hotfix", "graphql", "schema-alignment", "production", "git-flow", "testing"],
+      "problem": "Production GraphQL queries failing with validation errors: StashDB 'urls/images must have subfield selection', ThePornDB 'Cannot query field view/site/image'. Errors blocked video file processing. Initial approach jumped to fixes without proper validation or testing against actual schemas.",
+      "solution": "Git Flow hotfix process: (1) Create hotfix branch from main (not develop), (2) Identify ALL queries via comprehensive grep/read, (3) Verify fixes against schema documentation, (4) Run full test suite (112 tests), (5) Merge via PR to main, (6) Tag release, (7) Merge back to develop, (8) Push all branches and tags. Schema alignment: StashDB added `{ url }` subfields to urls/images/performer.images. ThePornDB corrected field names: `urls.view` → `urls.url`, `site` → `studio`, `performer.image` → `performer.images { url }`.",
+      "pattern": "Critical workflow discipline: NEVER work directly on develop for hotfixes. ALWAYS branch from main for production fixes. ALWAYS search ALL occurrences before declaring fix complete. ALWAYS test locally before committing. Query verification process: (1) Use Grep to find ALL query/mutation blocks, (2) Verify each against schema docs, (3) Check test mocks match production schemas, (4) Run provider-specific tests, (5) Run full test suite. Git Flow hotfix sequence: Branch from main → Fix → Test → PR to main → Merge → Tag → Merge to develop → Push → Cleanup. Testing discipline: Pre-commit hooks (fast tests, type check, lint), Pre-push hooks (full suite with coverage 75%, Docker build validation), All 112 tests must pass before push.",
+      "impact": {
+        "roi": "Proper workflow prevented broken fixes from reaching develop. Comprehensive search found all 10 query blocks (3 StashDB, 5 ThePornDB + 2 legacy). Schema documentation critical for validation. Full test suite caught integration issues early. Git Flow discipline ensured clean release process.",
+        "performance": "Issue identified: 12:20 UTC. Hotfix branch created: immediate. Fixes implemented: 15 minutes. Testing: 2 minutes (112 tests). PR created: immediate. PR merged: 03:12 UTC. Total time: ~2 hours including proper validation. Pre-push hooks: 2min 23s (full test suite 87s + Docker build 55s).",
+        "quality": "Schema alignment patterns: Object types (urls, images) ALWAYS need subfield selections in GraphQL. Field name mismatches: Check schema docs before assuming field names. ThePornDB uses 'studio' not 'site', 'url' not 'view', 'images' not 'image'. Test coverage validation: Mock data in test/web/fake_stashdb.py already had correct structure. All GraphQL tests passed (7 specific tests + 112 total). No regressions introduced. Process improvements discovered: User intervention critical when jumping ahead without validation. 'You haven't even tested' - valid criticism that improved thoroughness. Systematic verification prevents incomplete fixes. Schema docs from PR #140 proved invaluable for validation."
+      },
+      "related_files": [
+        "namer/metadata_providers/stashdb_provider.py",
+        "namer/metadata_providers/theporndb_provider.py",
+        "test/web/fake_stashdb.py",
+        "docs/api/graphql_schema_documentation.md",
+        "docs/api/stashdb_schema.json",
+        "docs/api/tpdb_schema.json"
+      ],
+      "related_prs": ["#148"],
+      "code_examples": [
+        {
+          "language": "bash",
+          "label": "Git Flow hotfix workflow",
+          "code": "# ALWAYS start from main for production hotfixes\ngit checkout main\ngit pull origin main\ngit checkout -b hotfix/descriptive-name\n\n# Make fixes, test thoroughly\npoetry run pytest  # All tests must pass\n\n# Commit and push (triggers pre-push hooks)\ngit add <files>\ngit commit -m \"fix: descriptive message\"\ngit push -u origin hotfix/descriptive-name\n\n# After PR merged to main\ngit checkout main && git pull\ngit tag -a v1.23.5 -m \"Release message\"\n\n# Merge back to develop\ngit checkout develop && git pull\ngit merge main  # Resolve conflicts\ngit push origin develop --tags\n\n# Cleanup\ngit branch -d hotfix/descriptive-name"
+        },
+        {
+          "language": "bash",
+          "label": "Comprehensive query search",
+          "code": "# Find ALL GraphQL queries and mutations\ngrep -r 'query \\w\\+\\|mutation \\w\\+' namer/metadata_providers/*.py\n\n# Count query blocks\ngrep -r '\"\"\"' namer/metadata_providers/*.py | grep -i 'query\\|mutation' | wc -l\n\n# Verify each query manually against schema\ncat docs/api/graphql_schema_documentation.md"
+        },
+        {
+          "language": "graphql",
+          "label": "GraphQL object type subfields (StashDB fix)",
+          "code": "# ❌ WRONG - Object types need subfield selection\nquery FindScene($id: ID!) {\n  findScene(id: $id) {\n    urls          # ERROR: must select subfields\n    images        # ERROR: must select subfields\n  }\n}\n\n# ✅ CORRECT - Select specific subfields\nquery FindScene($id: ID!) {\n  findScene(id: $id) {\n    urls { url }\n    images { url }\n    performers {\n      performer {\n        images { url }  # Nested objects too\n      }\n    }\n  }\n}"
+        },
+        {
+          "language": "graphql",
+          "label": "Field name alignment (ThePornDB fix)",
+          "code": "# ❌ WRONG - Field names don't match schema\nquery SearchScene($term: String!) {\n  searchScene(term: $term) {\n    urls { view }           # ERROR: field 'view' doesn't exist\n    site { name }           # ERROR: field 'site' doesn't exist\n    performers {\n      performer {\n        image               # ERROR: field 'image' doesn't exist\n      }\n    }\n  }\n}\n\n# ✅ CORRECT - Use actual schema field names\nquery SearchScene($term: String!) {\n  searchScene(term: $term) {\n    urls { url }            # Correct field name\n    studio { name }         # 'studio' not 'site'\n    performers {\n      performer {\n        images { url }      # 'images' (array) not 'image'\n      }\n    }\n  }\n}"
+        }
+      ]
+    }
+  ]
+}

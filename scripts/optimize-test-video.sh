@@ -136,14 +136,7 @@ get_duration() {
 
 get_file_size() {
 	local file="$1"
-	# Try GNU stat (Linux), then BSD stat (macOS), then fallback to wc
-	if stat -c%s "$file" >/dev/null 2>&1; then
-		stat -c%s "$file"
-	elif stat -f%z "$file" >/dev/null 2>&1; then
-		stat -f%z "$file"
-	else
-		wc -c <"$file"
-	fi
+	stat -f%z "$file" 2>/dev/null || wc -c <"$file"
 }
 
 format_size() {
@@ -172,34 +165,18 @@ encode_video() {
 	local preset="$5"
 	local keep_audio="$6"
 
-	local map_args=("-map" "0:v:0")
 	local audio_opts=("-an")
 	if [[ "$keep_audio" == "true" ]]; then
-		# Detect audio codec to determine if we can copy or need to re-encode
-		local audio_codec
-		audio_codec=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "$input" 2>/dev/null || echo "")
-
-		if [[ -z "$audio_codec" ]]; then
-			# No audio stream present, keep -an
-			audio_opts=("-an")
-		elif [[ "$audio_codec" =~ ^(aac|mp3|ac3|eac3)$ ]]; then
-			# MP4-compatible codec, copy without re-encode
-			map_args+=("-map" "0:a?")
-			audio_opts=("-c:a" "copy")
-		else
-			# Incompatible codec (opus, vorbis, flac, etc.), re-encode to AAC
-			map_args+=("-map" "0:a?")
-			audio_opts=("-c:a" "aac" "-b:a" "128k")
-		fi
+		audio_opts=("-c:a" "copy")
 	fi
 
 	local ffmpeg_cmd=(
 		ffmpeg -hide_banner -y -i "$input"
-		"${map_args[@]}"
+		-map 0:v:0
 		-c:v libsvtav1
 		-crf "$crf"
 		-preset "$preset"
-		-vf "scale=trunc(min(iw\,${width})/2)*2:-2"
+		-vf "scale=${width}:-2"
 		-pix_fmt yuv420p
 		"${audio_opts[@]}"
 		-map_metadata -1
@@ -394,12 +371,8 @@ fi
 # Get final file size
 NEW_SIZE=$(get_file_size "$TEMP_OUTPUT")
 
-# Calculate reduction (guard against division by zero)
-if [[ "$ORIGINAL_SIZE" -eq 0 ]]; then
-	REDUCTION="0.00"
-else
-	REDUCTION=$(awk "BEGIN {printf \"%.2f\", (($ORIGINAL_SIZE - $NEW_SIZE) / $ORIGINAL_SIZE) * 100}")
-fi
+# Calculate reduction
+REDUCTION=$(awk "BEGIN {printf \"%.2f\", (($ORIGINAL_SIZE - $NEW_SIZE) / $ORIGINAL_SIZE) * 100}")
 
 # Move to final location
 mv "$TEMP_OUTPUT" "$OUTPUT_FILE"
