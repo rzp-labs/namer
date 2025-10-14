@@ -52,7 +52,6 @@ test/integration/media/5-ambiguous/*
 # Ignore windsurf AI rules
 .windsurfrules
 .mcp.json
-.agent/
 .claude/
 
 # npm artifacts
