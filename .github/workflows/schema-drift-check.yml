@@ -1,0 +1,225 @@
+name: GraphQL Schema Drift Check
+
+on:
+  schedule:
+    # Run weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    # Allow manual triggering
+  pull_request:
+    paths:
+      - 'namer/metadata_providers/**'
+      - 'docs/api/**'
+      - 'scripts/check-schema-drift.sh'
+      - '.github/workflows/schema-drift-check.yml'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  check-schema-drift:
+    name: Check GraphQL Schema Drift
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: Check schema drift
+        id: drift_check
+        env:
+          STASHDB_TOKEN: ${{ secrets.STASHDB_TOKEN }}
+          TPDB_TOKEN: ${{ secrets.TPDB_TOKEN }}
+        run: |
+          # Check if secrets are available (not available in forked PRs)
+          if [[ -z "$STASHDB_TOKEN" || -z "$TPDB_TOKEN" ]]; then
+            echo "drift_detected=skipped" >> "$GITHUB_OUTPUT"
+            {
+              echo "## ℹ️ Schema Drift Check Skipped"
+              echo ""
+              echo "Schema drift detection was skipped because API tokens are not available."
+              echo ""
+              echo "**Reason:** Secrets are not accessible in pull requests from forks for security reasons."
+              echo ""
+              echo "**Note:** This check will run automatically after the PR is merged."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # Run drift detection and capture exit status
+          # Exit codes: 0 = no drift, 1 = drift detected, 2 = missing baseline
+          set +e
+          ./scripts/check-schema-drift.sh
+          EXIT_CODE=$?
+          set -e
+
+          # Handle different exit codes
+          if [[ $EXIT_CODE -eq 0 ]]; then
+            # No drift detected
+            echo "drift_detected=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## ✅ No Schema Drift Detected"
+              echo ""
+              echo "All GraphQL schemas are up to date."
+            } >> "$GITHUB_STEP_SUMMARY"
+          elif [[ $EXIT_CODE -eq 2 ]]; then
+            # Missing baseline - not an error, just informational
+            echo "drift_detected=baseline_missing" >> "$GITHUB_OUTPUT"
+            {
+              echo "## ℹ️ Schema Drift Check Skipped (No Baselines)"
+              echo ""
+              echo "Schema drift detection was skipped because baseline schema files are not present."
+              echo ""
+              echo "**This is expected for:**"
+              echo "- Infrastructure-only changes"
+              echo "- Documentation-only changes"
+              echo "- Initial setup PRs"
+              echo ""
+              echo "**Note:** Baseline files will be created when \`make update-schema-docs\` is run."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            # Drift detected (exit code 1 or other non-zero)
+            echo "drift_detected=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "## ⚠️ Schema Drift Detected"
+              echo ""
+              echo "GraphQL schema changes were detected. Review the diff output below."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+        continue-on-error: true
+
+      - name: Upload drift report
+        if: steps.drift_check.outputs.drift_detected == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-drift-report
+          path: |
+            ${{ runner.temp }}/*_drift.diff
+            ${{ runner.temp }}/schema_drift_report.md
+          retention-days: 30
+
+      - name: Create issue for drift
+        if: steps.drift_check.outputs.drift_detected == 'true' && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read drift report if available
+            let reportContent = 'Schema drift was detected. Please review the workflow artifacts for details.';
+
+            try {
+              reportContent = fs.readFileSync(process.env['RUNNER_TEMP'] + '/schema_drift_report.md', 'utf8');
+            } catch (err) {
+              console.log('Could not read drift report:', err.message);
+            }
+
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'schema-drift,documentation'
+            });
+
+            if (issues.data.length === 0) {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `⚠️ GraphQL Schema Drift Detected - ${new Date().toISOString().split('T')[0]}`,
+                body: `${reportContent}
+
+            ## Next Steps
+
+            1. Review the [workflow run artifacts](${context.payload.repository.html_url}/actions/runs/${context.runId})
+            2. Download and examine the drift diff files
+            3. Update integration code if breaking changes exist
+            4. Run \`make update-schema-docs\` to update documentation
+            5. Test the application with updated schemas
+            6. Commit updated schema files
+
+            **Workflow:** [${context.workflow}](${context.payload.repository.html_url}/actions/runs/${context.runId})
+            `,
+                labels: ['schema-drift', 'documentation', 'maintenance']
+              });
+            } else {
+              // Add comment to existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: `Additional schema drift detected on ${new Date().toISOString().split('T')[0]}.\n\n[View workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId})`
+              });
+            }
+
+      - name: Comment on PR
+        if: steps.drift_check.outputs.drift_detected == 'true' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let reportContent = 'Schema drift was detected in this PR.';
+
+            try {
+              reportContent = fs.readFileSync(process.env['RUNNER_TEMP'] + '/schema_drift_report.md', 'utf8');
+            } catch (err) {
+              console.log('Could not read drift report:', err.message);
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## GraphQL Schema Drift Detection\n\n${reportContent}\n\nPlease review the workflow artifacts for detailed diffs.`
+            });
+
+      - name: Fail if drift detected on PR
+        if: steps.drift_check.outputs.drift_detected == 'true' && github.event_name == 'pull_request'
+        run: |
+          echo "::error::Schema drift detected. Update documentation or revert provider changes."
+          exit 1
+
+      - name: Summary for skipped check
+        if: steps.drift_check.outputs.drift_detected == 'skipped'
+        run: |
+          echo "::notice::Schema drift check was skipped due to missing API tokens (forked PR)"
+
+  test-drift-scripts:
+    name: Test Drift Detection Scripts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Lint drift detection script
+        run: shellcheck scripts/check-schema-drift.sh
+
+      - name: Lint update script
+        run: shellcheck scripts/update-schema-docs.sh
+
+      - name: Test script permissions
+        run: |
+          test -x scripts/check-schema-drift.sh || exit 1
+          test -x scripts/update-schema-docs.sh || exit 1
+
+      - name: Verify schema files exist
+        run: |
+          if test -f docs/api/stashdb_schema.json; then echo "stashdb baseline present"; else echo "stashdb baseline missing (ok for infra-only PRs)"; fi
+          if test -f docs/api/tpdb_schema.json; then echo "tpdb baseline present"; else echo "tpdb baseline missing (ok for infra-only PRs)"; fi

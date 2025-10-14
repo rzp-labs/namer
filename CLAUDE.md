@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 **Namer** is a Python-based video file naming application that uses metadata from porndb. It's built with:
+
 - **Flask** web framework for the UI
 - **Poetry** for dependency management
 - **Ruff** for linting and formatting
@@ -16,33 +17,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ### Primary Interface (Make)
+
 Always prefer Make commands - they provide a stable interface and allow implementation changes without doc updates.
 
 **Setup & Validation:**
+
 - `make setup-dev` - Bootstrap Poetry, install dependencies, and git hooks
 - `make validate` - Run comprehensive pre-push validation
 - `make config` - Show current build configuration
 
 **Docker Builds:**
+
 - `make build` - Fast Docker build (recommended for development)
 - `make build-full` - Complete build with all tests (~20 min)
 - `make build-validated` - Validate then fast build
 - `make build-amd64` / `make build-arm64` - Platform-specific builds
 
 **Testing:**
+
 - `make test` - Test Docker container (basic functionality)
 - `make test-integration` - Run integration tests
 
 **Workflows:**
+
 - `make dev-cycle` - Quick development cycle (build + test)
 - `make release-prep` - Full release preparation (validate + build + test)
 
 **Cleanup:**
+
 - `make clean` - Clean temporary files and containers
 - `make clean-deep` - Deep clean (removes everything including VM)
 
 ### Direct Poetry/Poe Commands (for local dev)
+
 Use these when working directly with Python code (not Docker):
+
 - `poetry install` - Install/update dependencies
 - `poetry shell` - Activate virtual environment
 - `poe test` - Run linting and fast tests locally
@@ -51,6 +60,7 @@ Use these when working directly with Python code (not Docker):
 - `poe precommit` - Pre-commit checks (format + unit tests)
 
 ### Testing Commands
+
 - `poetry run pytest` - Run all tests
 - `poetry run pytest -v` - Run tests with verbose output
 - `poetry run pytest --cov=namer` - Run tests with coverage report
@@ -60,6 +70,7 @@ Use these when working directly with Python code (not Docker):
 - `poetry run pytest -m "slow"` - Run only slow tests
 
 ### Code Quality Commands
+
 - `poetry run ruff check .` - Run Ruff linter
 - `poetry run ruff check --fix .` - Run Ruff and auto-fix issues
 - `poetry run ruff format .` - Format code with Ruff
@@ -68,18 +79,27 @@ Use these when working directly with Python code (not Docker):
 - `poetry run bandit -r namer/` - Run security checks
 
 ### Additional Make Commands
+
 See all available targets:
+
 - `make help` - Show all available Make targets with descriptions
 - `make review` - Run CodeRabbit branch review
 - `make lint` / `make format` - Code quality checks
 - `make test-local` - Fast local testing without Docker
 - `make quick` - Quick feedback loop (lint-fix + fast tests)
 
+**GraphQL Schema Management:**
+
+- `make check-schema-drift` - Detect API changes (requires STASHDB_TOKEN, TPDB_TOKEN)
+- `make update-schema-docs` - Refresh schema documentation
+- See `docs/api/SCHEMA_MAINTENANCE.md` for complete guide
+
 **Note:** Docker image builds/pushes to GHCR are **always** done through CI/CD (GitHub Actions), never locally.
 
 ## Technology Stack
 
 ### Core Technologies
+
 - **Python 3.11+** - Primary programming language
 - **Poetry** - Dependency management and packaging
 - **Flask 3.1+** - Web framework
@@ -87,6 +107,7 @@ See all available targets:
 - **Pony ORM** - Database ORM
 
 ### Frontend
+
 - **Bootstrap 5** - UI framework
 - **jQuery** - DOM manipulation
 - **DataTables** - Table management
@@ -94,6 +115,7 @@ See all available targets:
 - **pnpm** - Node package manager
 
 ### Processing & Utilities
+
 - **ffmpeg-python** - Video processing
 - **watchdog** - File system monitoring
 - **requests-cache** - HTTP caching
@@ -101,6 +123,7 @@ See all available targets:
 - **numpy/scipy** - Numerical processing
 
 ### Testing & Quality Tools
+
 - **pytest 8.4+** - Testing framework
 - **pytest-cov** - Coverage plugin
 - **assertpy** - Fluent assertions
@@ -114,7 +137,8 @@ See all available targets:
 ## Project Structure
 
 ### Actual File Organization
-```
+
+```plaintext
 namer/                   # Main package (NOT src/)
 ├── __init__.py
 ├── __main__.py          # Application entry point
@@ -142,6 +166,7 @@ docs/                    # Documentation
 ```
 
 ### Naming Conventions
+
 - **Files/Modules**: Use snake_case (`user_profile.py`)
 - **Classes**: Use PascalCase (`UserProfile`)
 - **Functions/Variables**: Use snake_case (`get_user_data`)
@@ -151,6 +176,7 @@ docs/                    # Documentation
 ## Python Guidelines
 
 ### Type Hints
+
 - Use type hints for function parameters and return values
 - Import types from `typing` module when needed
 - Use `Optional` for nullable values
@@ -158,6 +184,7 @@ docs/                    # Documentation
 - Document complex types with comments
 
 ### Code Style
+
 - Follow PEP 8 style guide (enforced by Ruff)
 - Use meaningful variable and function names
 - Keep functions focused and single-purpose
@@ -166,6 +193,7 @@ docs/                    # Documentation
 - Quote style: single quotes (configured in ruff)
 
 ### Best Practices
+
 - Use list comprehensions for simple transformations
 - Prefer `pathlib` over `os.path` for file operations
 - Use context managers (`with` statements) for resource management
@@ -175,6 +203,7 @@ docs/                    # Documentation
 ## Testing Standards
 
 ### Test Structure
+
 - Organize tests to mirror source code structure
 - Use descriptive test names that explain the behavior
 - Follow AAA pattern (Arrange, Act, Assert)
@@ -182,6 +211,7 @@ docs/                    # Documentation
 - Group related tests in classes
 
 ### Coverage Goals
+
 - Aim for 90%+ test coverage
 - Write unit tests for business logic
 - Use integration tests for external dependencies
@@ -189,12 +219,15 @@ docs/                    # Documentation
 - Test error conditions and edge cases
 
 ### pytest Configuration
+
 ```ini
 # pytest.ini (actual project config)
 [pytest]
 markers =
     slow: marks tests as slow
+```
 
+```bash
 # Run fast tests only (default):
 poetry run pytest -m "not slow"
 
@@ -208,6 +241,7 @@ poetry run pytest --cov=namer --cov-report=html
 ## Development Environment Setup
 
 ### Poetry-Based Workflow
+
 ```bash
 # One-time setup (installs Poetry, deps, and git hooks)
 make setup-dev
@@ -226,6 +260,7 @@ poetry update requests            # Update specific package
 ```
 
 ### Dependency Management
+
 - All dependencies managed in `pyproject.toml`
 - Use `[tool.poetry.dependencies]` for production
 - Use `[tool.poetry.group.dev.dependencies]` for development
@@ -234,7 +269,8 @@ poetry update requests            # Update specific package
 ## Flask-Specific Guidelines (This Project)
 
 ### Flask Application Structure
-```
+
+```plaintext
 namer/web/
 ├── __init__.py          # Flask app factory
 ├── server.py            # Server configuration
@@ -248,6 +284,7 @@ namer/web/
 ```
 
 ### Running the Application
+
 ```bash
 # Development mode
 poetry run python -m namer
@@ -260,6 +297,7 @@ docker run -p 6980:6980 nehpz/namer:latest
 ```
 
 ### Configuration
+
 - Configuration file: `namer.cfg` (based on `namer.cfg.default`)
 - Environment variables supported via `.env`
 - Database: Pony ORM with SQLite (default) or PostgreSQL
@@ -267,6 +305,7 @@ docker run -p 6980:6980 nehpz/namer:latest
 ## Security Guidelines
 
 ### Dependencies
+
 - Update dependencies: `poetry update`
 - Check outdated: `poetry show --outdated`
 - Security scanning: `poetry run bandit -r namer/`
@@ -274,17 +313,80 @@ docker run -p 6980:6980 nehpz/namer:latest
 - Sensitive packages pinned: attrs<25, cattrs<25 (see pyproject.toml)
 
 ### Code Security
+
 - Validate input data with Pydantic or similar
 - Use environment variables for sensitive configuration
 - Implement proper authentication and authorization
 - Sanitize data before database operations
 - Use HTTPS for production deployments
 
+## External API Integration
+
+### Metadata Providers
+
+Namer integrates with two external GraphQL APIs for video metadata:
+
+**StashDB (stashdb.org)**
+
+- Endpoint: `https://stashdb.org/graphql`
+- Authentication: `APIKey` header (non-standard)
+- Schema: 181 types, 35+ queries, full CRUD + voting
+- Implementation: `namer/metadata_providers/stashdb_provider.py`
+
+**ThePornDB (theporndb.net)**
+
+- Endpoint: `https://theporndb.net/graphql`
+- Authentication: `Authorization: Bearer` header (standard)
+- Schema: 30 types, 7 queries, streamlined design
+- Implementation: `namer/metadata_providers/theporndb_provider.py`
+
+### Schema Drift Detection
+
+**Automated Monitoring:**
+
+- Weekly CI checks every Monday at 9 AM UTC
+- PR validation when provider code changes
+- Automatic GitHub issue creation on drift
+- Detailed diff artifacts stored for 30 days
+
+**Manual Operations:**
+
+```bash
+# Check for schema changes
+export STASHDB_TOKEN="your_token"
+export TPDB_TOKEN="your_token"
+make check-schema-drift
+
+# Update documentation after drift
+make update-schema-docs
+git add docs/api/ && git commit -m "docs: update GraphQL schemas"
+```
+
+**Documentation:**
+
+- `docs/api/stashdb_schema.json` - Complete StashDB schema
+- `docs/api/tpdb_schema.json` - Complete ThePornDB schema
+- `docs/api/graphql_schema_documentation.md` - Human-readable guide
+- `docs/api/SCHEMA_MAINTENANCE.md` - Operations manual
+
+**Key Differences:**
+
+| Feature | StashDB | ThePornDB |
+|---------|---------|-----------|
+| Auth Header | `APIKey` | `Authorization: Bearer` |
+| Field: Studio/Site | `studio` | `site` |
+| Field: URLs | `urls[].url` | `urls[].view` |
+| Field: Date | `release_date` | `date` |
+| Schema Size | 181 types | 30 types |
+
+See `docs/api/SCHEMA_MAINTENANCE.md` for complete operational guide.
+
 ## Git Flow Workflow
 
 This project uses **Git Flow** branching model.
 
 ### Branch Structure
+
 - **main** - Production-ready code, tagged releases only
 - **develop** - Integration branch for features
 - **feature/** - New features (branch from develop)
@@ -294,12 +396,14 @@ This project uses **Git Flow** branching model.
 ### Common Operations
 
 **Start new feature:**
+
 ```bash
 git flow feature start my-feature
 # or manually: git checkout -b feature/my-feature develop
 ```
 
 **Finish feature (merge to develop):**
+
 ```bash
 git flow feature finish my-feature
 # or manually: merge to develop and delete branch
@@ -309,6 +413,7 @@ git flow feature finish my-feature
 Use GitHub Actions "Bump Version and Open Release PR" workflow instead of manual git-flow release.
 
 **Hotfix:**
+
 ```bash
 git flow hotfix start hotfix-name
 git flow hotfix finish hotfix-name
@@ -317,11 +422,13 @@ git flow hotfix finish hotfix-name
 ### Development Workflow
 
 ### Before Starting
+
 1. Ensure Python 3.11+ is installed
 2. Run `make setup-dev` for complete environment setup
 3. Ensure you're on `develop` branch for new features
 
 ### During Development (Docker workflow)
+
 1. Create feature branch from `develop`
 2. Make code changes
 3. Run `make dev-cycle` to build and test quickly
@@ -329,6 +436,7 @@ git flow hotfix finish hotfix-name
 5. Let pre-commit hooks auto-format code (installed by setup-dev)
 
 ### During Development (Local Python workflow)
+
 1. Create feature branch from `develop`
 2. Activate Poetry shell: `poetry shell`
 3. Make code changes
@@ -344,6 +452,7 @@ This project uses Python's **pre-commit** framework for git hooks (NOT Husky).
 We use a **stratified approach** that separates fast commit-time validation from thorough push-time quality gates:
 
 **Pre-commit Hooks: Fast Quality + Functional Validation (~15-20 seconds)**
+
 - **Purpose:** Immediate feedback on code quality AND functionality
 - **Philosophy:** Fast enough not to disrupt flow, thorough enough to catch real issues
 - **Checks:**
@@ -356,6 +465,7 @@ We use a **stratified approach** that separates fast commit-time validation from
   - Hadolint - Dockerfile linting (optional)
 
 **Pre-push Hooks: Deep Validation (~2 minutes)**
+
 - **Purpose:** Full quality gate before team review - "production ready" validation
 - **Philosophy:** Ready to push = ready for team review = high confidence in quality
 - **Checks:**
@@ -365,6 +475,7 @@ We use a **stratified approach** that separates fast commit-time validation from
 **Note:** CodeRabbit AI review can be run manually via `make review`. Codacy security analysis runs in CI only (requires CODACY_PROJECT_TOKEN).
 
 **Why this approach:**
+
 1. **Type safety shift-left** - Catch type errors at commit time before they pile up
 2. **Fast pytest in pre-commit** - 78 tests in 4 seconds provides excellent functional coverage
 3. **CI-based security** - Codacy runs in CI where tokens are configured
@@ -373,43 +484,32 @@ We use a **stratified approach** that separates fast commit-time validation from
 6. **Clear separation** - Commit (fast iteration) vs Push (comprehensive gate)
 
 **Manual execution:**
+
 - `pre-commit run --all-files` - Run all pre-commit hooks manually
 - `pre-commit run --hook-stage pre-push --all-files` - Run all pre-push hooks manually
 - `poe precommit` - Alternative: format checking + fast tests
 
 **Hook management:**
+
 - Hooks are installed automatically by `make setup-dev`
 - Configuration: `.pre-commit-config.yaml`
 - Update hooks: `pre-commit autoupdate`
 - Skip hooks (not recommended): `git commit --no-verify` or `git push --no-verify`
 
-### Before Committing ANY Files
-**CRITICAL PRE-COMMIT CHECKLIST:**
-1. **Check `git status` for untracked files** - ALWAYS review what you're about to commit
-2. **Verify against `.gitignore`** - Check if new files should be ignored:
-   - `logs/` - Runtime logs (NEVER commit)
-   - `database/` - Local database files (NEVER commit)
-   - `*.backup` - Backup files (NEVER commit)
-   - `.env` - Environment secrets (NEVER commit)
-3. **Update `.gitignore` FIRST** if adding ignored file types
-4. **Use `git add <specific-files>`** - NEVER use `git add .` or `git add -A` blindly
-
-**Common mistakes to AVOID:**
-- ❌ Committing `logs/` directory - contains runtime data
-- ❌ Committing temp files generated during development
-- ❌ Using `git add .` without reviewing `git status` first
-- ❌ Forgetting to update `.gitignore` for new file types
-
 ### Before Pushing
+
 **Comprehensive validation:**
+
 - `make validate` - Full validation suite (required before PR)
 
 ### Creating Pull Requests
+
 - Feature branches → merge to `develop`
 - Release branches → merge to `main` (via automated workflow)
 - Hotfix branches → merge to both `main` and `develop`
 
 ### Release Process
+
 **Do not use `git flow release`** - instead use the automated GitHub Actions workflow (see `/release` command or release.md)
 
 ## Hook Optimization Best Practices
@@ -419,6 +519,7 @@ We use a **stratified approach** that separates fast commit-time validation from
 **Core Principle**: Git hooks should ONLY run when files that could affect their outcome are modified.
 
 **Why This Matters:**
+
 - Documentation-only changes shouldn't trigger test suites
 - Config-only changes shouldn't rebuild Docker images
 - Zero changes between commit and push means re-linting is redundant
@@ -446,17 +547,20 @@ We use a **stratified approach** that separates fast commit-time validation from
 ### When to Use Each Filter Type
 
 **`types: [single-type]`** - Use when hook validates/processes ONE file type:
+
 - `types: [python]` → pytest, mypy, ruff
 - `types: [dockerfile]` → hadolint
 - `types: [shell]` → shellcheck
 - `types: [yaml]` → actionlint
 
 **`types_or: [type1, type2, ...]`** - Use when hook depends on MULTIPLE file types:
+
 - Docker builds depend on: Dockerfile, Python code, JavaScript, configs (JSON/TOML), shell scripts
 - Bundle operations depend on: JavaScript, CSS, HTML
 - Integration tests depend on: Multiple source file types
 
 **Files that should NEVER trigger hooks:**
+
 - Markdown files (`.md`) - Documentation only
 - Text files (`.txt`) - Notes and logs
 - Image files (`.png`, `.jpg`) - Assets
@@ -465,16 +569,19 @@ We use a **stratified approach** that separates fast commit-time validation from
 ### Performance Impact Measurement
 
 **Before Optimization (all hooks run on all changes):**
+
 - Docs-only commit: ~15-20s (unnecessary pytest, mypy, etc.)
 - Docs-only push: ~2min (unnecessary full test suite, Docker build)
 - **Total for docs PR:** ~2min+ per commit
 
 **After Optimization (file type filters):**
+
 - Docs-only commit: ~0s (all hooks skipped)
 - Docs-only push: ~0s (all hooks skipped)
 - **Total for docs PR:** Instant commit + instant push
 
 **Savings:**
+
 - 70%+ time saved on documentation workflows
 - 50%+ time saved on config-only changes
 - No impact on code changes (hooks still run when needed)
@@ -501,6 +608,7 @@ When adding new pre-commit hooks:
 **User observation**: "There should be zero changes between commit and push, so re-linting doesn't make sense"
 
 **Insight**: If pre-commit hooks do their job (format, type check, fast tests), pre-push should only add:
+
 1. **Comprehensive testing** (full test suite vs fast tests)
 2. **Build validation** (Docker, bundles)
 3. **Not re-run** what pre-commit already validated
@@ -512,7 +620,8 @@ When adding new pre-commit hooks:
 ### Hook Performance & Timing
 
 **Pre-commit Hook Performance (~15-20 seconds):**
-```
+
+```plaintext
 Breakdown:
 - Ruff linting + format: ~2-3s
 - mypy type checking: ~2-3s
@@ -524,7 +633,8 @@ Total: ~15-20s
 ```
 
 **Pre-push Hook Performance (~2 minutes):**
-```
+
+```plaintext
 Breakdown:
 - Full pytest with coverage: ~90s (timeout: 10min - generous for slow systems)
 - Docker smoke test: ~30-60s (timeout: 10min - generous for cold builds)
@@ -560,6 +670,7 @@ All hooks use `types` or `types_or` filters to skip when irrelevant files change
 | **Shell scripts** | ~5s | ~0s | ~5s | ~2min saved |
 
 **Why stratified hooks work:**
+
 - Pre-commit is fast enough not to disrupt flow (< 20s for code, instant for docs)
 - Pre-commit catches 90% of issues early (types, tests, style)
 - Pre-push provides deep validation before team review
@@ -569,6 +680,7 @@ All hooks use `types` or `types_or` filters to skip when irrelevant files change
 ### Git Hooks Best Practices
 
 **NEVER bypass pre-push hooks:**
+
 - ❌ **`git push --no-verify`** - STRICTLY PROHIBITED
 - ❌ Bypassing skips security scans, tests, and quality gates
 - ❌ Puts broken code into shared branches
@@ -576,22 +688,26 @@ All hooks use `types` or `types_or` filters to skip when irrelevant files change
 - ✅ Small commits = faster reviews = quicker delivery
 
 **Why this policy:**
+
 1. **Quality gates** - Full test suite ensures functionality before sharing
 2. **CI validation** - Security checks run in CI where tokens are configured
 3. **Team protection** - Don't break others' workflows
 4. **Better practices** - Small, focused commits are better engineering
 
 **If pre-push hooks seem slow:**
+
 - Review your commit size - are you committing too much at once?
 - Break large changes into smaller, logical commits
 - Smaller commits review faster and are easier to understand
 - Example: Instead of one 2000-line commit, create 5 focused 400-line commits
 
 **Hook timeout guidelines:**
+
 - pytest full suite: 10 minutes max (typically completes in ~90s)
 - Docker smoke test: 10 minutes max (typically completes in ~30-60s, generous for cold builds)
 
 **Common hook issues:**
+
 1. **Timeout** - Commit too large? Break it into smaller pieces
 2. **Type errors** - Run `poetry run mypy .` locally first (caught in pre-commit)
 3. **Test failures** - Fix tests before pushing (caught in pre-commit fast tests)
@@ -625,6 +741,7 @@ git branch -a
 **Common mypy issues and fixes:**
 
 1. **Callable import error:**
+
    ```python
    # ❌ Wrong
    from typing import Callable
@@ -634,6 +751,7 @@ git branch -a
    ```
 
 2. **Redundant type annotations after unpacking:**
+
    ```python
    # ❌ Redundant
    with environment() as (temp_dir, fake_tpdb, config):
@@ -647,6 +765,7 @@ git branch -a
    ```
 
 3. **Optional Path attributes:**
+
    ```python
    # ❌ Assumes Path is never None
    files = list(config.watch_dir.iterdir())
@@ -660,12 +779,14 @@ git branch -a
 ### Development Workflow Insights
 
 **Make targets usage:**
+
 - `make quick` - Fast feedback during development (~11s)
 - `make validate` - Full validation before push (~2-3 min)
 - `make test-local` - Local tests without Docker
 - `make ci` - Simulate CI environment locally
 
 **Git hooks workflow (stratified approach):**
+
 - **Pre-commit (~15-20s):** Fast quality + functional validation
   - Auto-formats code with Ruff
   - Catches type errors with mypy
@@ -680,6 +801,7 @@ git branch -a
 ### Dependency Management
 
 **Adding type stubs:**
+
 ```bash
 # When mypy complains about missing stubs
 poetry add --group dev types-requests
@@ -687,6 +809,7 @@ poetry add --group dev types-<package-name>
 ```
 
 **Python-native tooling preference:**
+
 - ✅ Use pre-commit (Python) over Husky (Node.js)
 - ✅ Use Ruff (Python) over ESLint (Node.js) for Python
 - ✅ Keep tooling consistent with project language
@@ -702,6 +825,7 @@ poetry add --group dev types-<package-name>
 **Optimal Size**: 200-500 lines per PR, single focused concern
 
 **When to Split Large Branches**:
+
 - Branch exceeds 500 lines across multiple files
 - Multiple distinct concerns mixed together
 - Review cycles becoming slow (>1 day for initial feedback)
@@ -710,6 +834,7 @@ poetry add --group dev types-<package-name>
 **Splitting Strategy**:
 
 **Sequential PRs** (use when documentation/config evolves):
+
 1. Analyze commits: `git log develop..HEAD --oneline`
 2. Create atomic branches from develop
 3. Cherry-pick commits: `git cherry-pick <hash>`
@@ -717,16 +842,19 @@ poetry add --group dev types-<package-name>
 5. Push and create PR with context
 
 **Parallel PRs** (use when changes are independent):
+
 - Split by feature/concern
 - No shared files modified
 - Can be reviewed/merged independently
 
 **Real-World Example**:
+
 - **Original**: 1 PR, 12 commits, 1,445 lines → 10+ min review time
 - **Split**: 5 PRs averaging 300 lines → <5 min review time each
 - **Result**: Faster reviews, parallel progress, lower merge risk
 
 **PR Series Template**:
+
 ```markdown
 ## Part of Series
 This is **PR #X of N** from `feature/large-branch`:
@@ -746,6 +874,7 @@ This is **PR #X of N** from `feature/large-branch`:
 This project uses Gemini Code Assist for automated PR reviews. Use the `/gemini-review` command to analyze and action feedback.
 
 **Workflow**:
+
 ```bash
 1. Create PR → Gemini reviews automatically
 2. Run: /gemini-review [pr-number]
@@ -754,6 +883,22 @@ This project uses Gemini Code Assist for automated PR reviews. Use the `/gemini-
 5. Document decisions in PR comments
 6. Reference in commit messages
 ```
+
+**Systematic PR Review Response**:
+
+1. **Create comprehensive todo list** from all review comments (CodeRabbit, Gemini, manual)
+2. **Prioritize systematically:** CRITICAL > HIGH > MAJOR > Minor
+3. **Address in priority order**, marking items completed immediately after finishing
+4. **When blocked, reassess approach** - don't brute-force the same solution
+5. **User intervention helpful** for fundamental design issues (e.g., parser incompatibilities)
+6. **Document deferred items** with clear rationale for follow-up PRs
+
+**Example Priority Breakdown:**
+
+- **CRITICAL:** Artifact path mismatch causing CI failures → Must fix now
+- **HIGH:** Hardcoded data becoming stale → Must fix now
+- **MAJOR:** Formatting issues, graceful error handling → Should fix now
+- **Minor:** Style improvements, documentation formatting → Can defer
 
 **Decision Framework**:
 
@@ -765,12 +910,14 @@ This project uses Gemini Code Assist for automated PR reviews. Use the `/gemini-
 | **Skip** | Conflicts with project standards, out of scope, low ROI | Document why skipped |
 
 **Not All AI Feedback Requires Action**:
+
 - Formatting suggestions that conflict with Ruff configuration → Skip
 - Style preferences vs project standards → Skip (maintain consistency)
 - Out-of-scope suggestions → Defer to separate PR
 - Technical debt observations → Evaluate ROI vs effort
 
 **PR Comment Template**:
+
 ```markdown
 ## Addressed Gemini Code Assist Feedback
 
@@ -795,10 +942,12 @@ This project uses Gemini Code Assist for automated PR reviews. Use the `/gemini-
 ### Platform Compatibility Patterns
 
 **Timeout Commands** (macOS vs Linux):
+
 - macOS: `gtimeout` (via `brew install coreutils`)
 - Linux: `timeout` (built-in)
 
 **Detection Pattern**:
+
 ```bash
 TIMEOUT_CMD=$(command -v gtimeout || command -v timeout || echo "")
 if [ -n "$TIMEOUT_CMD" ]; then
@@ -810,18 +959,21 @@ fi
 ```
 
 **Project Implementation**: `scripts/timeout-wrapper.sh`
+
 - Usage: `./scripts/timeout-wrapper.sh <seconds> <command> [args...]`
 - Handles platform detection automatically
 - Provides helpful warnings when timeout unavailable
 - Used by all pre-push git hooks
 
 **Best Practices**:
+
 - Always use **feature detection**, not platform detection
 - Provide **graceful fallbacks** with warnings
 - Centralize platform-specific logic in reusable scripts
 - Test on both macOS and Linux before merging
 
 **Filename Sanitization Patterns** (Critical for scripts):
+
 ```bash
 # ❌ Wrong - triggers shellcheck warnings
 SAFE_BRANCH=$(echo "$BRANCH" | sed 's|/|-|g')
@@ -834,6 +986,7 @@ FEEDBACK_FILE="${TIMESTAMP}_${SAFE_BRANCH}_${COMMIT}.txt"
 ```
 
 **Robust Filename Parsing** (Critical for structured filenames):
+
 ```bash
 # Problem: Simple cut breaks with underscores in branch names
 # Bad: BRANCH=$(echo "$FILENAME" | cut -d'_' -f2)  # Fragile!
@@ -847,6 +1000,7 @@ BRANCH=$(echo "$FILENAME" | sed "s/^[^_]*_//; s/_${COMMIT}$//")  # Middle
 ```
 
 **Race Condition Prevention**:
+
 ```bash
 # ❌ Wrong - hardcoded temp file causes race conditions
 gh issue create ... > /tmp/issue_url.txt
@@ -858,6 +1012,130 @@ trap 'rm -f "$temp_file"' RETURN
 gh issue create ... > "$temp_file"
 ```
 
+**Heredoc with Non-Shell Code** (Critical for documentation generation):
+
+```bash
+# Problem: Heredocs containing non-shell code (GraphQL, JSON, YAML) break shfmt parsing
+# When content has shell-like syntax (braces, brackets), parser gets confused
+
+# ❌ WRONG: Unquoted heredoc with GraphQL code breaks shfmt
+cat >"$file" <<EOF
+## Schema
+- **Types:** $TYPE_COUNT
+
+```graphql
+type Scene {
+  id: ID!
+}
+```
+
+EOF
+
+# ✅ RIGHT: Quoted heredoc + sed replacement
+
+cat >"$file" <<'TEMPLATE_EOF'
+
+## Schema
+
+- **Types:** TYPE_COUNT_PLACEHOLDER
+
+```graphql
+type Scene {
+  id: ID!
+}
+```
+
+TEMPLATE_EOF
+
+# Replace placeholders with actual values
+
+sed -i.bak "s/TYPE_COUNT_PLACEHOLDER/$TYPE_COUNT/g" "$file"
+rm -f "${file}.bak"
+
+```
+
+**Why quoted heredoc works:**
+- `<<'DELIMITER'` prevents shell interpretation (no variable expansion, no parsing)
+- Content can contain any syntax without breaking shell parser
+- Sed performs safe text replacement on complete file
+- shfmt can parse correctly because no shell interpretation happens in heredoc
+
+**Pattern summary:**
+1. Use **quoted delimiter** (`<<'DELIMITER'`) for literal content
+2. Use **placeholder tokens** for variables (e.g., `VARIABLE_PLACEHOLDER`)
+3. Use **sed replacements** after heredoc to substitute actual values
+4. Remove backup files created by sed (`-i.bak`)
+
+### CI/CD and Automation Patterns
+
+**Artifact Path Consistency** (Critical for CI workflows):
+```bash
+# Problem: Workflow uploads from one path, script writes to another
+
+# ✅ In shell scripts - use RUNNER_TEMP with fallback
+ARTIFACT_DIR="${RUNNER_TEMP:-/tmp}"
+DIFF_FILE="${ARTIFACT_DIR}/diff.txt"
+REPORT_FILE="${ARTIFACT_DIR}/report.json"
+
+# ✅ In GitHub Actions workflows - use runner.temp
+- name: Upload artifacts
+  uses: actions/upload-artifact@v4
+  with:
+    path: |
+      ${{ runner.temp }}/diff.txt
+      ${{ runner.temp }}/report.json
+```
+
+**Pattern:** Always use `${RUNNER_TEMP:-/tmp}` in scripts and `${{ runner.temp }}` in workflows for consistent, discoverable paths across CI and local execution.
+
+**Exit Code Semantics** (Critical for automation):
+
+```bash
+# Use distinct exit codes for different failure types
+exit 0  # Success
+exit 1  # Actionable failure (e.g., drift detected)
+exit 2  # Informational state (e.g., missing baseline)
+
+# Check exit codes explicitly in workflows
+if [ $EXIT_CODE -eq 1 ]; then
+    echo "actionable_failure=true" >> "$GITHUB_OUTPUT"
+elif [ $EXIT_CODE -eq 2 ]; then
+    echo "informational=true" >> "$GITHUB_OUTPUT"
+fi
+
+# ❌ WRONG: Implicit check treats all non-zero the same
+if [ $EXIT_CODE -ne 0 ]; then
+    echo "Something failed but don't know what"
+fi
+```
+
+**Pattern:** Use semantic exit codes (0, 1, 2, etc.) and check explicitly (`-eq`) instead of implicitly (`-ne 0`) to differentiate actionable failures from informational states.
+
+**Dynamic Documentation Generation** (Best practice):
+
+```bash
+# ❌ WRONG: Hardcoded statistics become stale
+cat >"$doc" <<EOF
+Schema has 181 types and 35 queries
+EOF
+
+# ✅ RIGHT: Extract statistics from source data
+TYPE_COUNT=$(jq '[.data.__schema.types[] | select(.name | startswith("__") | not)] | length' "$schema")
+QUERY_COUNT=$(jq '.data.__schema.queryType.name as $qt | .data.__schema.types[] | select(.name == $qt) | .fields | length' "$schema")
+
+cat >"$doc" <<'TEMPLATE_EOF'
+Schema has TYPE_COUNT_PLACEHOLDER types and QUERY_COUNT_PLACEHOLDER queries
+TEMPLATE_EOF
+
+sed -i.bak \
+    -e "s/TYPE_COUNT_PLACEHOLDER/$TYPE_COUNT/g" \
+    -e "s/QUERY_COUNT_PLACEHOLDER/$QUERY_COUNT/g" \
+    "$doc"
+rm -f "${doc}.bak"
+```
+
+**Pattern:** Never hardcode statistics that can be derived from data sources. Extract dynamically → Template with placeholders → Sed replacement. Documentation stays synchronized automatically.
+
 ---
 
 ## Lessons Learned
@@ -865,36 +1143,42 @@ gh issue create ... > "$temp_file"
 ### Key Insights from Practice
 
 **1. Atomic PRs Deliver Measurable ROI**
+
 - Investment: ~1 hour to split large branch
 - Return: 20x faster review time (30s vs 10min)
 - Benefit: Parallel progress, lower risk, easier rollback
 - Pattern: 200-500 lines per PR = optimal reviewer experience
 
 **2. Respect Auto-Formatting Configuration**
+
 - Don't make manual changes that conflict with Ruff
 - If formatting is problematic, update Ruff config project-wide
 - Consistency across codebase > isolated "readability" improvements
 - Pre-commit hooks will revert manual formatting changes
 
 **3. Generous Timeouts Prevent False Failures**
+
 - 10min timeout with ~90s typical execution = best UX
 - Accommodates: slow systems, network delays, first-time package downloads
 - Prevents frustration from timeout failures on edge cases
 - Pattern: Generous safety margin + fast typical execution
 
 **4. Context-Appropriate Hook Bypass**
+
 - ✅ Acceptable: When modifying hook system itself (chicken-egg problem)
 - ✅ Acceptable: Atomic PRs missing build scripts (focused scope)
 - ❌ Never: To skip failing tests or security scans
 - ❌ Never: To bypass hooks before pushing to shared branches
 
 **5. Sequential > Parallel for Evolving Documentation**
+
 - When CLAUDE.md or configs evolve across commits, expect conflicts
 - Sequential PRs (building on each other) easier than parallel splits
 - Resolve conflicts by keeping more complete implementation
 - Document resolution rationale in merge commit message
 
 **6. Selective Fix Application (Atomic PR Extraction)**
+
 - Cherry-picking entire commits can include unrelated changes
 - **Better approach:** Manually apply only relevant fixes per feature area
 - **Process:** Review `git show <sha>`, identify target files, apply selectively
@@ -902,18 +1186,21 @@ gh issue create ... > "$temp_file"
 - **Benefit:** Maintains true atomic PRs, prevents scope creep
 
 **7. Shellcheck Compliance During Refactoring**
+
 - Unused variables block commits when shellcheck is enabled
 - **Pattern:** Remove unused code when refactoring - don't leave dead variables
 - **Example:** Removed `MAX_CRF` variable and `--max-crf` option after loop refactor
 - **Impact:** Keeps codebase clean, prevents confusion
 
 **8. Data Extraction from Nested JSON**
+
 - AI review comments often nested deep in GraphQL responses
 - **Pattern:** Use `.reviews[] | select(.author.login == "gemini-code-assist")`
 - **Challenge:** Comments may be in `.reviews[].comments.nodes[]` requiring graph traversal
 - **Solution:** GraphQL queries more reliable than parsing comment HTML
 
 **9. Hook Optimization Philosophy: Skip When Files Don't Affect Outcomes**
+
 - **Insight:** "There should be zero changes between commit and push, so re-linting doesn't make sense"
 - **Pattern:** Use `types` or `types_or` filters on ALL expensive hooks
 - **Impact:** 70%+ time savings on docs-only changes (2min → instant)
@@ -921,6 +1208,7 @@ gh issue create ... > "$temp_file"
 - **Example:** pytest skips on markdown-only changes, Docker skips on docs-only changes
 
 **10. Strategic Decision Reassessment**
+
 - **Pattern:** When upstream decisions change, reassess dependent features before merging
 - **Example:** PR #126 removed CodeRabbit automation → PR #124 feedback capture became obsolete
 - **Process:**
@@ -931,6 +1219,7 @@ gh issue create ... > "$temp_file"
 - **Impact:** Prevents merging features that are no longer needed or compatible
 
 **11. File Type Filter Patterns**
+
 - **Single type:** `types: [python]` - pytest, mypy
 - **Single type:** `types: [dockerfile]` - hadolint
 - **Multiple types:** `types_or: [dockerfile, python, javascript, json, toml, shell]` - docker-smoke-test
@@ -940,45 +1229,186 @@ gh issue create ... > "$temp_file"
   - Python code: ~15-20s commit + ~90s push
   - Dockerfile: ~15-20s commit + ~60s push
   - Shell scripts: ~5s commit + instant push
-**12. Accidental Logs Commit & Prevention System (2025-10-13)**
-- **Incident:** Committed `logs/namer.log` in feature branch (commit 3902525)
-- **Root Causes:**
-  1. Used `git add -A` without reviewing `git status` first
-  2. No `.gitignore` entry for root `logs/` directory
-  3. No automated enforcement to block logs/ commits
-- **Impact:**
-  - Committed runtime logs to feature branch
-  - Created PR #138 with unwanted files
-  - Had to close PR (GitHub doesn't allow full deletion)
-  - Wasted time on cleanup and recovery
-- **Prevention System Implemented (PR #139):**
-  1. **Pre-commit hook** (`check-logs-directory`) - Automated enforcement
-  2. **`.gitignore` entry** - `logs/` directory ignored by git
-  3. **CLAUDE.md checklist** - "Before Committing ANY Files" section
-- **Key Learning:** Manual checklists insufficient - need automated enforcement
-- **Pattern:** Add pre-commit hooks for common mistakes that slip through review
-- **Testing:** Try `git add logs/ && git commit` - should fail with clear error
 
-**13. Git Flow Discipline: Never Push Directly to Develop**
-- **Violation:** Pushed 2 commits directly to `develop` (16a814a, 563897f)
-- **Why This Matters:**
-  - Bypasses code review process
-  - Breaks Git Flow branching model
-  - Violates team collaboration patterns
-  - No opportunity for feedback/validation
-- **Correct Git Flow Process:**
-  1. Create feature branch from `develop`
-  2. Make commits on feature branch
-  3. Push feature branch to remote
-  4. Create PR to `develop`
-  5. Merge after review
-- **Recovery Process:**
-  1. `git reset --hard HEAD~2` on local develop
-  2. `git push --force-with-lease` to revert remote develop
-  3. Create feature branch: `git checkout -b feature/name develop`
-  4. Cherry-pick commits: `git cherry-pick <sha1> <sha2>`
-  5. Push feature branch and create PR properly
-- **Rule:** ALWAYS use feature branches, even for "small" documentation fixes
-- **Exception:** None - proper process takes <5 minutes, no valid excuse
-- **Reminder:** Even fixes to prevent mistakes must follow proper Git Flow
-- **Pattern:** If you break Git Flow, stop immediately and fix it before continuing
+**12. GraphQL Schema Drift Detection via Introspection**
+
+- **Problem:** External APIs (StashDB, ThePornDB) change without notice, breaking integration
+- **Solution:** Automated schema introspection + drift detection + CI monitoring
+- **Architecture:**
+  1. **Baseline Documentation** - Store complete schema snapshots in `docs/api/`
+  2. **Introspection Queries** - Fetch live schemas via GraphQL `__schema` queries
+  3. **Normalized Comparison** - Sort/format consistently to avoid false positives
+  4. **Automated Monitoring** - Weekly CI checks + PR validation
+  5. **GitHub Integration** - Auto-create issues when drift detected
+- **Key Learnings:**
+  - Introspection is more reliable than parsing API docs
+  - Normalization critical for avoiding format-only diffs
+  - Weekly schedule balances monitoring vs noise
+  - PR validation prevents merging outdated integrations
+  - Detailed diffs essential for understanding breaking changes
+- **Implementation:**
+  - `make check-schema-drift` - Manual drift detection
+  - `make update-schema-docs` - Refresh documentation
+  - `.github/workflows/schema-drift-check.yml` - Automated monitoring
+  - `docs/api/SCHEMA_MAINTENANCE.md` - Operations guide
+- **Best Practices:**
+  - Store baseline schemas in version control
+  - Use normalized comparisons (sorted JSON)
+  - Generate human-readable diffs
+  - Document breaking vs additive changes
+  - Test integration code after schema updates
+- **Emergency Response:**
+  1. Detect breaking change via CI alert
+  2. Review diff to understand impact
+  3. Update integration code + tests
+  4. Refresh documentation: `make update-schema-docs`
+  5. Commit all changes together
+- **Authentication Gotchas:**
+  - StashDB uses non-standard `APIKey` header (not `Authorization: Bearer`)
+  - ThePornDB uses standard `Authorization: Bearer` header
+  - Different field names: `studio` vs `site`, `urls[].url` vs `urls[].view`
+  - Test auth early: `curl` with `me` query validates tokens
+- **ROI:**
+  - Prevents production failures from silent API changes
+  - Reduces debugging time (clear diffs vs mystery errors)
+  - Enables proactive updates vs reactive firefighting
+  - Documents API evolution over time
+
+**13. PR Merge and Cleanup Workflow (2025-10-13)**
+
+- **Context:** Merging approved PRs and performing Git Flow cleanup
+- **Workflow Steps:**
+  1. **Verify PR Status** - Check `mergeability`, `mergeStateStatus`, and review approvals
+  2. **Re-run Failed Checks** - Use `gh run rerun <id> --failed` to retry transient CI failures
+  3. **Merge with Cleanup** - Use `gh pr merge --squash --delete-branch` for atomic merges
+  4. **Local Cleanup** - Switch to develop, pull latest, delete local feature branch
+  5. **Remote Cleanup** - Use `git remote prune origin` to remove stale tracking branches
+- **Key Commands:**
+  - `gh pr view <num> --json mergeable,mergeStateStatus,reviews` - Check PR status
+  - `gh pr checks <num>` - View CI check status
+  - `gh run rerun <id> --failed` - Retry failed workflow runs
+  - `gh pr merge <num> --squash --delete-branch` - Merge and cleanup
+  - `git remote prune origin` - Clean stale remote tracking branches
+- **Git Flow Discipline:**
+  - NEVER push directly to `develop` - always use feature branches + PRs
+  - Branch protection enforces PR requirement (good practice)
+  - Even "small" doc fixes must go through proper Git Flow
+  - Reset and create feature branch if you accidentally commit to develop
+- **Lessons Learned:**
+  - Branch protection prevents direct pushes (caught Git Flow violation)
+  - Stash changes when switching branches to avoid losing work
+  - Verify branch cleanup with `git branch -a` after prune
+  - Schema docs from PR 140 should not be duplicated in drift detection PR
+- **Pattern:** Systematic merge → cleanup → verification prevents clutter
+
+**14. Separating Infrastructure from Documentation (2025-10-13)**
+
+- **Problem:** PR 138 included both drift detection infrastructure AND schema documentation
+- **Root Cause:** Schema docs were merged separately in PR 140, creating duplication
+- **Solution:** Split infrastructure (new) from documentation (already merged)
+- **Process:**
+  1. Apply all changes from closed PR to new feature branch
+  2. Identify which files already exist in develop (from other PRs)
+  3. Unstage duplicate files: `git reset HEAD <files>`
+  4. Restore duplicates from develop: `git checkout develop -- <files>`
+  5. Commit only the new infrastructure without duplicates
+- **Files Kept (Infrastructure):**
+  - `.github/workflows/schema-drift-check.yml` - CI automation
+  - `scripts/check-schema-drift.sh` - Drift detection script
+  - `scripts/update-schema-docs.sh` - Documentation update script
+  - `docs/api/SCHEMA_MAINTENANCE.md` - Operations guide
+  - `docs/sessions/*.md` - Session notes
+  - `Makefile` - New targets for drift detection
+  - `CLAUDE.md` - External API Integration section
+- **Files Excluded (Already in PR 140):**
+  - `docs/api/graphql_schema_documentation.md` - Human-readable guide
+  - `docs/api/graphql_schemas_report.json` - Schema comparison report
+  - `docs/api/stashdb_schema.json` - StashDB baseline schema
+  - `docs/api/tpdb_schema.json` - ThePornDB baseline schema
+- **Best Practices:**
+  - Review what's already merged before creating new PRs from closed PRs
+  - Use `git diff develop...HEAD --name-only` to see what's truly new
+  - Keep infrastructure separate from documentation when possible
+  - Reference related PRs in commit messages for context
+- **Pattern:** Infrastructure PRs should focus on tooling, not duplicate docs
+
+**15. Heredocs with Non-Shell Code & Systematic Review Response (2025-10-13)**
+
+- **Context:** PR #141 review feedback - CodeRabbit + Gemini Code Assist
+- **Challenge:** Shell formatting (shfmt) incompatible with heredocs containing GraphQL/JSON code
+- **Root Cause:** Parser interprets shell-like syntax (braces, brackets) in code samples as shell constructs
+- **Solution Discovery Process:**
+  1. Attempted escaping, indentation removal, various bracket strategies - all failed
+  2. User intervention identified fundamental parser incompatibility
+  3. Solution: Quoted heredoc (`<<'DELIMITER'`) + sed replacement pattern
+- **Implementation:**
+
+  ```bash
+  # Quoted heredoc prevents shell interpretation
+  cat >"$file" <<'TEMPLATE_EOF'
+  Content with PLACEHOLDER tokens and code samples
+  TEMPLATE_EOF
+
+  # Sed replaces placeholders after file creation
+  sed -i.bak "s/PLACEHOLDER/$variable/g" "$file"
+  rm -f "${file}.bak"
+  ```
+
+- **Additional Learnings:**
+  - **CI/CD Artifact Paths:** Always use `${RUNNER_TEMP:-/tmp}` in scripts, `${{ runner.temp }}` in workflows
+  - **Exit Code Semantics:** Use distinct codes (0=success, 1=actionable failure, 2=informational) and check explicitly (`-eq 1`)
+  - **Dynamic Documentation:** Extract statistics from data sources, never hardcode
+  - **Systematic PR Review:** Create todo list → Prioritize (CRITICAL > HIGH > MAJOR > Minor) → Address systematically
+  - **Graceful Degradation:** Distinguish required files from context-dependent files (warnings vs errors)
+- **Impact:**
+  - Reusable pattern for documentation generation scripts
+  - Standard CI/CD artifact path convention established
+  - Clear methodology for responding to automated review feedback
+- **Reference:** `docs/sessions/2025-10-13-pr141-review-response.md`
+
+**16. AI Code Review Issue Management (2025-10-13)**
+
+- **Context:** Converting PR 141 CodeRabbit review feedback to GitHub issues
+- **Challenge:** Extracting actionable items from AI review comments and organizing as trackable work
+- **Process:**
+  1. Extract all review comments from AI reviewers (CodeRabbit, Gemini Code Assist)
+  2. Categorize feedback by priority: Urgent > High > Medium > Low
+  3. Create GitHub issues with comprehensive problem statements
+  4. Link all issues in PR comment for visibility
+  5. Separate already-addressed items from future work
+- **Issue Structure Best Practices:**
+  - **Title:** Emoji prefix for visual priority (🔴 Urgent, 🟡 High, 🔵 Medium, 🟢 Low)
+  - **Problem:** Clear description of what's wrong and why it matters
+  - **Impact:** Business/technical consequences of not addressing
+  - **Solution:** Specific, actionable recommendations with code examples
+  - **Files to Modify:** Exact locations to change
+  - **Success Criteria:** Testable checkboxes for completion
+  - **Related:** Links to PRs, other issues, documentation
+- **Priority Definitions:**
+  - **Urgent**: Security issues, silent failures, data integrity (fix immediately)
+  - **High**: Accuracy problems, best practices violations (fix in follow-up)
+  - **Medium**: Documentation quality, linting issues (fix when convenient)
+  - **Low**: Style preferences, optional improvements (evaluate ROI)
+- **Label Management:**
+  - GitHub labels are case-sensitive: use lowercase (`urgent`, not `Urgent`)
+  - Create missing labels with `gh label create <name> -c <color> -d <description>`
+  - Standard colors: urgent=#d73a4a (red), high=#ededed (gray), medium-term=#ededed, low=#fbca04 (yellow)
+- **Key Benefits:**
+  - Systematic tracking prevents forgotten feedback
+  - Prioritization enables intelligent resource allocation
+  - Issues provide context for future contributors
+  - Prevents scope creep in current PR (defer to follow-ups)
+  - Creates audit trail of decisions made
+- **Real-World Example (PR #141):**
+  - 2 Urgent: Dependency checks, curl error handling
+  - 1 High: Drift summary accuracy
+  - 1 Medium: Markdownlint code fences
+  - 1 Low: Emphasis-as-heading style
+  - Result: 6 items already fixed, 5 issues for follow-up
+- **Integration with PR Workflow:**
+  - Address critical feedback in current PR commit
+  - Create issues for non-blocking items
+  - Add summary comment to PR linking all issues
+  - Mark items as addressed vs deferred
+  - Reference issue numbers in follow-up PRs
+- **Pattern:** Extract → Categorize → Create issues → Link → Track systematically
