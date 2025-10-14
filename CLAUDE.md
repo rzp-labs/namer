@@ -1276,3 +1276,193 @@ jq '.sessions[] | select(.tags[] | contains("performance"))' .agent/memory.json
 # Get all patterns for a topic
 jq '.sessions[] | select(.tags[] | contains("git-hooks")) | {title, pattern}' .agent/memory.json
 ```
+
+### 18. Stratified Hooks Validation in Real Release Cycle
+
+- **Evidence from Release/1.23.3:**
+  - Pre-commit caught: Type errors, formatting issues, test failures
+  - Pre-push caught: Full test suite coverage, Docker build validation
+  - File type filtering: Only relevant hooks ran (Python hooks skipped for shell changes)
+- **Confirmed Benefits:**
+  - Fast feedback loop (~15-20s) prevents iteration delays
+  - Comprehensive gate (~2min) ensures quality before push
+  - 70%+ time savings on docs/config-only changes
+- **Validation:** System working as designed through full release workflow
+- **Future:** Continue measuring and optimizing hook performance
+
+---
+
+### Branch Lifecycle and Cleanup
+
+### 19. Thorough Investigation Before Cherry-Picking
+
+- **Context:** Attempted to extract "security improvements" from 12-day-old branch (chore/urgent-ci-hardening)
+- **Initial Assessment:** Branch appeared to have valuable changes (secrets.choice, defusedxml, path sanitization)
+- **Discovery Process:**
+  1. Checked if improvements were in develop
+  2. Found secrets.choice in namer/ffmpeg_impl.py (lines 247, 287)
+  3. Found defusedxml already in pyproject.toml
+  4. Realized code had been refactored, incorporating all improvements
+- **Lesson:** Always diff current code against "improvements" - refactoring may have already incorporated them
+- **Pattern:** Old branches may appear to have value, but subsequent development often supersedes them
+- **Workflow:**
+  ```bash
+  # Before cherry-picking from old branch:
+  git diff develop old-branch -- path/to/file.py
+  grep -r "suspected_improvement" namer/
+  git log --all --grep="improvement_keyword"
+  ```
+- **Time Investment:** Spent ~30 minutes investigating only to find nothing was needed
+- **Benefit:** Prevented duplicate code and unnecessary merge conflicts
+
+### 20. Respect Intentional Architectural Decisions
+
+- **Context:** Attempted to "improve security" by replacing corepack with npm --ignore-scripts
+- **User Challenge:** "I thought we used corepack for a specific reason"
+- **Investigation:** Found PR #108 (commit c6d12b6c) established corepack intentionally
+- **Rationale for Corepack:**
+  - Official Node.js way to manage package managers
+  - Ensures everyone uses exactly pnpm@10.0.0
+  - Part of deliberate pnpm enforcement strategy
+  - Consistency > hypothetical security benefit
+- **Mistake:** Traded hypothetical security for breaking intentional design
+- **Lesson:** Before "improving" something, research WHY it was done that way
+- **Pattern:** Use `git log --grep="keyword"` to understand rationale behind decisions
+- **Workflow:**
+  ```bash
+  # Research architectural decisions:
+  git log --all --grep="corepack"
+  git log --all -S "corepack" --source --all
+  gh pr list --search "corepack" --state all
+  ```
+- **Recovery:** Abandoned change, closed PR, deleted branches
+- **Best Practice:** Document significant architectural decisions in commit messages or ADRs
+
+### 21. Branch Obsolescence Patterns
+
+- **Pattern 1 - Squash Merged:** Branches with content in main but different commit SHAs
+  - Example: hotfix/graphql-schema-fixes (commit 9af0765 vs main's bea5bbf)
+  - Identification: Content is in target branch but `git branch --contains` returns false
+  - Solution: Use `git branch -D` after verifying content is in main
+- **Pattern 2 - Superseded Dependabot:** Old PRs replaced by newer versions
+  - Example: dependabot/npm_and_yarn/minor-and-patch (10 updates) → (13 updates)
+  - Identification: Check `git branch -vv | grep ": gone]"`
+  - Solution: Delete local branch, close old PR
+- **Pattern 3 - Working Branches:** Staging area for atomic PRs, never meant to merge
+  - Example: feature/improve-dev-tooling → split into PRs #120, #123, #126
+  - Identification: No PR exists, but commits appear in other PRs
+  - Solution: Delete after all atomic PRs merge
+- **Pattern 4 - Regressive Branches:** Outdated bases that would remove newer work
+  - Example: fire-16/fire-17 from Oct 4, would delete 24k+ lines added since
+  - Identification: Large negative line count in `git diff develop branch --stat`
+  - Solution: Close with clear explanation, delete branch
+- **Pattern 5 - Incorporated Branches:** Content cherry-picked into other work
+  - Example: chore/urgent-ci-hardening improvements in develop via refactoring
+  - Identification: Compare actual code, not just commit history
+  - Solution: Verify with `git diff`, then delete if truly incorporated
+
+### 22. Efficient Obsolescence Detection Workflow
+
+Systematic approach to identifying and cleaning up obsolete branches:
+
+```bash
+# 1. Check PR status first
+gh pr list --state all --head branch-name
+
+# 2. Verify content location
+# If closed without merge:
+git diff develop branch -- path/to/files
+
+# If merged (squashed):
+git log --all --grep="PR #123"  # Find merge commit
+
+# 3. Compare line counts
+git diff develop branch --stat | tail -1
+# Large negative numbers = regressive/outdated
+
+# 4. Check commit dates
+git log branch --format="%ci" -1
+# >2 weeks old + closed PR = likely stale
+
+# 5. Verify no unique value
+# Compare actual code changes:
+git diff develop branch | grep "^+" | head -20
+```
+
+**Decision Matrix:**
+
+| Branch Age | PR Status | Line Delta | Action |
+|------------|-----------|------------|--------|
+| <1 week | Open | Positive | Keep (active development) |
+| <1 week | Closed | Any | Investigate (may have value) |
+| >2 weeks | Open | Positive | Review with author |
+| >2 weeks | Closed/None | Negative | Delete (regressive) |
+| >2 weeks | Closed/None | Small positive | Verify incorporated |
+| Any | Merged | Any | Delete local after verification |
+
+**Cleanup Commands:**
+
+```bash
+# Safe deletion workflow:
+# 1. Find local branches tracking deleted remotes
+git branch -vv | grep ": gone]"
+
+# 2. Verify branches from closed PRs
+gh pr list --state closed --author @me
+
+# 3. Delete obsolete local branches
+git branch -D feature/old-branch
+
+# 4. Clean up stale remote tracking branches
+git remote prune origin
+
+# 5. Verify cleanup
+git branch -a
+```
+
+### 23. PR Closure Communication
+
+When closing obsolete PRs, provide clear rationale for future reference:
+
+**Good Closure Comment Structure:**
+```markdown
+Closing as [reason: obsolete/regressive/incorporated]
+
+Investigation reveals:
+✅ [What's already done]
+✅ [What's been incorporated]
+
+Branch issues:
+- [Specific problem 1]
+- [Specific problem 2]
+
+Conclusion: [Clear statement of why closing]
+```
+
+**Real Example from PR #93:**
+```markdown
+Closing as regressive - branch is outdated and would remove significant work
+
+Investigation reveals:
+✅ All FIRE-16 goals already implemented in develop
+✅ GraphQL schema improvements incorporated via PRs #120-126
+
+Branch issues:
+- Based on develop from October 4 (6 weeks outdated)
+- Would remove 24,000+ lines of recent improvements
+- Contains superseded code patterns
+
+Conclusion: Safe to close and delete branch
+```
+
+**Benefits:**
+- Future readers understand decision without re-investigation
+- Prevents accidental re-opening of obsolete work
+- Documents project history and evolution
+- Shows due diligence in cleanup decisions
+
+**Template Variables:**
+- **obsolete** - Functionality replaced by better implementation
+- **regressive** - Would remove newer work if merged
+- **incorporated** - Changes already merged via other PRs
+- **superseded** - Newer version of same work exists
