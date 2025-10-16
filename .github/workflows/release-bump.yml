@@ -1,5 +1,13 @@
 name: Bump Version and Open Release PR
 
+# Git Flow Release Process:
+# 1. This workflow creates a release/X.Y.Z branch from develop
+# 2. Opens PR: release/X.Y.Z → main (the actual release)
+# 3. On merge to main: release-tag.yml creates tag + triggers Docker build
+# 4. After release: merge main back to develop to sync versions
+#
+# Note: Release branches target MAIN (not develop). This is the production release.
+
 on:
   workflow_dispatch:
     inputs:
@@ -113,7 +121,7 @@ jobs:
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          base: develop
+          base: main
           branch: "release/${{ steps.bump.outputs.new_version }}"
           title: "chore(release): v${{ steps.bump.outputs.new_version }}"
           body: |
@@ -124,11 +132,8 @@ jobs:
             ### Changes
             - ✅ Updated `pyproject.toml` version to `${{ steps.bump.outputs.new_version }}`
 
-            ### Git Flow Process
-            **Note:** This release PR merges to `develop`. After merging, a separate PR must be created from `develop` → `main` to trigger the release automation below.
-
-            ### Automation on Merge to Main
-            When the subsequent `develop` → `main` PR is merged, the following happens automatically:
+            ### Automation on Merge
+            When this PR is merged to `main`, the following happens automatically:
 
             1. **Tag Creation** (`release-tag.yml`)
                - Creates annotated Git tag: `v${{ steps.bump.outputs.new_version }}`
