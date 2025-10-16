@@ -18,7 +18,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: release-bump-${{ github.workflow }}
+  group: ${{ github.workflow }}
   cancel-in-progress: false
 
 jobs:
@@ -40,16 +40,6 @@ jobs:
 
       - name: Install Poetry
         run: pipx install poetry
-
-      - name: Cache Poetry
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: |
-            ~/.cache/pypoetry
-            ~/.cache/pip
-          key: poetry-${{ runner.os }}-py311-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            poetry-${{ runner.os }}-
 
       - name: Log current state
         run: |
@@ -105,6 +95,7 @@ jobs:
       - name: Verify no existing tag
         run: |
           set -euo pipefail
+          git fetch --tags --force
           TAG="v${{ steps.bump.outputs.new_version }}"
 
           if git rev-parse "$TAG" >/dev/null 2>&1; then
