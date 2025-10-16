@@ -31,6 +31,7 @@ jobs:
         with:
           ref: develop
           fetch-depth: 0
+          fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
@@ -123,8 +124,11 @@ jobs:
             ### Changes
             - ✅ Updated `pyproject.toml` version to `${{ steps.bump.outputs.new_version }}`
 
+            ### Git Flow Process
+            **Note:** This release PR merges to `develop`. After merging, a separate PR must be created from `develop` → `main` to trigger the release automation below.
+
             ### Automation on Merge to Main
-            When this PR is merged to `main`, the following happens automatically:
+            When the subsequent `develop` → `main` PR is merged, the following happens automatically:
 
             1. **Tag Creation** (`release-tag.yml`)
                - Creates annotated Git tag: `v${{ steps.bump.outputs.new_version }}`
