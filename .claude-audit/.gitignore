@@ -1,0 +1,12 @@
+# Generated inventory files
+COMMAND_INVENTORY.md
+COMMAND_CATEGORIES.json
+
+# Working files
+*.backup
+*.tmp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
