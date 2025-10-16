@@ -17,47 +17,24 @@ permissions:
   contents: write
   pull-requests: write
 
-concurrency:
-  group: release-bump-${{ github.workflow }}
-  cancel-in-progress: false
-
 jobs:
   bump:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Checkout develop branch
+      - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          ref: develop
-          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        uses: actions/setup-python@v6 # bump to v6 (Dependabot)
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install Poetry
-        run: pipx install poetry
-
-      - name: Cache Poetry
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: |
-            ~/.cache/pypoetry
-            ~/.cache/pip
-          key: poetry-${{ runner.os }}-py311-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            poetry-${{ runner.os }}-
-
-      - name: Log current state
         run: |
-          echo "🔍 Current branch and state:"
-          echo "  Branch: $(git rev-parse --abbrev-ref HEAD)"
-          echo "  Latest commit: $(git log -1 --oneline)"
-          echo "  Latest tag: $(git describe --tags --abbrev=0 2>/dev/null || echo 'No tags')"
-          echo "  Current version: $(poetry version -s)"
+          python -m pip install --upgrade pip
+          pip install poetry
 
       - name: Bump version with Poetry
         id: bump
@@ -66,54 +43,15 @@ jobs:
           BUMP: ${{ inputs.bump }}
         run: |
           set -euo pipefail
-
-          # Validate bump type
           case "${BUMP}" in
-            patch|minor|major)
-              echo "✅ Valid bump type: ${BUMP}"
-              ;;
-            *)
-              echo "❌ Error: Invalid bump type: ${BUMP}" >&2
-              echo "Must be one of: patch, minor, major" >&2
-              exit 1
-              ;;
+            patch|minor|major) ;;
+            *) echo "Invalid bump type: ${BUMP}" >&2; exit 1 ;;
           esac
-
-          # Get current version
-          CURRENT_VERSION=$(poetry version -s)
-          echo "📦 Current version: $CURRENT_VERSION"
-
-          # Bump version
           poetry version "${BUMP}"
           NEW_VERSION=$(poetry version -s)
-          echo "📦 New version: $NEW_VERSION"
-
-          # Validate version format
-          if ! echo "$NEW_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "❌ Error: Invalid version format: $NEW_VERSION" >&2
-            exit 1
-          fi
-
-          # Calculate major.minor for Docker tags
-          MAJOR_MINOR=$(echo "$NEW_VERSION" | awk -F. '{print $1"."$2}')
-
-          # Output results
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          MAJOR_MINOR=$(echo "$NEW_VERSION" | awk -F. '{print $1"."$2}')
           echo "major_minor=$MAJOR_MINOR" >> "$GITHUB_OUTPUT"
-          echo "✅ Version bump complete: $CURRENT_VERSION → $NEW_VERSION"
-
-      - name: Verify no existing tag
-        run: |
-          set -euo pipefail
-          TAG="v${{ steps.bump.outputs.new_version }}"
-
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "❌ Error: Tag $TAG already exists"
-            echo "This indicates the workflow was already run for this version"
-            exit 1
-          fi
-
-          echo "✅ Tag $TAG does not exist, safe to proceed"
 
       # Commit handled by peter-evans/create-pull-request
 
@@ -121,40 +59,22 @@ jobs:
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          base: develop
-          branch: "release/${{ steps.bump.outputs.new_version }}"
+          branch: "feat/release-${{ steps.bump.outputs.new_version }}"
           title: "chore(release): v${{ steps.bump.outputs.new_version }}"
           body: |
-            ## Release v${{ steps.bump.outputs.new_version }}
+            Automated version bump to v${{ steps.bump.outputs.new_version }}.
 
-            Automated version bump: **${{ inputs.bump }}** → **v${{ steps.bump.outputs.new_version }}**
-
-            ### Changes
-            - ✅ Updated `pyproject.toml` version to `${{ steps.bump.outputs.new_version }}`
-
-            ### Automation on Merge to Main
-            When this PR is merged to `main`, the following happens automatically:
-
-            1. **Tag Creation** (`release-tag.yml`)
-               - Creates annotated Git tag: `v${{ steps.bump.outputs.new_version }}`
-               - Triggers Docker build workflow
-
-            2. **Docker Image Build** (`docker-build.yml`)
-               - Builds multi-platform images (amd64, arm64)
-               - Pushes to GHCR with tags:
-                 - `v${{ steps.bump.outputs.new_version }}` (version tag)
-                 - `${{ steps.bump.outputs.major_minor }}` (major.minor tag)
-                 - `main` (main branch tag)
-                 - `latest` (latest release tag)
-                 - `sha-<commit>` (commit SHA tag)
-
-            ### Manual Steps Required
-            - ⚠️ **Update CHANGELOG.md** before merging (if not already done)
-            - ✅ Review version number is correct
-            - ✅ Verify all changes for this release are in develop
-
-            ### No Other Manual Steps
-            After merge, all tagging and deployment is automatic!
+            - Bumps `pyproject.toml` version using Poetry
+            - On merge, the following happens automatically:
+              1. `release-tag.yml` creates Git tag `v${{ steps.bump.outputs.new_version }}`
+              2. `docker-build.yml` builds and pushes GHCR image tags:
+                 - `v${{ steps.bump.outputs.new_version }}`
+                 - `${{ steps.bump.outputs.major_minor }}`
+                 - `main`
+                 - `latest`
+                 - `sha-*`
+            
+            No manual steps required after merge - everything is automated!
           commit-message: "chore(release): bump version to ${{ steps.bump.outputs.new_version }}"
           labels: release
           draft: false
