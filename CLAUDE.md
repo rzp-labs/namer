@@ -1466,3 +1466,92 @@ Conclusion: Safe to close and delete branch
 - **regressive** - Would remove newer work if merged
 - **incorporated** - Changes already merged via other PRs
 - **superseded** - Newer version of same work exists
+
+### 24. Slash Command Design Patterns
+
+- **Context:** Session on 2025-10-14 focused on improving Git Flow commands and command organization
+- **Key Learnings:**
+
+#### A. Automatic Version Detection
+- **Problem:** Requiring users to manually specify versions creates cognitive overhead
+- **Solution:** Make version arguments optional and auto-detect based on commit analysis
+- **Pattern:**
+  ```bash
+  # Auto-detect version from commits
+  /release                    # Analyzes commits → suggests v1.24.0
+  /release v1.25.0           # Override if needed
+
+  # Hotfix auto-calculation
+  /hotfix critical-bug       # Auto-calculates v1.23.6 from v1.23.5
+  ```
+- **Benefits:**
+  - Eliminates guessing game
+  - Applies semantic versioning correctly
+  - Transparent reasoning shown to user
+  - Still allows manual override
+- **Implementation:** Commands analyze git history and suggest versions, then ask for confirmation
+
+#### B. zsh Compatibility in Slash Commands
+- **Problem:** Command substitution `$(...)` inside backticks breaks in zsh
+- **Solution:** Use xargs with sh -c for portable command execution
+- **Pattern:**
+  ```bash
+  # ❌ Breaks in zsh:
+  !`git log $(git describe --tags --abbrev=0)..HEAD --oneline | wc -l`
+
+  # ✅ Works in both bash and zsh:
+  !`git describe --tags --abbrev=0 2>/dev/null | xargs -I {} sh -c 'git log {}..HEAD --oneline 2>/dev/null | wc -l | tr -d " "' || echo "N/A"`
+  ```
+- **Why:** macOS default shell is zsh; commands must be portable
+- **Testing:** Always test commands in both bash and zsh before deploying
+
+#### C. Git Flow Configuration Management
+- **Problem:** No explicit configuration for Git Flow preferences
+- **Solution:** Created `/git-flow-init` command to capture explicit preferences
+- **Pattern:**
+  - Ask user questions (never assume!)
+  - Store in `.claude/git-flow-config.json`
+  - Commands check initialization before running
+  - Configuration includes: branch names, versioning system, release automation, tag creation
+- **Benefits:**
+  - No assumptions about user workflows
+  - Configuration is explicit and documented
+  - Commands adapt to project conventions
+  - Team members inherit configuration
+
+#### D. Command Audit Framework
+- **Problem:** Large number of commands (60+) difficult to discover and maintain
+- **Solution:** Created comprehensive audit framework with analysis tools
+- **Deliverables:**
+  - Analysis scripts (analyze-commands.sh, quick-check.sh)
+  - Documentation (GETTING_STARTED.md, OPTIMIZATION_FRAMEWORK.md)
+  - Templates for optimization proposals
+- **Recommendations:**
+  - Keep flat directory structure (aligns with Make/poe patterns)
+  - Use action-object naming consistently
+  - Target 20-30% reduction through consolidation
+  - 6-month deprecation period for merged commands
+- **Process:** 6-phase framework taking 3-5 hours for comprehensive optimization
+
+#### E. User-Centric Command Design
+- **Insight:** "Why do I need to define the version number when the agent already analyzes commits?"
+- **Principle:** If the command already has the information, don't make the user provide it
+- **Application:**
+  - Version detection in `/release` and `/hotfix`
+  - Configuration analysis in `/git-flow-init`
+  - Commit analysis for changelog generation
+- **Result:** Commands become assistants, not data collectors
+
+**Files Created:**
+- `.claude/commands/git-flow-init.md` - Interactive Git Flow configuration
+- `.claude/git-flow-config.json.example` - Example configuration
+- `.claude-audit/` directory - Complete command audit framework (9 files)
+
+**Files Modified:**
+- `.claude/commands/release.md` - Added automatic version detection
+- `.claude/commands/hotfix.md` - Added automatic version calculation
+- Both commands now have zsh-compatible command substitution
+
+**Recommendation:** When designing new commands, ask "Does the user really need to provide this, or can we detect it?"
+
+_Reference: Session 2025-10-14 for complete implementation details, command audit framework, and user feedback that drove design decisions_
