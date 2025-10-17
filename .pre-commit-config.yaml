@@ -146,20 +146,17 @@ repos:
         language: system
         # NO types_or filter - runs on all file types by default (fail-safe)
         exclude: |
-          (?x)^(
-            .*\.md$|                          # Markdown documentation
-            docs/.*|                          # Documentation directory
-            \.github/.*\.md$|                 # GitHub markdown files
+          (?ix)^(
+            .*\.md$|                          # All markdown files (e.g., README.md, CHANGELOG.md)
+            docs/.*|                          # All files in documentation directory
             \.claude/session-notes/.*|        # Session notes
             \.windsurf/.*|                    # Windsurf IDE config
             \.vscode/.*|                      # VS Code config
             \.idea/.*|                        # IntelliJ config
-            CHANGELOG\.md|                    # Changelog
-            README.*|                         # README files
+            README.*|                         # README files (e.g. README.rst)
             LICENSE.*|                        # License files
             \.gitignore|                      # Git ignore
-            \.gitattributes|                  # Git attributes
-            docs/sessions/.*                  # Session documentation
+            \.gitattributes                   # Git attributes
           )
         pass_filenames: false
         stages: [pre-push]
