@@ -19,23 +19,23 @@ NC='\033[0m' # No Color
 
 # Helper functions
 info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+	echo -e "${GREEN}[INFO]${NC} $1"
 }
 
 warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+	echo -e "${YELLOW}[WARN]${NC} $1"
 }
 
 error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+	echo -e "${RED}[ERROR]${NC} $1"
 }
 
 # Check if commands directory exists
 if [ ! -d "$COMMANDS_DIR" ]; then
-    error "Commands directory not found at $COMMANDS_DIR"
-    echo "Expected location: ${HOME}/.claude/commands/"
-    echo "Please ensure you have Claude Code slash commands configured."
-    exit 1
+	error "Commands directory not found at $COMMANDS_DIR"
+	echo "Expected location: ${HOME}/.claude/commands/"
+	echo "Please ensure you have Claude Code slash commands configured."
+	exit 1
 fi
 
 # Create output directory
@@ -49,7 +49,7 @@ info "Found $TOTAL_COMMANDS commands to analyze"
 # Generate markdown inventory
 info "Generating command inventory..."
 
-cat > "$INVENTORY_FILE" << HEADER
+cat >"$INVENTORY_FILE" <<HEADER
 # Claude Code Command Inventory
 
 **Generated:** $(date)
@@ -70,32 +70,32 @@ HEADER
 
 # Process each command file
 find "$COMMANDS_DIR" -name "*.md" -type f | sort | while read -r file; do
-    cmd_name=$(basename "$file" .md)
-    line_count=$(wc -l < "$file" | tr -d ' ')
+	cmd_name=$(basename "$file" .md)
+	line_count=$(wc -l <"$file" | tr -d ' ')
 
-    # Extract first heading
-    description=$(grep -m 1 "^# " "$file" | sed 's/^# *//' | cut -c 1-60 || echo "No description")
+	# Extract first heading
+	description=$(grep -m 1 "^# " "$file" | sed 's/^# *//' | cut -c 1-60 || echo "No description")
 
-    # Check for argument placeholders
-    if grep -q '\$ARGUMENTS\|\$[A-Z_][A-Z_]*' "$file"; then
-        args="Yes"
-    else
-        args="No"
-    fi
+	# Check for argument placeholders
+	if grep -q '\$ARGUMENTS\|\$[A-Z_][A-Z_]*' "$file"; then
+		args="Yes"
+	else
+		args="No"
+	fi
 
-    # Placeholder category
-    category="?"
+	# Placeholder category
+	category="?"
 
-    printf "| %-30s | %-60s | %-3s | %5s | %-15s |\n" \
-        "/$cmd_name" \
-        "$description" \
-        "$args" \
-        "$line_count" \
-        "$category" >> "$INVENTORY_FILE"
+	printf "| %-30s | %-60s | %-3s | %5s | %-15s |\n" \
+		"/$cmd_name" \
+		"$description" \
+		"$args" \
+		"$line_count" \
+		"$category" >>"$INVENTORY_FILE"
 done
 
 # Add detailed sections
-cat >> "$INVENTORY_FILE" << 'SECTIONS'
+cat >>"$INVENTORY_FILE" <<'SECTIONS'
 
 ## Categorization Guidelines
 
@@ -159,7 +159,7 @@ info "Inventory generated: $INVENTORY_FILE"
 # Generate JSON categories structure
 info "Generating categories JSON template..."
 
-cat > "$CATEGORIES_FILE" << 'JSON'
+cat >"$CATEGORIES_FILE" <<'JSON'
 {
   "version": "1.0.0",
   "generated": "TO_BE_UPDATED",

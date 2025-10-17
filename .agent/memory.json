@@ -1,8 +1,8 @@
 {
   "metadata": {
     "version": "1.0.0",
-    "last_updated": "2025-10-17T07:00:00Z",
-    "total_sessions": 21,
+    "last_updated": "2025-10-17T12:00:00Z",
+    "total_sessions": 22,
     "description": "Historical learning data from development sessions. This structured archive preserves rich context and debugging journeys while keeping CLAUDE.md focused on actionable patterns."
   },
   "sessions": [
@@ -828,6 +828,119 @@
         "GitHub API merge ensures CI integration vs local git operations",
         "Meaning preservation more important than verbatim historical accuracy"
       ]
+    },
+    {
+      "id": "lesson-027",
+      "date": "2025-10-17",
+      "title": "Complete Git Flow Release Cycle with Automated Tag Creation",
+      "category": "git-flow",
+      "tags": [
+        "release-workflow",
+        "github-actions",
+        "version-bumping",
+        "bot-review",
+        "back-merge",
+        "automation"
+      ],
+      "problem": "Executing a complete Git Flow release cycle involves multiple coordinated steps: version bump decision, PR creation/review, merge conflict resolution, tag creation timing, and back-merge synchronization. Each step requires understanding GitHub Actions integration and bot review management.",
+      "solution": "Integrated `/release` and `/finish` commands that coordinate with GitHub Actions workflows. `/release` analyzes commits and suggests version bump (PATCH for tooling/infra, MINOR for features). `/finish` validates PR status, merges via GitHub API, waits for GitHub Actions tag creation (15-30s), then creates back-merge PR for version sync.",
+      "pattern": "Complete Release Workflow: (1) `/release` analyzes 20 commits since v1.23.5, determines PATCH bump for dev tooling changes, creates release/1.23.6 branch, updates pyproject.toml and CHANGELOG.md, opens PR to main. (2) Address CodeRabbit feedback: fix hardcoded paths, set executable permissions, update docs, improve shellcheck performance. (3) Resolve merge conflicts when merging main into release branch. (4) Add conditional shfmt hook after CI failures. (5) `/finish` validates PR, uses admin override for bot review block, merges to main via GitHub API. (6) Wait for release-tag.yml workflow to create v1.23.6 tag (polling with 5min timeout). (7) Create back-merge PR (main → develop) to sync version bump. (8) Clean up release branch locally and remotely.",
+      "impact": {
+        "roi": "Complete release cycle in ~2 hours including review/fixes. Automation handles tag creation (15-30s), Docker builds (5-10min), back-merge PR creation (instant). Manual approach would require 3-4 hours with higher error risk.",
+        "performance": "Time breakdown: Release creation ~5min, PR review & fixes ~45min, Merge conflict resolution ~15min, CI validation ~20min, Release merge & tag wait ~30min, Back-merge PR ~5min. Total: ~2 hours. GitHub Actions integration: release-tag.yml extracts version from pyproject.toml, creates annotated tag, triggers Docker build to GHCR.",
+        "quality": "Version bump decision criteria established: User-facing features = MINOR, Dev tooling/infrastructure = PATCH, Breaking changes = MAJOR. Bot review management: admin override acceptable when all substantive issues addressed but bot status stuck. Conditional hooks pattern: tools not required for all developers (shfmt) can skip gracefully. Shell permissions: mode changes (100644 → 100755) tracked in git, verified with `git ls-files -s`."
+      },
+      "critical_insights": [
+        "Version bump decisions: Tooling/infrastructure improvements warrant PATCH even if commits seem substantial",
+        "User feedback valuable: 'This still feels like a 0.0.N release' often correct assessment",
+        "GitHub Actions timing: Tag creation takes 15-30s, use polling with timeout to detect",
+        "Bot review blocks: Admin override acceptable when technically ready, all issues addressed",
+        "Back-merge PRs essential: Sync version bump from main to develop, prevent drift",
+        "Conditional hooks: Non-blocking for developers without optional tools, CI still enforces",
+        "Shell executable permissions: Mode changes (100644 → 100755) must be explicitly committed",
+        "Branch push requirement: gh pr create needs remote branch, cannot work with local-only",
+        "Release PR size expectations: 2,000-5,000+ lines normal (consolidates develop work)",
+        "Review strategy differs: Release PRs reviewed by theme/category, not line-by-line"
+      ],
+      "related_files": [
+        ".claude/commands/release.md",
+        ".claude/commands/finish.md",
+        ".github/workflows/release-tag.yml",
+        ".pre-commit-config.yaml",
+        "pyproject.toml",
+        "CHANGELOG.md"
+      ],
+      "related_prs": [
+        "#157"
+      ],
+      "code_examples": [
+        {
+          "language": "bash",
+          "label": "Version bump decision criteria",
+          "code": "# User-facing features → MINOR (0.X.0)\n/release v1.24.0  # New API endpoints, UI features\n\n# Dev tooling/infrastructure → PATCH (0.0.X)\n/release v1.23.6  # Git hooks, CI/CD, build scripts, docs\n\n# Breaking changes → MAJOR (X.0.0)\n/release v2.0.0  # API changes, removed features\n\n# Pattern: If stakeholders say 'feels like 0.0.N', use PATCH"
+        },
+        {
+          "language": "bash",
+          "label": "GitHub Actions tag creation wait pattern",
+          "code": "# After PR merge to main, wait for GitHub Actions tag creation\nVERSION=\"1.23.6\"\nTIMEOUT=300  # 5 minutes\nELAPSED=0\n\nwhile [ $ELAPSED -lt $TIMEOUT ]; do\n    if git ls-remote --tags origin \"refs/tags/v${VERSION}\" | grep -q \"v${VERSION}\"; then\n        echo \"Tag v${VERSION} created successfully\"\n        break\n    fi\n    echo \"Waiting for tag creation... (${ELAPSED}s/${TIMEOUT}s)\"\n    sleep 5\n    ELAPSED=$((ELAPSED + 5))\ndone\n\nif [ $ELAPSED -ge $TIMEOUT ]; then\n    echo \"Timeout waiting for tag creation\"\n    exit 1\nfi"
+        },
+        {
+          "language": "bash",
+          "label": "Bot review admin override pattern",
+          "code": "# Verify all actual issues resolved\ngh pr view 157 --json reviews,comments\n\n# Check PR is technically ready\n# - All CI checks passing\n# - All substantive feedback addressed\n# - Bot status stuck on CHANGES_REQUESTED\n\n# Merge with admin override (bypasses review requirements)\ngh pr merge 157 --admin --squash\n\n# Pattern: Only use when technically ready, not to skip quality gates"
+        },
+        {
+          "language": "yaml",
+          "label": "Conditional pre-commit hook (shfmt)",
+          "code": "- id: shfmt\n  name: Shell Script Formatting\n  entry: bash -lc 'if ! command -v shfmt >/dev/null 2>&1; then echo \"shfmt not installed, skipping\"; exit 0; fi; shfmt -d -i 0 scripts/*.sh'\n  language: system\n  types: [shell]\n  pass_filenames: false\n  stages: [pre-commit]\n\n# Benefits:\n# - Non-blocking for developers without shfmt\n# - Provides helpful skip message\n# - CI can still enforce (has all tools)"
+        },
+        {
+          "language": "bash",
+          "label": "Shell executable permissions verification",
+          "code": "# Set executable permission\nchmod +x scripts/new-script.sh\n\n# Verify mode change (100644 → 100755)\ngit ls-files -s scripts/new-script.sh\n# Output: 100755 <hash> 0    scripts/new-script.sh\n\n# Check diff summary\ngit diff --summary\n# Output: mode change 100644 => 100755 scripts/new-script.sh\n\n# Stage and commit (mode change included)\ngit add scripts/new-script.sh\ngit commit -m \"chore: add script with executable permissions\""
+        },
+        {
+          "language": "bash",
+          "label": "Back-merge PR creation workflow",
+          "code": "# 1. Create back-merge branch locally\ngit checkout main\ngit pull origin main\ngit checkout develop\ngit pull origin develop\ngit checkout -b backmerge/v1.23.6\n\n# 2. Merge main into back-merge branch\ngit merge main\n# Resolve conflicts if any\n\n# 3. CRITICAL: Push branch BEFORE creating PR\ngit push -u origin backmerge/v1.23.6\n\n# 4. Now create PR (needs remote branch)\ngh pr create --base develop --head backmerge/v1.23.6 \\\n  --title \"chore: back-merge v1.23.6 to develop\" \\\n  --body \"Syncs version bump from release\"\n\n# Pattern: Branch must exist on remote before gh pr create works"
+        }
+      ],
+      "lessons_learned": [
+        "Version bump decisions benefit from stakeholder input on user perception",
+        "GitHub Actions integration requires waiting for tag creation before back-merge",
+        "Bot review status can get stuck even after addressing all issues",
+        "Admin override acceptable when PR technically ready and substantively reviewed",
+        "Conditional hooks balance enforcement for those with tools vs blocking those without",
+        "Shell executable permissions are git-tracked mode changes, not just filesystem",
+        "Back-merge PRs essential for keeping develop in sync with main version",
+        "Branch must exist remotely before gh pr create will work",
+        "Release PRs consolidate features, expected to be 2,000-5,000+ lines",
+        "Different PR types have different review strategies (theme vs line-by-line)"
+      ],
+      "workflow_summary": {
+        "duration": "~2 hours",
+        "automation_wins": [
+          "Tag creation via GitHub Actions (vs manual git tag)",
+          "Docker build trigger via tag push (vs manual docker build)",
+          "Version extraction from pyproject.toml (vs manual tracking)",
+          "Back-merge PR creation via gh CLI (vs manual GitHub UI)"
+        ],
+        "manual_interventions": [
+          "Version bump decision (PATCH vs MINOR discussion)",
+          "CodeRabbit feedback response (hardcoded paths, permissions, docs)",
+          "Merge conflict resolution (main → release)",
+          "Admin override decision (bot review stuck)",
+          "Conditional hook addition (shfmt after CI failure)"
+        ],
+        "pr_metrics": {
+          "commits": 20,
+          "lines_added": 450,
+          "lines_removed": 180,
+          "files_changed": 12,
+          "review_comments": 8,
+          "time_to_merge": "~90 minutes"
+        }
+      }
     }
   ]
 }

@@ -26,6 +26,18 @@ repos:
         types: [shell]
         stages: [pre-commit]
 
+  # Shell formatting (optional, non-blocking)
+  - repo: local
+    hooks:
+      - id: shfmt
+        name: shfmt (shell script formatting)
+        entry: bash -lc 'if ! command -v shfmt >/dev/null 2>&1; then echo "shfmt not installed; skipping"; exit 0; fi; shfmt -d -i 0 scripts/*.sh .claude-audit/*.sh'
+        language: system
+        types: [shell]
+        pass_filenames: false
+        files: ^(scripts/|\.claude-audit/)
+        stages: [pre-commit]
+
   # GitHub Actions workflow linting
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.5
