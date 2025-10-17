@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.6] - 2025-10-17
+
+### Changed
+- Fail-safe exclusion pattern for docker-smoke-test hook (#157)
+  - Uses exclusion pattern instead of inclusion for better reliability
+  - Case-insensitive matching for robust file detection
+  - Prevents silent skips when new build file types are added
+- Standardized Poetry installation using pipx in CI workflows (#156)
+- Git Flow process improvements and documentation enhancements
+
+### Fixed
+- Release PR target now correctly points to main branch (not develop)
+- Git tag fetching in release workflow
+- Multiple code review feedback items addressed
+
+### Infrastructure
+- Added git-push-wrapper.sh for handling longer pre-push hook timeouts
+- Command audit framework and slash command design patterns
+- Improved branch lifecycle management documentation
+- Enhanced CI/CD alignment with repository standards
+
+### Dependencies
+- Bumped peter-evans/create-pull-request from 6.1.0 to 7.0.8
+- Updated minor and patch Python dev dependencies
+- Updated minor and patch GitHub Actions versions
+
 ## [1.23.3] - 2025-10-13
 
 ### Added
