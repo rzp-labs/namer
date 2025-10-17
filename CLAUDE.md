@@ -1866,7 +1866,7 @@ Conclusion: Safe to close and delete branch
   !`git log $(git describe --tags --abbrev=0)..HEAD --oneline | wc -l`
 
   # ✅ Works in both bash and zsh:
-  !`git describe --tags --abbrev=0 2>/dev/null | xargs -I {} sh -c 'git log {}..HEAD --online 2>/dev/null | wc -l | tr -d " "' || echo "N/A"`
+  !`git describe --tags --abbrev=0 2>/dev/null | xargs -I {} sh -c 'git log {}..HEAD --oneline 2>/dev/null | wc -l | tr -d " "' || echo "N/A"`
   ```
 - **Why:** macOS default shell is zsh; commands must be portable
 - **Testing:** Always test commands in both bash and zsh before deploying
