@@ -49,12 +49,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install Poetry
-        run: |
-          # Note: No caching here - this workflow runs infrequently (only on release merges)
-          # Cache hit rate would be very low. Poetry dependency cache is in pr-validate.yml
-          # where it's effective (runs on every PR). Simplicity > marginal time savings here.
-          python -m pip install --upgrade pip
-          pip install poetry
+        run: pipx install poetry
 
       - name: Extract version from pyproject.toml
         id: version

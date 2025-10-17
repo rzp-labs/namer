@@ -26,6 +26,18 @@ repos:
         types: [shell]
         stages: [pre-commit]
 
+  # Shell formatting (optional, non-blocking)
+  - repo: local
+    hooks:
+      - id: shfmt
+        name: shfmt (shell script formatting)
+        entry: bash -lc 'if ! command -v shfmt >/dev/null 2>&1; then echo "shfmt not installed; skipping"; exit 0; fi; shfmt -d -i 0 scripts/*.sh .claude-audit/*.sh'
+        language: system
+        types: [shell]
+        pass_filenames: false
+        files: ^(scripts/|\.claude-audit/)
+        stages: [pre-commit]
+
   # GitHub Actions workflow linting
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.5
@@ -100,12 +112,27 @@ repos:
         verbose: true
 
       # Docker smoke test - catch build errors locally (timeout: 10 minutes)
-      # Only runs when files that affect Docker build are modified
+      # FAIL-SAFE DESIGN: Uses exclusion pattern instead of inclusion
+      # Runs on ALL files EXCEPT explicitly excluded non-build files
+      # This prevents silent skips when new build file types are added
       - id: docker-smoke-test
         name: Docker smoke test (build validation)
         entry: ./scripts/run-docker-smoke-test.sh
         language: system
-        types_or: [dockerfile, python, javascript, json, toml, shell]
+        # NO types_or filter - runs on all file types by default (fail-safe)
+        exclude: |
+          (?ix)^(
+            .*\.md$|                          # All markdown files (e.g., README.md, CHANGELOG.md)
+            docs/.*|                          # All files in documentation directory
+            \.claude/session-notes/.*|        # Session notes
+            \.windsurf/.*|                    # Windsurf IDE config
+            \.vscode/.*|                      # VS Code config
+            \.idea/.*|                        # IntelliJ config
+            README.*|                         # README files (e.g. README.rst)
+            LICENSE.*|                        # License files
+            \.gitignore|                      # Git ignore
+            \.gitattributes                   # Git attributes
+          )
         pass_filenames: false
         stages: [pre-push]
         verbose: true

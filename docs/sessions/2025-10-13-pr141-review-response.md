@@ -92,10 +92,11 @@ Script returned exit code 2 for missing baselines, treated identically to drift 
 **Solution:**
 
 ```bash
-# Script exit codes
-exit 0  # Success - no drift
-exit 1  # Drift detected (actionable failure)
-exit 2  # Missing baseline (informational, non-fatal)
+# Script exit codes (check-schema-drift.sh and update-schema-docs.sh)
+exit 0    # Success - schemas validated, no drift detected
+exit 1    # Drift detected OR configuration error (e.g., missing env vars) - dual purpose
+exit 2    # Missing baseline schemas (informational, non-fatal)
+exit 127  # Missing required dependency (jq, curl, etc.)
 
 # Workflow checks exit codes explicitly
 if [ $DRIFT_EXIT_CODE -eq 1 ]; then

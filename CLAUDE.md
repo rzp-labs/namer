@@ -505,12 +505,378 @@ We use a **stratified approach** that separates fast commit-time validation from
 ### Creating Pull Requests
 
 - Feature branches → merge to `develop`
-- Release branches → merge to `main` (via automated workflow)
-- Hotfix branches → merge to both `main` and `develop`
+- Release branches → merge to `main`
+- Hotfix branches → merge to `main`, then back to `develop`
 
 ### Release Process
 
-**Do not use `git flow release`** - instead use the automated GitHub Actions workflow (see `/release` command or release.md)
+**Do not use `git flow release`** - instead use the automated GitHub Actions workflow:
+
+1. Trigger `release-bump.yml` workflow (creates release/X.Y.Z branch from develop)
+2. Merge PR: `release/X.Y.Z` → `main` (the actual release)
+3. On merge to main: `release-tag.yml` creates tag + triggers Docker build
+4. After release: merge `main` back to `develop` to sync versions
+
+See `/release` command for details.
+
+## Git Flow PR Workflow
+
+This project uses a **PR-based Git Flow workflow** with bundled weekly releases.
+
+### Workflow Overview
+
+**NOT:** One PR = One Release
+
+**ACTUALLY:** Weekly release cadence with bundled PRs
+
+```plaintext
+Monday-Thursday: Features merge to develop individually
+       ↓
+Friday: Create release/X.Y.Z from develop (bundles all features)
+       ↓
+Release PR merged → GitHub Actions creates tag → Docker builds
+       ↓
+Back-merge PR created (main → develop) for version sync
+```
+
+### Complete Feature Lifecycle
+
+```bash
+# 1. Start Feature
+/feature my-feature
+# Creates: feature/my-feature from develop
+# Pushes to origin
+
+# 2. Development
+git add .
+git commit -m "feat: implement feature"
+git push
+
+# 3. Create Pull Request
+/create-pr
+# Creates PR: feature/my-feature → develop
+# Auto-generates title and description from commits
+# Adds 'enhancement' label
+
+# 4. Review Process
+# - CI checks run automatically
+# - Team reviews code
+# - Address feedback, push changes
+# - Get required approvals
+
+# 5. Merge and Cleanup
+/finish
+# Validates: PR approved, CI passing, no conflicts
+# Merges via GitHub API (squash method for features)
+# Switches to develop, pulls latest
+# Deletes local and remote branches (if auto-delete enabled)
+# Prunes remote-tracking branches
+```
+
+### Complete Release Lifecycle
+
+```bash
+# Friday: Release Day
+
+# 1. Create Release Branch
+/release 1.24.0
+# Creates: release/1.24.0 from develop
+# Contains all features merged Mon-Thu
+# Bumps version in pyproject.toml
+# Updates CHANGELOG.md
+
+# 2. Create Release PR
+/create-pr
+# Creates PR: release/1.24.0 → main
+# Auto-generates release notes from CHANGELOG
+# Adds 'release' label (REQUIRED for automation)
+# Shows bundled commits
+
+# 3. Team Review
+# - Verify version is correct
+# - Review CHANGELOG completeness
+# - Ensure all tests pass
+# - Get required approvals
+
+# 4. Merge and Automate
+/finish
+# Validates: PR approved, CI passing, version matches
+# Merges PR to main via GitHub API
+# WAITS for GitHub Actions to create tag (2-3 min)
+# Tag triggers Docker build automatically
+# Creates back-merge PR: main → develop
+# Clean up release branch
+
+# 5. Complete Back-merge
+# Review back-merge PR (usually auto-mergeable)
+# Merge to sync version bump back to develop
+```
+
+### Hotfix Lifecycle (Emergency Fixes)
+
+```bash
+# 1. Create Hotfix
+/hotfix critical-bug
+# Creates: hotfix/critical-bug from main
+# Auto-calculates patch version bump
+
+# 2. Fix and PR
+# ... make fix ...
+/create-pr
+# Creates PR: hotfix/critical-bug → main
+# Adds 'hotfix' label
+# Marks as urgent
+
+# 3. Merge and Deploy
+/finish
+# Same as release: merge, wait for tag, back-merge PR
+# 🚨 DEPLOY TO PRODUCTION IMMEDIATELY
+```
+
+### Key Commands
+
+| Command | Purpose | Creates PR? | Merges PR? |
+|---------|---------|-------------|------------|
+| `/feature <name>` | Start feature branch | ❌ No | ❌ No |
+| `/release <version>` | Start release branch | ❌ No | ❌ No |
+| `/hotfix <name>` | Start hotfix branch | ❌ No | ❌ No |
+| `/create-pr` | Create pull request | ✅ Yes | ❌ No |
+| `/finish` | Merge PR + cleanup | ❌ No | ✅ Yes |
+| `/flow-status` | Check current status | ❌ No | ❌ No |
+
+### Universal `/finish` Command
+
+**Context-aware behavior based on branch type:**
+
+#### Feature Branches (15-30 seconds)
+```bash
+/finish
+→ Validates PR exists and is approved
+→ Merges PR to develop (squash method)
+→ Switches to develop, pulls latest
+→ Deletes branches (respects GitHub auto-delete)
+→ Prunes remote-tracking branches
+→ DONE
+```
+
+#### Release Branches (3-5 minutes)
+```bash
+/finish
+→ Validates PR exists, approved, version correct
+→ Ensures 'release' label present (for automation)
+→ Merges PR to main (merge method, preserves history)
+→ WAITS for GitHub Actions to create tag v{VERSION}
+→ Tag triggers Docker build automatically
+→ Creates back-merge PR: main → develop
+→ Switches to main, pulls latest
+→ Deletes release branch
+→ DONE - Team reviews back-merge PR separately
+```
+
+#### Hotfix Branches (3-5 minutes)
+```bash
+/finish
+→ Same as release workflow
+→ Tag created → Docker builds
+→ Back-merge PR created
+→ 🚨 REQUIRES IMMEDIATE PRODUCTION DEPLOYMENT
+```
+
+### Merge Strategies
+
+Configured in `.claude/git-flow-config.json`:
+
+```json
+{
+  "github": {
+    "merge_methods": {
+      "feature": "squash",  // Clean history, atomic commits
+      "release": "merge",   // Preserve release history (REQUIRED)
+      "hotfix": "merge"     // Preserve hotfix audit trail (REQUIRED)
+    }
+  }
+}
+```
+
+**Why different methods:**
+- **Features (squash)**: 200-500 line PRs become single atomic commits in develop
+- **Releases (merge)**: Preserves all feature commits for git-describe, changelogs
+- **Hotfixes (merge)**: Critical for audit trail and compliance
+
+### GitHub Actions Integration
+
+**CRITICAL:** `/finish` integrates with existing automation workflows.
+
+#### For Features
+- No GitHub Actions involvement
+- Simple PR merge via GitHub API
+- Fast and straightforward
+
+#### For Releases/Hotfixes
+1. **PR merge triggers** `release-tag.yml` workflow
+2. **Workflow extracts** version from `pyproject.toml`
+3. **Creates annotated tag** `v{VERSION}` on main
+4. **Pushes tag** to origin
+5. **Tag triggers** Docker build workflow
+6. **Docker images** published to GHCR
+7. **/finish creates** back-merge PR for team review
+
+**DO NOT** bypass this automation with local git merges!
+
+### Configuration
+
+Initialize Git Flow configuration once per repository:
+
+```bash
+/git-flow-init
+```
+
+This detects and configures:
+- Branch names (main/develop)
+- GitHub auto-delete setting
+- Required approvals
+- CI requirements
+- Merge methods
+- Automation settings
+
+Configuration stored in `.claude/git-flow-config.json`
+
+### Branch Cleanup
+
+#### Automatic (GitHub auto-delete enabled)
+```bash
+/finish
+→ Merges PR
+→ GitHub automatically deletes remote branch
+→ Deletes local branch
+→ Prunes remote-tracking branches
+```
+
+#### Manual (GitHub auto-delete disabled)
+```bash
+/finish
+→ Merges PR
+→ Deletes local branch
+→ Deletes remote branch manually
+→ Prunes remote-tracking branches
+```
+
+### Best Practices
+
+**DO:**
+- ✅ Use `/create-pr` after feature is code-complete
+- ✅ Wait for CI checks before merging
+- ✅ Get required approvals
+- ✅ Use `/finish` to merge (not manual git commands)
+- ✅ Keep features small (200-500 lines)
+- ✅ Bundle features into weekly releases
+- ✅ Review back-merge PRs promptly
+
+**DON'T:**
+- ❌ Use local `git merge` commands (bypasses automation)
+- ❌ Skip PR creation (no code review)
+- ❌ Force-push to shared branches
+- ❌ Delete `release` label from release PRs
+- ❌ Bypass GitHub Actions workflows
+- ❌ Skip back-merge PRs
+
+### Troubleshooting
+
+**"PR doesn't exist"**
+```bash
+# Create PR first
+/create-pr
+# Then finish
+/finish
+```
+
+**"CI checks failing"**
+```bash
+# Fix issues, push changes
+git push
+# CI re-runs automatically
+# Then finish when passing
+/finish
+```
+
+**"Not enough approvals"**
+```bash
+# Get required approvals
+gh pr edit --add-reviewer alice,bob
+# Wait for approval
+# Then finish
+/finish
+```
+
+**"Release tag not created"**
+```bash
+# Check GitHub Actions
+gh run list --workflow=release-tag.yml
+
+# If timeout, re-run /finish after tag appears
+/finish
+```
+
+**"Back-merge PR conflicts"**
+```bash
+# Resolve conflicts in back-merge PR
+git checkout backmerge/v1.24.0
+git merge develop
+# Resolve conflicts
+git push
+# Merge back-merge PR normally
+```
+
+### Weekly Release Cadence Example
+
+```plaintext
+Monday:
+  /feature auth-improvements
+  [work, commit, push]
+  /create-pr
+  [review, approval]
+  /finish → merged to develop ✓
+
+Tuesday:
+  /feature api-refactor
+  [work, commit, push]
+  /create-pr
+  [review, approval]
+  /finish → merged to develop ✓
+
+Wednesday:
+  /feature bug-fixes
+  [work, commit, push]
+  /create-pr
+  [review, approval]
+  /finish → merged to develop ✓
+
+Thursday:
+  /feature new-endpoint
+  [work, commit, push]
+  /create-pr
+  [review, still in review...]
+
+Friday (Release Cutoff):
+  # new-endpoint PR still not approved, skip for this release
+
+  /release 1.24.0
+  # Bundles: auth-improvements, api-refactor, bug-fixes
+  /create-pr
+  [team reviews release]
+  /finish
+  → Tag v1.24.0 created ✓
+  → Docker images built ✓
+  → Back-merge PR created ✓
+
+  # Review and merge back-merge PR
+  # Deploy v1.24.0 to production
+
+Next Monday:
+  # new-endpoint finally approved
+  /finish → merged to develop ✓
+  # Will be in next week's release (v1.25.0)
+```
 
 ## Hook Optimization Best Practices
 
@@ -1276,3 +1642,282 @@ jq '.sessions[] | select(.tags[] | contains("performance"))' .agent/memory.json
 # Get all patterns for a topic
 jq '.sessions[] | select(.tags[] | contains("git-hooks")) | {title, pattern}' .agent/memory.json
 ```
+
+### 18. Stratified Hooks Validation in Real Release Cycle
+
+- **Evidence from Release/1.23.3:**
+  - Pre-commit caught: Type errors, formatting issues, test failures
+  - Pre-push caught: Full test suite coverage, Docker build validation
+  - File type filtering: Only relevant hooks ran (Python hooks skipped for shell changes)
+- **Confirmed Benefits:**
+  - Fast feedback loop (~15-20s) prevents iteration delays
+  - Comprehensive gate (~2min) ensures quality before push
+  - 70%+ time savings on docs/config-only changes
+- **Validation:** System working as designed through full release workflow
+- **Future:** Continue measuring and optimizing hook performance
+
+---
+
+### Branch Lifecycle and Cleanup
+
+### 19. Thorough Investigation Before Cherry-Picking
+
+- **Context:** Attempted to extract "security improvements" from 12-day-old branch (chore/urgent-ci-hardening)
+- **Initial Assessment:** Branch appeared to have valuable changes (secrets.choice, defusedxml, path sanitization)
+- **Discovery Process:**
+  1. Checked if improvements were in develop
+  2. Found secrets.choice in namer/ffmpeg_impl.py (lines 247, 287)
+  3. Found defusedxml already in pyproject.toml
+  4. Realized code had been refactored, incorporating all improvements
+- **Lesson:** Always diff current code against "improvements" - refactoring may have already incorporated them
+- **Pattern:** Old branches may appear to have value, but subsequent development often supersedes them
+- **Workflow:**
+  ```bash
+  # Before cherry-picking from old branch:
+  git diff develop old-branch -- path/to/file.py
+  grep -r "suspected_improvement" namer/
+  git log --all --grep="improvement_keyword"
+  ```
+- **Time Investment:** Spent ~30 minutes investigating only to find nothing was needed
+- **Benefit:** Prevented duplicate code and unnecessary merge conflicts
+
+### 20. Respect Intentional Architectural Decisions
+
+- **Context:** Attempted to "improve security" by replacing corepack with npm --ignore-scripts
+- **User Challenge:** "I thought we used corepack for a specific reason"
+- **Investigation:** Found PR #108 (commit c6d12b6c) established corepack intentionally
+- **Rationale for Corepack:**
+  - Official Node.js way to manage package managers
+  - Ensures everyone uses exactly pnpm@10.0.0
+  - Part of deliberate pnpm enforcement strategy
+  - Consistency > hypothetical security benefit
+- **Mistake:** Traded hypothetical security for breaking intentional design
+- **Lesson:** Before "improving" something, research WHY it was done that way
+- **Pattern:** Use `git log --grep="keyword"` to understand rationale behind decisions
+- **Workflow:**
+  ```bash
+  # Research architectural decisions:
+  git log --all --grep="corepack"
+  git log --all -S "corepack" --source --all
+  gh pr list --search "corepack" --state all
+  ```
+- **Recovery:** Abandoned change, closed PR, deleted branches
+- **Best Practice:** Document significant architectural decisions in commit messages or ADRs
+
+### 21. Branch Obsolescence Patterns
+
+- **Pattern 1 - Squash Merged:** Branches with content in main but different commit SHAs
+  - Example: hotfix/graphql-schema-fixes (commit 9af0765 vs main's bea5bbf)
+  - Identification: Content is in target branch but `git branch --contains` returns false
+  - Solution: Use `git branch -D` after verifying content is in main
+- **Pattern 2 - Superseded Dependabot:** Old PRs replaced by newer versions
+  - Example: dependabot/npm_and_yarn/minor-and-patch (10 updates) → (13 updates)
+  - Identification: Check `git branch -vv | grep ": gone]"`
+  - Solution: Delete local branch, close old PR
+- **Pattern 3 - Working Branches:** Staging area for atomic PRs, never meant to merge
+  - Example: feature/improve-dev-tooling → split into PRs #120, #123, #126
+  - Identification: No PR exists, but commits appear in other PRs
+  - Solution: Delete after all atomic PRs merge
+- **Pattern 4 - Regressive Branches:** Outdated bases that would remove newer work
+  - Example: fire-16/fire-17 from Oct 4, would delete 24k+ lines added since
+  - Identification: Large negative line count in `git diff develop branch --stat`
+  - Solution: Close with clear explanation, delete branch
+- **Pattern 5 - Incorporated Branches:** Content cherry-picked into other work
+  - Example: chore/urgent-ci-hardening improvements in develop via refactoring
+  - Identification: Compare actual code, not just commit history
+  - Solution: Verify with `git diff`, then delete if truly incorporated
+
+### 22. Efficient Obsolescence Detection Workflow
+
+Systematic approach to identifying and cleaning up obsolete branches:
+
+```bash
+# 1. Check PR status first
+gh pr list --state all --head branch-name
+
+# 2. Verify content location
+# If closed without merge:
+git diff develop branch -- path/to/files
+
+# If merged (squashed):
+git log --all --grep="PR #123"  # Find merge commit
+
+# 3. Compare line counts
+git diff develop branch --stat | tail -1
+# Large negative numbers = regressive/outdated
+
+# 4. Check commit dates
+git log branch --format="%ci" -1
+# >2 weeks old + closed PR = likely stale
+
+# 5. Verify no unique value
+# Compare actual code changes:
+git diff develop branch | grep "^+" | head -20
+```
+
+**Decision Matrix:**
+
+| Branch Age | PR Status | Line Delta | Action |
+|------------|-----------|------------|--------|
+| <1 week | Open | Positive | Keep (active development) |
+| <1 week | Closed | Any | Investigate (may have value) |
+| >2 weeks | Open | Positive | Review with author |
+| >2 weeks | Closed/None | Negative | Delete (regressive) |
+| >2 weeks | Closed/None | Small positive | Verify incorporated |
+| Any | Merged | Any | Delete local after verification |
+
+**Cleanup Commands:**
+
+```bash
+# Safe deletion workflow:
+# 1. Find local branches tracking deleted remotes
+git branch -vv | grep ": gone]"
+
+# 2. Verify branches from closed PRs
+gh pr list --state closed --author @me
+
+# 3. Delete obsolete local branches
+git branch -D feature/old-branch
+
+# 4. Clean up stale remote tracking branches
+git remote prune origin
+
+# 5. Verify cleanup
+git branch -a
+```
+
+### 23. PR Closure Communication
+
+When closing obsolete PRs, provide clear rationale for future reference:
+
+**Good Closure Comment Structure:**
+```markdown
+Closing as [reason: obsolete/regressive/incorporated]
+
+Investigation reveals:
+✅ [What's already done]
+✅ [What's been incorporated]
+
+Branch issues:
+- [Specific problem 1]
+- [Specific problem 2]
+
+Conclusion: [Clear statement of why closing]
+```
+
+**Real Example from PR #93:**
+```markdown
+Closing as regressive - branch is outdated and would remove significant work
+
+Investigation reveals:
+✅ All FIRE-16 goals already implemented in develop
+✅ GraphQL schema improvements incorporated via PRs #120-126
+
+Branch issues:
+- Based on develop from October 4 (6 weeks outdated)
+- Would remove 24,000+ lines of recent improvements
+- Contains superseded code patterns
+
+Conclusion: Safe to close and delete branch
+```
+
+**Benefits:**
+- Future readers understand decision without re-investigation
+- Prevents accidental re-opening of obsolete work
+- Documents project history and evolution
+- Shows due diligence in cleanup decisions
+
+**Template Variables:**
+- **obsolete** - Functionality replaced by better implementation
+- **regressive** - Would remove newer work if merged
+- **incorporated** - Changes already merged via other PRs
+- **superseded** - Newer version of same work exists
+
+### 24. Slash Command Design Patterns
+
+- **Context:** Session on 2025-10-14 focused on improving Git Flow commands and command organization
+- **Key Learnings:**
+
+#### A. Automatic Version Detection
+- **Problem:** Requiring users to manually specify versions creates cognitive overhead
+- **Solution:** Make version arguments optional and auto-detect based on commit analysis
+- **Pattern:**
+  ```bash
+  # Auto-detect version from commits
+  /release                    # Analyzes commits → suggests v1.24.0
+  /release v1.25.0           # Override if needed
+
+  # Hotfix auto-calculation
+  /hotfix critical-bug       # Auto-calculates v1.23.6 from v1.23.5
+  ```
+- **Benefits:**
+  - Eliminates guessing game
+  - Applies semantic versioning correctly
+  - Transparent reasoning shown to user
+  - Still allows manual override
+- **Implementation:** Commands analyze git history and suggest versions, then ask for confirmation
+
+#### B. zsh Compatibility in Slash Commands
+- **Problem:** Command substitution `$(...)` inside backticks breaks in zsh
+- **Solution:** Use xargs with sh -c for portable command execution
+- **Pattern:**
+  ```bash
+  # ❌ Breaks in zsh:
+  !`git log $(git describe --tags --abbrev=0)..HEAD --oneline | wc -l`
+
+  # ✅ Works in both bash and zsh:
+  !`git describe --tags --abbrev=0 2>/dev/null | xargs -I {} sh -c 'git log {}..HEAD --oneline 2>/dev/null | wc -l | tr -d " "' || echo "N/A"`
+  ```
+- **Why:** macOS default shell is zsh; commands must be portable
+- **Testing:** Always test commands in both bash and zsh before deploying
+
+#### C. Git Flow Configuration Management
+- **Problem:** No explicit configuration for Git Flow preferences
+- **Solution:** Created `/git-flow-init` command to capture explicit preferences
+- **Pattern:**
+  - Ask user questions (never assume!)
+  - Store in `.claude/git-flow-config.json`
+  - Commands check initialization before running
+  - Configuration includes: branch names, versioning system, release automation, tag creation
+- **Benefits:**
+  - No assumptions about user workflows
+  - Configuration is explicit and documented
+  - Commands adapt to project conventions
+  - Team members inherit configuration
+
+#### D. Command Audit Framework
+- **Problem:** Large number of commands (60+) difficult to discover and maintain
+- **Solution:** Created comprehensive audit framework with analysis tools
+- **Deliverables:**
+  - Analysis scripts (analyze-commands.sh, quick-check.sh)
+  - Documentation (GETTING_STARTED.md, OPTIMIZATION_FRAMEWORK.md)
+  - Templates for optimization proposals
+- **Recommendations:**
+  - Keep flat directory structure (aligns with Make/poe patterns)
+  - Use action-object naming consistently
+  - Target 20-30% reduction through consolidation
+  - 6-month deprecation period for merged commands
+- **Process:** 6-phase framework taking 3-5 hours for comprehensive optimization
+
+#### E. User-Centric Command Design
+- **Insight:** "Why do I need to define the version number when the agent already analyzes commits?"
+- **Principle:** If the command already has the information, don't make the user provide it
+- **Application:**
+  - Version detection in `/release` and `/hotfix`
+  - Configuration analysis in `/git-flow-init`
+  - Commit analysis for changelog generation
+- **Result:** Commands become assistants, not data collectors
+
+**Files Created:**
+- `.claude/commands/git-flow-init.md` - Interactive Git Flow configuration
+- `.claude/git-flow-config.json.example` - Example configuration
+- `.claude-audit/` directory - Complete command audit framework (9 files)
+
+**Files Modified:**
+- `.claude/commands/release.md` - Added automatic version detection
+- `.claude/commands/hotfix.md` - Added automatic version calculation
+- Both commands now have zsh-compatible command substitution
+
+**Recommendation:** When designing new commands, ask "Does the user really need to provide this, or can we detect it?"
+
+_Reference: Session 2025-10-14 for complete implementation details, command audit framework, and user feedback that drove design decisions_
