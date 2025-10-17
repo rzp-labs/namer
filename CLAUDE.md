@@ -1866,7 +1866,7 @@ Conclusion: Safe to close and delete branch
   !`git log $(git describe --tags --abbrev=0)..HEAD --oneline | wc -l`
 
   # ✅ Works in both bash and zsh:
-  !`git describe --tags --abbrev=0 2>/dev/null | xargs -I {} sh -c 'git log {}..HEAD --oneline 2>/dev/null | wc -l | tr -d " "' || echo "N/A"`
+  !`git describe --tags --abbrev=0 2>/dev/null | xargs -I {} sh -c 'git log {}..HEAD --online 2>/dev/null | wc -l | tr -d " "' || echo "N/A"`
   ```
 - **Why:** macOS default shell is zsh; commands must be portable
 - **Testing:** Always test commands in both bash and zsh before deploying
@@ -1921,3 +1921,184 @@ Conclusion: Safe to close and delete branch
 **Recommendation:** When designing new commands, ask "Does the user really need to provide this, or can we detect it?"
 
 _Reference: Session 2025-10-14 for complete implementation details, command audit framework, and user feedback that drove design decisions_
+
+---
+
+## Release Workflow Best Practices
+
+### Version Bump Decision Making
+
+**Context**: When creating releases, choosing between PATCH, MINOR, or MAJOR version bumps requires careful analysis.
+
+**Decision Criteria**:
+
+| Change Type | Version Bump | Examples |
+|-------------|--------------|----------|
+| **User-facing features** | MINOR (0.X.0) | New API endpoints, UI features, functionality |
+| **Dev tooling/infrastructure** | PATCH (0.0.X) | Git hooks, CI/CD, build scripts, documentation |
+| **Breaking changes** | MAJOR (X.0.0) | API changes, removed features, incompatible updates |
+| **Bug fixes** | PATCH (0.0.X) | Error corrections, security fixes |
+
+**Pattern**: Features that are tooling/infrastructure (not user-facing) warrant PATCH bump.
+- Example: v1.23.5 → v1.23.6 for dev tooling improvements (git hooks, CI/CD, documentation)
+
+**User Feedback Pattern**: If stakeholders say "This still feels like a 0.0.N release", likely correct to use PATCH even if commits seem substantial.
+
+### GitHub Actions Integration with Git Flow
+
+**Critical Integration Points**:
+
+1. **Release PR Merge** → Triggers `release-tag.yml` workflow
+2. **Workflow extracts version** from `pyproject.toml`
+3. **Creates annotated tag** `v{VERSION}` on main
+4. **Pushes tag** to origin
+5. **Tag triggers** Docker build workflow
+6. **Docker images** published to GHCR
+7. **Back-merge PR** created for team review
+
+**Timing Considerations**:
+- Tag creation typically takes 15-30 seconds after PR merge
+- `/finish` command waits for tag before creating back-merge PR
+- Use polling with timeout (max 5 minutes) to detect tag creation
+- Command: `git ls-remote --tags origin "refs/tags/v${VERSION}"`
+
+**DO NOT**:
+- ❌ Bypass automation with local git merges
+- ❌ Create tags manually (breaks automation)
+- ❌ Skip back-merge PRs (creates version drift)
+
+### Bot Review Management
+
+**Problem**: Bot reviews (CodeRabbit, Gemini) can block merges even after addressing all issues.
+
+**Scenarios**:
+
+1. **All issues genuinely addressed** but bot status still "CHANGES_REQUESTED"
+   - Solution: Use admin override (`gh pr merge --admin`)
+   - Verify: Check PR conversations to confirm all issues resolved
+   - Pattern: Bot may not auto-approve after seeing fixes
+
+2. **Some issues legitimately need addressing**
+   - Solution: Address issues, push changes, wait for re-review
+   - Pattern: Bot should update status automatically
+
+**Admin Override Pattern**:
+```bash
+# Verify all actual issues resolved
+gh pr view <num> --json reviews,comments
+
+# Merge with admin override (bypasses review requirements)
+gh pr merge <num> --admin --squash
+```
+
+**Best Practice**: Only use admin override when technically ready and all substantive feedback addressed.
+
+### Conditional Pre-commit Hooks
+
+**Pattern**: Some hooks should be conditional (skip if tool not installed) to avoid blocking developers.
+
+**Implementation**:
+```yaml
+- id: shfmt
+  name: Shell Script Formatting
+  entry: bash -lc 'if ! command -v shfmt >/dev/null 2>&1; then echo "shfmt not installed, skipping"; exit 0; fi; shfmt -d -i 0 scripts/*.sh'
+  language: system
+  types: [shell]
+  pass_filenames: false
+```
+
+**Benefits**:
+- Non-blocking for developers without tool installed
+- Still enforces standards for those with tool
+- Provides helpful message explaining skip
+- CI can still enforce (has all tools)
+
+**Use Cases**:
+- Optional formatters (shfmt, prettier)
+- Language-specific tools not required by all contributors
+- Tools with complex installation (not in default PATH)
+
+### Shell Script Executable Permissions in Git
+
+**Key Insight**: File mode changes (100644 → 100755) must be explicitly committed.
+
+**Pattern**:
+```bash
+# Set executable permission
+chmod +x scripts/new-script.sh
+
+# Verify mode change
+git ls-files -s scripts/new-script.sh
+# Before: 100644 <hash> 0    scripts/new-script.sh
+# After:  100755 <hash> 0    scripts/new-script.sh
+
+# Check diff summary
+git diff --summary
+# mode change 100644 => 100755 scripts/new-script.sh
+
+# Stage and commit (includes mode change)
+git add scripts/new-script.sh
+git commit -m "chore: add new script with executable permissions"
+```
+
+**Verification**:
+- `git ls-files -s` shows file mode (100644 = regular, 100755 = executable)
+- `git diff --summary` shows mode changes
+- Mode changes are part of the commit, tracked in git history
+
+### Back-merge PR Creation Requirements
+
+**Problem**: Cannot create PR without pushing branch first.
+
+**Error Pattern**:
+```
+Error: Head ref must be a branch
+```
+
+**Solution**:
+```bash
+# 1. Create back-merge branch locally
+git checkout main
+git pull origin main
+git checkout develop
+git pull origin develop
+git checkout -b backmerge/v1.23.6
+
+# 2. Merge main into back-merge branch
+git merge main
+# Resolve conflicts if any
+
+# 3. Push branch BEFORE creating PR
+git push -u origin backmerge/v1.23.6
+
+# 4. Now create PR
+gh pr create --base develop --head backmerge/v1.23.6 \
+  --title "chore: back-merge v1.23.6 to develop" \
+  --body "Syncs version bump from release"
+```
+
+**Key Requirement**: Branch must exist on remote before `gh pr create` will work.
+
+### Release PR Size Expectations
+
+**Insight**: Different PR types have different size expectations.
+
+| PR Type | Expected Size | Rationale |
+|---------|---------------|-----------|
+| **Feature PRs** | 200-500 lines | Atomic, focused, reviewable |
+| **Release PRs** | 2,000-5,000+ lines | Consolidates multiple features from develop |
+| **Hotfix PRs** | 50-200 lines | Focused fix, minimal scope |
+
+**Release PR Composition**:
+- Major: New features, significant refactoring
+- Moderate: Infrastructure improvements, tooling updates
+- Minor: Bug fixes, documentation updates
+
+**Review Strategy**:
+- Feature PRs: Line-by-line code review
+- Release PRs: Review by theme/category (not line-by-line)
+- Hotfix PRs: Focused review on fix and tests
+
+**Pattern**: Large PRs acceptable for release branches (consolidating develop work), but feature PRs should remain small.
+
+_Reference: `.agent/memory.json` lesson-027 for complete v1.23.6 release cycle details_
