@@ -430,19 +430,16 @@ class ThePornDBProvider(BaseMetadataProvider):
                     id
                     title
                     date
-                    description
                     duration
-                    url
-                    urls { view }
-                    site { name parent { name } network { name } }
+                    urls { url }
+                    studio { name parent { name } }
                     performers {
-                        name
-                        parent { name image extras { gender } }
-                        image
-                        extras { gender }
+                        performer {
+                            name
+                            images { url }
+                        }
                     }
                     tags { name }
-                    hashes { hash type duration }
                 }
             }
         """
@@ -484,43 +481,27 @@ class ThePornDBProvider(BaseMetadataProvider):
                     id
                     title
                     date
-                    description
                     duration
-                    url
                     urls {
-                        view
+                        url
                     }
                     isCollected
-                    site {
+                    studio {
                         name
                         parent {
-                            name
-                        }
-                        network {
                             name
                         }
                     }
                     performers {
-                        name
-                        parent {
+                        performer {
                             name
-                            image
-                            extras {
-                                gender
+                            images {
+                                url
                             }
-                        }
-                        image
-                        extras {
-                            gender
                         }
                     }
                     tags {
                         name
-                    }
-                    hashes {
-                        hash
-                        type
-                        duration
                     }
                 }
             }
@@ -676,37 +657,23 @@ def _build_graphql_query(query_type: str, variables: Dict[str, Any]) -> Dict[str
                     title
                     date
                     duration
-                    urls { view }
-                    site {
+                    urls { url }
+                    studio {
                         name
                         parent {
-                            name
-                        }
-                        network {
                             name
                         }
                     }
                     performers {
-                        name
-                        parent {
+                        performer {
                             name
-                            image
-                            extras {
-                                gender
+                            images {
+                                url
                             }
-                        }
-                        image
-                        extras {
-                            gender
                         }
                     }
                     tags {
                         name
-                    }
-                    hashes {
-                        hash
-                        type
-                        duration
                     }
                 }
             }
@@ -718,38 +685,24 @@ def _build_graphql_query(query_type: str, variables: Dict[str, Any]) -> Dict[str
                     title
                     date
                     duration
-                    urls { view }
+                    urls { url }
                     isCollected
-                    site {
+                    studio {
                         name
                         parent {
-                            name
-                        }
-                        network {
                             name
                         }
                     }
                     performers {
-                        name
-                        parent {
+                        performer {
                             name
-                            image
-                            extras {
-                                gender
+                            images {
+                                url
                             }
-                        }
-                        image
-                        extras {
-                            gender
                         }
                     }
                     tags {
                         name
-                    }
-                    hashes {
-                        hash
-                        type
-                        duration
                     }
                 }
             }

@@ -1,0 +1,373 @@
+{
+  "search_summary": {
+    "platforms_searched": ["stashdb.org", "theporndb.net"],
+    "repositories_analyzed": 2,
+    "docs_reviewed": 2,
+    "introspection_performed": true,
+    "authentication_verified": true
+  },
+  "services": [
+    {
+      "name": "StashDB",
+      "endpoint": "https://stashdb.org/graphql",
+      "authentication": {
+        "method": "APIKey header",
+        "header_format": "APIKey: <token>",
+        "token_env_var": "STASHDB_TOKEN",
+        "token_config_field": "config.stashdb_token"
+      },
+      "schema_stats": {
+        "total_types": 181,
+        "object_types": 59,
+        "input_types": 78,
+        "enum_types": 28,
+        "scalar_types": 9,
+        "union_types": 7,
+        "query_count": 35,
+        "mutation_count": 70
+      },
+      "key_features": [
+        "Comprehensive CRUD operations for all entity types",
+        "Full edit/vote/draft submission workflow",
+        "User management and invite system",
+        "Extensive fingerprint matching (4+ query types)",
+        "Strongly typed enums for categorical data",
+        "Performer merge tracking",
+        "Tag categorization system",
+        "Favorite performers/studios",
+        "Notification subscriptions"
+      ],
+      "core_queries": {
+        "scene_search": "searchScene(term: String!, limit: Int): [Scene!]!",
+        "scene_by_id": "findScene(id: ID!): Scene",
+        "hash_search": "findSceneByFingerprint(fingerprint: FingerprintQueryInput!): [Scene!]!",
+        "user_info": "me: User"
+      },
+      "core_mutations": {
+        "submit_hash": "submitFingerprint(input: FingerprintSubmission!): Boolean!",
+        "submit_draft": "submitSceneDraft(input: SceneDraftInput!): DraftSubmissionStatus!",
+        "favorite_performer": "favoritePerformer(id: ID!, favorite: Boolean!): Boolean!",
+        "favorite_studio": "favoriteStudio(id: ID!, favorite: Boolean!): Boolean!"
+      },
+      "fingerprint_algorithms": ["MD5", "PHASH", "OSHASH"],
+      "key_types": {
+        "Scene": {
+          "fields": [
+            "id",
+            "title",
+            "date",
+            "release_date",
+            "production_date",
+            "urls",
+            "studio",
+            "performers",
+            "tags",
+            "images",
+            "fingerprints",
+            "duration",
+            "director",
+            "code",
+            "deleted"
+          ],
+          "notable_features": [
+            "Separate release_date and production_date",
+            "Non-null array fields",
+            "Typed enums for related data"
+          ]
+        },
+        "Performer": {
+          "fields": [
+            "id",
+            "name",
+            "aliases",
+            "gender",
+            "birthdate",
+            "ethnicity",
+            "country",
+            "measurements",
+            "tattoos",
+            "piercings",
+            "scene_count"
+          ],
+          "notable_features": [
+            "GenderEnum type",
+            "Body modifications as structured data",
+            "Merge tracking (merged_ids, merged_into_id)"
+          ]
+        },
+        "Fingerprint": {
+          "fields": [
+            "hash",
+            "algorithm",
+            "duration",
+            "submissions",
+            "reports",
+            "user_submitted",
+            "user_reported"
+          ],
+          "notable_features": [
+            "FingerprintAlgorithm enum",
+            "Mismatch reporting",
+            "User attribution"
+          ]
+        }
+      },
+      "deprecations": [
+        {
+          "field": "Scene.date",
+          "replacement": "Scene.release_date"
+        },
+        {
+          "field": "Performer.birthdate",
+          "replacement": "Performer.birth_date"
+        },
+        {
+          "field": "Performer.measurements",
+          "replacement": "Individual fields (cup_size, band_size, etc.)"
+        },
+        {
+          "field": "URL.type",
+          "replacement": "URL.site"
+        }
+      ],
+      "rate_limiting": {
+        "implemented": true,
+        "tracking_field": "User.api_calls",
+        "best_practice": "Use caching and batch queries"
+      }
+    },
+    {
+      "name": "ThePornDB",
+      "endpoint": "https://theporndb.net/graphql",
+      "authentication": {
+        "method": "Bearer token",
+        "header_format": "Authorization: Bearer <token>",
+        "token_env_var": "TPDB_TOKEN",
+        "token_config_field": "config.porndb_token"
+      },
+      "schema_stats": {
+        "total_types": 30,
+        "object_types": 18,
+        "input_types": 6,
+        "enum_types": 0,
+        "scalar_types": 6,
+        "union_types": 0,
+        "query_count": 7,
+        "mutation_count": 5
+      },
+      "key_features": [
+        "Simplified schema focused on core queries",
+        "Scene collection tracking (isCollected field)",
+        "Draft submission system",
+        "Batch fingerprint matching",
+        "Network/parent studio relationships",
+        "Favorite performers/studios",
+        "String-based categorical data (no enums)"
+      ],
+      "core_queries": {
+        "scene_search": "searchScene(term: String!, limit: Int): [Scene]",
+        "scene_by_id": "findScene(id: ID): Scene",
+        "hash_search": "findScenesBySceneFingerprints(fingerprints: [[FingerprintQueryInput]]): [[Scene]]",
+        "user_info": "me: User"
+      },
+      "core_mutations": {
+        "submit_hash": "submitFingerprint(input: FingerprintSubmission): Boolean",
+        "submit_draft": "submitSceneDraft(input: SceneDraftInput): DraftSubmissionStatus",
+        "favorite_performer": "favoritePerformer(id: ID!, favorite: Boolean!): Boolean!",
+        "favorite_studio": "favoriteStudio(id: ID!, favorite: Boolean!): Boolean!"
+      },
+      "fingerprint_algorithms": ["MD5", "PHASH", "OSHASH", "CRC32"],
+      "key_types": {
+        "Scene": {
+          "fields": [
+            "id",
+            "title",
+            "date",
+            "release_date",
+            "production_date",
+            "urls",
+            "studio",
+            "performers",
+            "tags",
+            "images",
+            "fingerprints",
+            "duration",
+            "director",
+            "code"
+          ],
+          "notable_features": [
+            "urls[].url for source URLs",
+            "Simpler structure than StashDB"
+          ]
+        },
+        "Performer": {
+          "fields": [
+            "id",
+            "name",
+            "aliases",
+            "gender",
+            "birth_date",
+            "ethnicity",
+            "country",
+            "height",
+            "measurements"
+          ],
+          "notable_features": [
+            "String-based gender (not enum)",
+            "Measurements as structured object",
+            "scene_count for popularity"
+          ]
+        },
+        "Fingerprint": {
+          "fields": [
+            "hash",
+            "algorithm",
+            "duration",
+            "submissions",
+            "user_submitted"
+          ],
+          "notable_features": [
+            "String-based algorithm (not enum)",
+            "Community submission tracking"
+          ]
+        }
+      },
+      "deprecations": [],
+      "rate_limiting": {
+        "implemented": true,
+        "tracking_field": null,
+        "best_practice": "Use caching and implement exponential backoff"
+      }
+    }
+  ],
+  "technical_insights": {
+    "common_patterns": [
+      "Both use GraphQL introspection for schema discovery",
+      "Both support scene matching via text search and fingerprints",
+      "Both use perceptual hash (PHASH) as primary video matching algorithm",
+      "Both provide performer/studio metadata alongside scenes",
+      "Both support user favorites for performers and studios",
+      "Both return scenes with nested performer/studio/tag relationships"
+    ],
+    "best_practices": [
+      "Always include duration with PHASH submissions for accuracy",
+      "Use GraphQL variables instead of string interpolation for security",
+      "Request only needed fields to minimize payload size",
+      "Implement caching for repeated queries (reduces API calls)",
+      "Use batch queries when searching multiple scenes",
+      "Handle rate limiting with exponential backoff",
+      "Validate PHASH distance (<8 for confident match)",
+      "Use consensus threshold (70%+) for ambiguous PHASH results"
+    ],
+    "pitfalls": [
+      "StashDB uses APIKey header, not standard Authorization Bearer",
+      "ThePornDB uses nested arrays for batch fingerprint results",
+      "StashDB uses typed enums, ThePornDB uses strings",
+      "Some mutations may not appear in introspection (check documentation)",
+      "Rate limiting can cause unexpected failures without backoff",
+      "PHASH without duration can produce false positives"
+    ],
+    "emerging_trends": [
+      "GraphQL adoption for adult content metadata APIs",
+      "Community-driven fingerprint submission systems",
+      "Perceptual hash as standard for video matching",
+      "Structured edit/draft workflows for data quality",
+      "Type-safe schemas with introspection support"
+    ]
+  },
+  "implementation_recommendations": [
+    {
+      "scenario": "Implementing scene search in namer application",
+      "recommended_solution": "Use searchScene query with minimal field set, then fetch complete data for selected match",
+      "rationale": "Reduces payload size and API calls while maintaining good UX"
+    },
+    {
+      "scenario": "Fingerprint-based video matching",
+      "recommended_solution": "Calculate PHASH with duration, search both services, apply consensus logic (>70% threshold)",
+      "rationale": "Maximizes match accuracy and handles ambiguous results gracefully"
+    },
+    {
+      "scenario": "Error handling for authentication failures",
+      "recommended_solution": "Implement token validation on startup, provide clear error messages for missing/invalid tokens",
+      "rationale": "Prevents runtime failures and improves developer experience"
+    },
+    {
+      "scenario": "Rate limiting management",
+      "recommended_solution": "Use requests-cache with TTL, implement exponential backoff (1s, 2s, 4s, 8s...), batch queries where possible",
+      "rationale": "Reduces API load and handles rate limits gracefully"
+    },
+    {
+      "scenario": "Supporting both services simultaneously",
+      "recommended_solution": "Create provider abstraction layer that normalizes field names and data structures",
+      "rationale": "Allows seamless switching between services or parallel querying"
+    }
+  ],
+  "community_insights": {
+    "popular_solutions": [
+      "PHASH for video fingerprinting (industry standard)",
+      "GraphQL for flexible metadata queries",
+      "Community-driven hash submission for data quality",
+      "Draft/edit workflows for maintaining accuracy"
+    ],
+    "controversial_topics": [
+      "Privacy concerns around hash submission and tracking",
+      "Data quality vs. ease of contribution",
+      "Centralized vs. distributed metadata databases"
+    ],
+    "expert_opinions": [
+      "PHASH provides excellent balance between accuracy and performance for video matching",
+      "GraphQL introspection enables self-documenting APIs and better tooling",
+      "Community submissions require consensus mechanisms to prevent bad data"
+    ]
+  },
+  "code_examples": {
+    "stashdb_authentication": {
+      "language": "python",
+      "code": "headers = {\n    'Content-Type': 'application/json',\n    'APIKey': config.stashdb_token,\n    'User-Agent': 'namer-1'\n}\nresponse = requests.post(\n    'https://stashdb.org/graphql',\n    headers=headers,\n    json={'query': query, 'variables': variables}\n)"
+    },
+    "theporndb_authentication": {
+      "language": "python",
+      "code": "headers = {\n    'Content-Type': 'application/json',\n    'Authorization': f'Bearer {config.porndb_token}',\n    'User-Agent': 'namer-1'\n}\nresponse = requests.post(\n    'https://theporndb.net/graphql',\n    headers=headers,\n    json={'query': query, 'variables': variables}\n)"
+    },
+    "scene_search_query": {
+      "language": "graphql",
+      "code": "query SearchScene($term: String!) {\n    searchScene(term: $term) {\n        id\n        title\n        date\n        studio { name }\n        performers {\n            performer { name }\n        }\n        fingerprints {\n            hash\n            algorithm\n            duration\n        }\n    }\n}"
+    },
+    "fingerprint_submission": {
+      "language": "graphql",
+      "code": "mutation SubmitFingerprint($input: FingerprintSubmission!) {\n    submitFingerprint(input: $input)\n}\n\n# Variables:\n{\n    \"input\": {\n        \"scene_id\": \"12345\",\n        \"fingerprint\": {\n            \"hash\": \"a1b2c3d4e5f6\",\n            \"algorithm\": \"PHASH\",\n            \"duration\": 1800\n        }\n    }\n}"
+    }
+  },
+  "references": [
+    {
+      "citation": "[1] StashDB. \"GraphQL API Schema.\" StashDB, 2025-10-13. https://stashdb.org/graphql",
+      "type": "api_documentation",
+      "relevance": "Primary schema source for StashDB provider implementation"
+    },
+    {
+      "citation": "[2] ThePornDB. \"GraphQL API Schema.\" ThePornDB, 2025-10-13. https://theporndb.net/graphql",
+      "type": "api_documentation",
+      "relevance": "Primary schema source for ThePornDB provider implementation"
+    },
+    {
+      "citation": "[3] Namer Project. \"stashdb_provider.py.\" GitHub, 2025. namer/metadata_providers/stashdb_provider.py",
+      "type": "code_repository",
+      "relevance": "Implementation reference for StashDB GraphQL queries"
+    },
+    {
+      "citation": "[4] Namer Project. \"theporndb_provider.py.\" GitHub, 2025. namer/metadata_providers/theporndb_provider.py",
+      "type": "code_repository",
+      "relevance": "Implementation reference for ThePornDB GraphQL queries"
+    }
+  ],
+  "document_info": {
+    "created": "2025-10-13",
+    "author": "Technical Research Agent (Claude Code)",
+    "version": "1.0",
+    "schema_files": {
+      "stashdb": "docs/api/stashdb_schema.json",
+      "theporndb": "docs/api/tpdb_schema.json",
+      "documentation": "docs/api/graphql_schema_documentation.md"
+    }
+  }
+}

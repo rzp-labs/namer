@@ -1,39 +1,47 @@
-**/.DS_Store
-.vscode
-.idea
-__pycache__/
-.coverage
-/htmlcov/
-cov.xml
-coverage.xml
 UNKNOWN.egg-info/
-dist/
-creds.sh
-init
-.python-version
+
+# macOS
+**/.DS_Store
+
+# Packages and cache
 node_modules
-.env
 .venv
+.flakeheaven_cache
+.ruff_cache
+__pycache__/
+.pytest_cache/
+
+# Local dev files
 namer/web/public/assets
 namer/web/templates
 namer/tools
-.flakeheaven_cache
-.ruff_cache
 database/
-.pytest_cache/
-test_config.cfg
-.coderabbit/
+dist/
+init
+.vscode
+.idea
+creds.sh
+.python-version
 
-# Local production config (secrets)
+# Local config (secrets)
 namer-prod.cfg
+.env
+.envrc
 
 # Additional temporary/local files
 *.backup
 .github/workflows/*.backup
 .github/workflows/ci.yml.backup
-namer/tools/*
 
-# Test artifacts
+# Logs
+logs/
+
+# Testing artifacts
+.coverage
+/htmlcov/
+cov.xml
+coverage.xml
+test_config.cfg
 test/failed/
 test/integration/config/namer.cfg.old
 test/integration/config/namer.cfg
@@ -46,11 +54,13 @@ test/integration/media/3-dest/*
 test/integration/media/4-failed/*
 test/integration/media/5-ambiguous/*
 
-# Ignore windsurf AI rules
+# AI tools
 .windsurfrules
 .mcp.json
-.agent/
-.claude/
+.coderabbit/
+.claude/*
+.claude/settings.json
+.claude/settings.local.json
 
 # npm artifacts
 package-lock.json

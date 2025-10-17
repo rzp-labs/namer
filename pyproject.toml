@@ -1,6 +1,6 @@
 [project]
 name = "namer"
-version = "1.23.3"
+version = "1.23.5"
 description = "A namer of video files based on metadata from the porndb."
 readme = "readme.rst"
 authors = [{ name = "nehpz", email = "admin@rzp.one" }]
@@ -63,8 +63,8 @@ pytest-cov = "^7.0"
 coverage = "^7.10.6"
 bandit = "^1.7"
 mypy = "^1.11"
-ruff = "^0.13"
-selenium = "^4.21"
+ruff = "^0.14"
+selenium = "^4.36"
 assertpy = "^1.1"
 poethepoet = "^0.37"
 pony-stubs = "^0.5"
