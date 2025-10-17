@@ -519,6 +519,365 @@ We use a **stratified approach** that separates fast commit-time validation from
 
 See `/release` command for details.
 
+## Git Flow PR Workflow
+
+This project uses a **PR-based Git Flow workflow** with bundled weekly releases.
+
+### Workflow Overview
+
+**NOT:** One PR = One Release
+
+**ACTUALLY:** Weekly release cadence with bundled PRs
+
+```plaintext
+Monday-Thursday: Features merge to develop individually
+       ↓
+Friday: Create release/X.Y.Z from develop (bundles all features)
+       ↓
+Release PR merged → GitHub Actions creates tag → Docker builds
+       ↓
+Back-merge PR created (main → develop) for version sync
+```
+
+### Complete Feature Lifecycle
+
+```bash
+# 1. Start Feature
+/feature my-feature
+# Creates: feature/my-feature from develop
+# Pushes to origin
+
+# 2. Development
+git add .
+git commit -m "feat: implement feature"
+git push
+
+# 3. Create Pull Request
+/create-pr
+# Creates PR: feature/my-feature → develop
+# Auto-generates title and description from commits
+# Adds 'enhancement' label
+
+# 4. Review Process
+# - CI checks run automatically
+# - Team reviews code
+# - Address feedback, push changes
+# - Get required approvals
+
+# 5. Merge and Cleanup
+/finish
+# Validates: PR approved, CI passing, no conflicts
+# Merges via GitHub API (squash method for features)
+# Switches to develop, pulls latest
+# Deletes local and remote branches (if auto-delete enabled)
+# Prunes remote-tracking branches
+```
+
+### Complete Release Lifecycle
+
+```bash
+# Friday: Release Day
+
+# 1. Create Release Branch
+/release 1.24.0
+# Creates: release/1.24.0 from develop
+# Contains all features merged Mon-Thu
+# Bumps version in pyproject.toml
+# Updates CHANGELOG.md
+
+# 2. Create Release PR
+/create-pr
+# Creates PR: release/1.24.0 → main
+# Auto-generates release notes from CHANGELOG
+# Adds 'release' label (REQUIRED for automation)
+# Shows bundled commits
+
+# 3. Team Review
+# - Verify version is correct
+# - Review CHANGELOG completeness
+# - Ensure all tests pass
+# - Get required approvals
+
+# 4. Merge and Automate
+/finish
+# Validates: PR approved, CI passing, version matches
+# Merges PR to main via GitHub API
+# WAITS for GitHub Actions to create tag (2-3 min)
+# Tag triggers Docker build automatically
+# Creates back-merge PR: main → develop
+# Clean up release branch
+
+# 5. Complete Back-merge
+# Review back-merge PR (usually auto-mergeable)
+# Merge to sync version bump back to develop
+```
+
+### Hotfix Lifecycle (Emergency Fixes)
+
+```bash
+# 1. Create Hotfix
+/hotfix critical-bug
+# Creates: hotfix/critical-bug from main
+# Auto-calculates patch version bump
+
+# 2. Fix and PR
+# ... make fix ...
+/create-pr
+# Creates PR: hotfix/critical-bug → main
+# Adds 'hotfix' label
+# Marks as urgent
+
+# 3. Merge and Deploy
+/finish
+# Same as release: merge, wait for tag, back-merge PR
+# 🚨 DEPLOY TO PRODUCTION IMMEDIATELY
+```
+
+### Key Commands
+
+| Command | Purpose | Creates PR? | Merges PR? |
+|---------|---------|-------------|------------|
+| `/feature <name>` | Start feature branch | ❌ No | ❌ No |
+| `/release <version>` | Start release branch | ❌ No | ❌ No |
+| `/hotfix <name>` | Start hotfix branch | ❌ No | ❌ No |
+| `/create-pr` | Create pull request | ✅ Yes | ❌ No |
+| `/finish` | Merge PR + cleanup | ❌ No | ✅ Yes |
+| `/flow-status` | Check current status | ❌ No | ❌ No |
+
+### Universal `/finish` Command
+
+**Context-aware behavior based on branch type:**
+
+#### Feature Branches (15-30 seconds)
+```bash
+/finish
+→ Validates PR exists and is approved
+→ Merges PR to develop (squash method)
+→ Switches to develop, pulls latest
+→ Deletes branches (respects GitHub auto-delete)
+→ Prunes remote-tracking branches
+→ DONE
+```
+
+#### Release Branches (3-5 minutes)
+```bash
+/finish
+→ Validates PR exists, approved, version correct
+→ Ensures 'release' label present (for automation)
+→ Merges PR to main (merge method, preserves history)
+→ WAITS for GitHub Actions to create tag v{VERSION}
+→ Tag triggers Docker build automatically
+→ Creates back-merge PR: main → develop
+→ Switches to main, pulls latest
+→ Deletes release branch
+→ DONE - Team reviews back-merge PR separately
+```
+
+#### Hotfix Branches (3-5 minutes)
+```bash
+/finish
+→ Same as release workflow
+→ Tag created → Docker builds
+→ Back-merge PR created
+→ 🚨 REQUIRES IMMEDIATE PRODUCTION DEPLOYMENT
+```
+
+### Merge Strategies
+
+Configured in `.claude/git-flow-config.json`:
+
+```json
+{
+  "github": {
+    "merge_methods": {
+      "feature": "squash",  // Clean history, atomic commits
+      "release": "merge",   // Preserve release history (REQUIRED)
+      "hotfix": "merge"     // Preserve hotfix audit trail (REQUIRED)
+    }
+  }
+}
+```
+
+**Why different methods:**
+- **Features (squash)**: 200-500 line PRs become single atomic commits in develop
+- **Releases (merge)**: Preserves all feature commits for git-describe, changelogs
+- **Hotfixes (merge)**: Critical for audit trail and compliance
+
+### GitHub Actions Integration
+
+**CRITICAL:** `/finish` integrates with existing automation workflows.
+
+#### For Features
+- No GitHub Actions involvement
+- Simple PR merge via GitHub API
+- Fast and straightforward
+
+#### For Releases/Hotfixes
+1. **PR merge triggers** `release-tag.yml` workflow
+2. **Workflow extracts** version from `pyproject.toml`
+3. **Creates annotated tag** `v{VERSION}` on main
+4. **Pushes tag** to origin
+5. **Tag triggers** Docker build workflow
+6. **Docker images** published to GHCR
+7. **/finish creates** back-merge PR for team review
+
+**DO NOT** bypass this automation with local git merges!
+
+### Configuration
+
+Initialize Git Flow configuration once per repository:
+
+```bash
+/git-flow-init
+```
+
+This detects and configures:
+- Branch names (main/develop)
+- GitHub auto-delete setting
+- Required approvals
+- CI requirements
+- Merge methods
+- Automation settings
+
+Configuration stored in `.claude/git-flow-config.json`
+
+### Branch Cleanup
+
+#### Automatic (GitHub auto-delete enabled)
+```bash
+/finish
+→ Merges PR
+→ GitHub automatically deletes remote branch
+→ Deletes local branch
+→ Prunes remote-tracking branches
+```
+
+#### Manual (GitHub auto-delete disabled)
+```bash
+/finish
+→ Merges PR
+→ Deletes local branch
+→ Deletes remote branch manually
+→ Prunes remote-tracking branches
+```
+
+### Best Practices
+
+**DO:**
+- ✅ Use `/create-pr` after feature is code-complete
+- ✅ Wait for CI checks before merging
+- ✅ Get required approvals
+- ✅ Use `/finish` to merge (not manual git commands)
+- ✅ Keep features small (200-500 lines)
+- ✅ Bundle features into weekly releases
+- ✅ Review back-merge PRs promptly
+
+**DON'T:**
+- ❌ Use local `git merge` commands (bypasses automation)
+- ❌ Skip PR creation (no code review)
+- ❌ Force-push to shared branches
+- ❌ Delete `release` label from release PRs
+- ❌ Bypass GitHub Actions workflows
+- ❌ Skip back-merge PRs
+
+### Troubleshooting
+
+**"PR doesn't exist"**
+```bash
+# Create PR first
+/create-pr
+# Then finish
+/finish
+```
+
+**"CI checks failing"**
+```bash
+# Fix issues, push changes
+git push
+# CI re-runs automatically
+# Then finish when passing
+/finish
+```
+
+**"Not enough approvals"**
+```bash
+# Get required approvals
+gh pr edit --add-reviewer alice,bob
+# Wait for approval
+# Then finish
+/finish
+```
+
+**"Release tag not created"**
+```bash
+# Check GitHub Actions
+gh run list --workflow=release-tag.yml
+
+# If timeout, re-run /finish after tag appears
+/finish
+```
+
+**"Back-merge PR conflicts"**
+```bash
+# Resolve conflicts in back-merge PR
+git checkout backmerge/v1.24.0
+git merge develop
+# Resolve conflicts
+git push
+# Merge back-merge PR normally
+```
+
+### Weekly Release Cadence Example
+
+```plaintext
+Monday:
+  /feature auth-improvements
+  [work, commit, push]
+  /create-pr
+  [review, approval]
+  /finish → merged to develop ✓
+
+Tuesday:
+  /feature api-refactor
+  [work, commit, push]
+  /create-pr
+  [review, approval]
+  /finish → merged to develop ✓
+
+Wednesday:
+  /feature bug-fixes
+  [work, commit, push]
+  /create-pr
+  [review, approval]
+  /finish → merged to develop ✓
+
+Thursday:
+  /feature new-endpoint
+  [work, commit, push]
+  /create-pr
+  [review, still in review...]
+
+Friday (Release Cutoff):
+  # new-endpoint PR still not approved, skip for this release
+
+  /release 1.24.0
+  # Bundles: auth-improvements, api-refactor, bug-fixes
+  /create-pr
+  [team reviews release]
+  /finish
+  → Tag v1.24.0 created ✓
+  → Docker images built ✓
+  → Back-merge PR created ✓
+
+  # Review and merge back-merge PR
+  # Deploy v1.24.0 to production
+
+Next Monday:
+  # new-endpoint finally approved
+  /finish → merged to develop ✓
+  # Will be in next week's release (v1.25.0)
+```
+
 ## Hook Optimization Best Practices
 
 ### Philosophy: Skip When Files Don't Affect Outcomes
