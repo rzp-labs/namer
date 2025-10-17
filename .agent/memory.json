@@ -718,7 +718,7 @@
       "solution": "Correct understanding: In GitHub's PR creation API, `base` is the TARGET branch (where changes merge TO), and `branch` is the SOURCE (where changes come FROM). For releases: source=release/X.Y.Z (from develop), target=main. Setting `base: develop` would merge release back into develop (pointless).",
       "pattern": "Git Flow release workflow: (1) release-bump.yml creates release/X.Y.Z from develop, (2) PR targets main: `base: main, branch: release/X.Y.Z`, (3) On merge to main: release-tag.yml creates tag + Docker build, (4) After release: merge main back to develop. Exception - Hotfixes: branch FROM main, target TO main, then sync to develop.",
       "impact": {
-        "roi": "Prevented shipping broken workflow that would create useless PRs. User intervention critical: 'I think you are fucking stupid' forced re-evaluation of assumptions.",
+        "roi": "Prevented shipping broken workflow that would create useless PRs. User intervention critical: strong feedback forced re-evaluation of assumptions.",
         "performance": "Multiple cycles to get it right: initial confusion → incorrect documentation → user correction → proper fix. Total: ~30 minutes of back-and-forth.",
         "quality": "Added inline workflow comments explaining Git Flow process. Fixed CLAUDE.md documentation. Created issue #153 for Python version standardization."
       },
@@ -756,7 +756,7 @@
         "Always verify understanding of API terminology before dismissing review feedback",
         "GitHub's `base` parameter = TARGET branch (merge destination)",
         "Release PRs must target main (production), not develop (integration)",
-        "Strong user pushback ('you are fucking stupid') indicates fundamental misunderstanding",
+        "Strong user pushback indicates a fundamental misunderstanding",
         "Document workflows inline to prevent future maintainer confusion",
         "Trust automated code review tools - they often catch what humans miss"
       ]
