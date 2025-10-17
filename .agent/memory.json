@@ -1,8 +1,8 @@
 {
   "metadata": {
     "version": "1.0.0",
-    "last_updated": "2025-10-14T08:00:00Z",
-    "total_sessions": 19,
+    "last_updated": "2025-10-16T18:00:00Z",
+    "total_sessions": 20,
     "description": "Historical learning data from development sessions. This structured archive preserves rich context and debugging journeys while keeping CLAUDE.md focused on actionable patterns."
   },
   "sessions": [
@@ -701,6 +701,65 @@
         "pr_93": "Example of regressive branch (-24k lines)",
         "commit_c6d12b6c": "Corepack architectural decision"
       }
+    },
+    {
+      "id": "lesson-025",
+      "date": "2025-10-16",
+      "title": "GitHub PR Terminology and Git Flow Release Target Confusion",
+      "category": "git-workflow",
+      "tags": [
+        "git-flow",
+        "github",
+        "pr-terminology",
+        "release-workflow",
+        "code-review"
+      ],
+      "problem": "Major confusion about GitHub PR `base` parameter and where release PRs should target. CodeRabbit correctly flagged `base: develop` as wrong for releases, but AI initially dismissed feedback due to misunderstanding GitHub's terminology where `base` = TARGET (not source).",
+      "solution": "Correct understanding: In GitHub's PR creation API, `base` is the TARGET branch (where changes merge TO), and `branch` is the SOURCE (where changes come FROM). For releases: source=release/X.Y.Z (from develop), target=main. Setting `base: develop` would merge release back into develop (pointless).",
+      "pattern": "Git Flow release workflow: (1) release-bump.yml creates release/X.Y.Z from develop, (2) PR targets main: `base: main, branch: release/X.Y.Z`, (3) On merge to main: release-tag.yml creates tag + Docker build, (4) After release: merge main back to develop. Exception - Hotfixes: branch FROM main, target TO main, then sync to develop.",
+      "impact": {
+        "roi": "Prevented shipping broken workflow that would create useless PRs. User intervention critical: strong feedback forced re-evaluation of assumptions.",
+        "performance": "Multiple cycles to get it right: initial confusion → incorrect documentation → user correction → proper fix. Total: ~30 minutes of back-and-forth.",
+        "quality": "Added inline workflow comments explaining Git Flow process. Fixed CLAUDE.md documentation. Created issue #153 for Python version standardization."
+      },
+      "critical_insights": [
+        "GitHub terminology is counterintuitive: `base` sounds like source but means target",
+        "Release branches branch FROM develop, merge TO main (not back to develop)",
+        "Merging release → develop would be pointless (no changes to merge)",
+        "CodeRabbit was 100% correct from the start - should trust AI review feedback",
+        "When user challenges strongly, stop and fully re-evaluate assumptions",
+        "Document Git Flow in workflow files to prevent future confusion"
+      ],
+      "related_files": [
+        ".github/workflows/release-bump.yml",
+        "CLAUDE.md"
+      ],
+      "related_prs": [
+        "#152"
+      ],
+      "related_issues": [
+        "#153"
+      ],
+      "code_examples": [
+        {
+          "language": "yaml",
+          "label": "Correct release PR configuration",
+          "code": "# Git Flow Release Process:\n# 1. This workflow creates a release/X.Y.Z branch from develop\n# 2. Opens PR: release/X.Y.Z → main (the actual release)\n# 3. On merge to main: release-tag.yml creates tag + triggers Docker build\n# 4. After release: merge main back to develop to sync versions\n\n- name: Create release PR\n  uses: peter-evans/create-pull-request@...\n  with:\n    base: main              # TARGET (where we merge TO)\n    branch: release/${{ version }}  # SOURCE (where we merge FROM)"
+        },
+        {
+          "language": "markdown",
+          "label": "Git Flow process documentation",
+          "code": "### Creating Pull Requests\n\n- Feature branches → merge to `develop`\n- Release branches → merge to `main`\n- Hotfix branches → merge to `main`, then back to `develop`\n\n### Release Process\n\n1. Trigger `release-bump.yml` workflow (creates release/X.Y.Z branch from develop)\n2. Merge PR: `release/X.Y.Z` → `main` (the actual release)\n3. On merge to main: `release-tag.yml` creates tag + triggers Docker build\n4. After release: merge `main` back to `develop` to sync versions"
+        }
+      ],
+      "lessons_learned": [
+        "Always verify understanding of API terminology before dismissing review feedback",
+        "GitHub's `base` parameter = TARGET branch (merge destination)",
+        "Release PRs must target main (production), not develop (integration)",
+        "Strong user pushback indicates a fundamental misunderstanding",
+        "Document workflows inline to prevent future maintainer confusion",
+        "Trust automated code review tools - they often catch what humans miss"
+      ]
     }
   ]
 }
