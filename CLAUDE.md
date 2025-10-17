@@ -505,12 +505,19 @@ We use a **stratified approach** that separates fast commit-time validation from
 ### Creating Pull Requests
 
 - Feature branches → merge to `develop`
-- Release branches → merge to `main` (via automated workflow)
-- Hotfix branches → merge to both `main` and `develop`
+- Release branches → merge to `main`
+- Hotfix branches → merge to `main`, then back to `develop`
 
 ### Release Process
 
-**Do not use `git flow release`** - instead use the automated GitHub Actions workflow (see `/release` command or release.md)
+**Do not use `git flow release`** - instead use the automated GitHub Actions workflow:
+
+1. Trigger `release-bump.yml` workflow (creates release/X.Y.Z branch from develop)
+2. Merge PR: `release/X.Y.Z` → `main` (the actual release)
+3. On merge to main: `release-tag.yml` creates tag + triggers Docker build
+4. After release: merge `main` back to `develop` to sync versions
+
+See `/release` command for details.
 
 ## Hook Optimization Best Practices
 
