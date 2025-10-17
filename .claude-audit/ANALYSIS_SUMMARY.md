@@ -6,7 +6,7 @@ I've created a comprehensive command audit framework for your Claude Code slash 
 
 ### Generated Files
 
-Located in `/Users/stephen/Projects/rzp-labs/namer/.claude-audit/`:
+Located in `.claude-audit/`:
 
 1. **GETTING_STARTED.md** ⭐ START HERE
    - Step-by-step guide to auditing your commands
@@ -56,11 +56,8 @@ Located in `/Users/stephen/Projects/rzp-labs/namer/.claude-audit/`:
 ### Run the Analysis (5 minutes)
 
 ```bash
-# Navigate to project
-cd /Users/stephen/Projects/rzp-labs/namer
-
-# Make scripts executable
-chmod +x .claude-audit/*.sh
+# Navigate to project root
+cd "$(git rev-parse --show-toplevel)"
 
 # Quick overview
 ./.claude-audit/quick-check.sh
@@ -390,7 +387,7 @@ After completing audit, update:
 
 You now have a complete framework for auditing and optimizing your Claude Code slash commands. The tools are ready to use, and the templates are ready to fill in.
 
-**Start here:** `/Users/stephen/Projects/rzp-labs/namer/.claude-audit/GETTING_STARTED.md`
+**Start here:** `.claude-audit/GETTING_STARTED.md`
 
 **Run this first:** `./.claude-audit/quick-check.sh`
 

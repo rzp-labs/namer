@@ -38,7 +38,10 @@ for prefix in "${PREFIXES[@]}"; do
     MATCHES=$(echo "$COMMANDS" | grep "^${prefix}" || true)
     if [ -n "$MATCHES" ]; then
         echo -e "${YELLOW}$prefix-*:${NC}"
-        echo "$MATCHES" | sed 's/^/  /'
+        # Use bash parameter expansion instead of sed for performance
+        while IFS= read -r line; do
+            echo "  $line"
+        done <<< "$MATCHES"
         echo ""
     fi
 done
