@@ -17,8 +17,8 @@ echo -e "${BLUE}=== Claude Code Command Quick Check ===${NC}\n"
 
 # Check if commands directory exists
 if [ ! -d "$COMMANDS_DIR" ]; then
-    echo -e "${RED}Error: Commands directory not found at $COMMANDS_DIR${NC}"
-    exit 1
+	echo -e "${RED}Error: Commands directory not found at $COMMANDS_DIR${NC}"
+	exit 1
 fi
 
 # Count total commands
@@ -35,15 +35,15 @@ COMMANDS=$(find "$COMMANDS_DIR" -name "*.md" -type f -exec basename {} .md \;)
 PREFIXES=("create" "generate" "make" "start" "init" "setup" "test" "review" "git" "pr" "code")
 
 for prefix in "${PREFIXES[@]}"; do
-    MATCHES=$(echo "$COMMANDS" | grep "^${prefix}" || true)
-    if [ -n "$MATCHES" ]; then
-        echo -e "${YELLOW}$prefix-*:${NC}"
-        # Use bash parameter expansion instead of sed for performance
-        while IFS= read -r line; do
-            echo "  $line"
-        done <<< "$MATCHES"
-        echo ""
-    fi
+	MATCHES=$(echo "$COMMANDS" | grep "^${prefix}" || true)
+	if [ -n "$MATCHES" ]; then
+		echo -e "${YELLOW}$prefix-*:${NC}"
+		# Use bash parameter expansion instead of sed for performance
+		while IFS= read -r line; do
+			echo "  $line"
+		done <<<"$MATCHES"
+		echo ""
+	fi
 done
 
 # Find potential duplicates by checking for similar words
@@ -55,44 +55,44 @@ trap 'rm -f "$TEMP_FILE"' EXIT
 
 # List all commands
 echo "$COMMANDS" | while read -r cmd1; do
-    echo "$COMMANDS" | while read -r cmd2; do
-        if [ "$cmd1" != "$cmd2" ]; then
-            # Split commands into words and check for overlap
-            WORDS1=$(echo "$cmd1" | tr '-' '\n' | sort)
-            WORDS2=$(echo "$cmd2" | tr '-' '\n' | sort)
+	echo "$COMMANDS" | while read -r cmd2; do
+		if [ "$cmd1" != "$cmd2" ]; then
+			# Split commands into words and check for overlap
+			WORDS1=$(echo "$cmd1" | tr '-' '\n' | sort)
+			WORDS2=$(echo "$cmd2" | tr '-' '\n' | sort)
 
-            # Find common words
-            COMMON=$(comm -12 <(echo "$WORDS1") <(echo "$WORDS2") | grep -v "^$" || true)
+			# Find common words
+			COMMON=$(comm -12 <(echo "$WORDS1") <(echo "$WORDS2") | grep -v "^$" || true)
 
-            if [ -n "$COMMON" ]; then
-                # Only show if we haven't shown this pair before
-                PAIR="${cmd1}|${cmd2}"
-                REVERSE="${cmd2}|${cmd1}"
-                if ! grep -q "^${REVERSE}$" "$TEMP_FILE" 2>/dev/null; then
-                    echo "$PAIR" >> "$TEMP_FILE"
-                    echo -e "${YELLOW}Shared words:${NC} $(echo "$COMMON" | tr '\n' ',' | sed 's/,$//')"
-                    echo "  - /$cmd1"
-                    echo "  - /$cmd2"
-                    echo ""
-                fi
-            fi
-        fi
-    done
-done | head -20  # Limit output
+			if [ -n "$COMMON" ]; then
+				# Only show if we haven't shown this pair before
+				PAIR="${cmd1}|${cmd2}"
+				REVERSE="${cmd2}|${cmd1}"
+				if ! grep -q "^${REVERSE}$" "$TEMP_FILE" 2>/dev/null; then
+					echo "$PAIR" >>"$TEMP_FILE"
+					echo -e "${YELLOW}Shared words:${NC} $(echo "$COMMON" | tr '\n' ',' | sed 's/,$//')"
+					echo "  - /$cmd1"
+					echo "  - /$cmd2"
+					echo ""
+				fi
+			fi
+		fi
+	done
+done | head -20 # Limit output
 
 # Check for common patterns
 echo -e "${BLUE}Commands by first word:${NC}\n"
 
 # Group by first word
 echo "$COMMANDS" | while read -r cmd; do
-    FIRST_WORD=$(echo "$cmd" | cut -d'-' -f1)
-    echo "$FIRST_WORD"
+	FIRST_WORD=$(echo "$cmd" | cut -d'-' -f1)
+	echo "$FIRST_WORD"
 done | sort | uniq -c | sort -rn | while read -r count word; do
-    if [ "$count" -gt 1 ]; then
-        echo -e "${YELLOW}$word-* ($count commands)${NC}"
-        echo "$COMMANDS" | grep "^${word}-" | sed 's/^/  /' || true
-        echo ""
-    fi
+	if [ "$count" -gt 1 ]; then
+		echo -e "${YELLOW}$word-* ($count commands)${NC}"
+		echo "$COMMANDS" | grep "^${word}-" | sed 's/^/  /' || true
+		echo ""
+	fi
 done
 
 # Summary
