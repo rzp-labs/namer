@@ -53,9 +53,10 @@ echo -e "${BLUE}Potential overlaps (commands with shared words):${NC}\n"
 TEMP_FILE=$(mktemp)
 trap 'rm -f "$TEMP_FILE"' EXIT
 
-# List all commands
-echo "$COMMANDS" | while read -r cmd1; do
-	echo "$COMMANDS" | while read -r cmd2; do
+# List all commands and find overlaps (avoiding subshell file I/O)
+OUTPUT_COUNT=0
+while read -r cmd1; do
+	while read -r cmd2; do
 		if [ "$cmd1" != "$cmd2" ]; then
 			# Split commands into words and check for overlap
 			WORDS1=$(echo "$cmd1" | tr '-' '\n' | sort)
@@ -74,11 +75,17 @@ echo "$COMMANDS" | while read -r cmd1; do
 					echo "  - /$cmd1"
 					echo "  - /$cmd2"
 					echo ""
+
+					# Limit output to 20 pairs
+					OUTPUT_COUNT=$((OUTPUT_COUNT + 1))
+					if [ "$OUTPUT_COUNT" -ge 20 ]; then
+						break 2
+					fi
 				fi
 			fi
 		fi
-	done
-done | head -20 # Limit output
+	done <<<"$COMMANDS"
+done <<<"$COMMANDS"
 
 # Check for common patterns
 echo -e "${BLUE}Commands by first word:${NC}\n"

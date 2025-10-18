@@ -1,6 +1,6 @@
 [project]
 name = "namer"
-version = "1.23.6"
+version = "1.23.7"
 description = "A namer of video files based on metadata from the porndb."
 readme = "readme.rst"
 authors = [{ name = "nehpz", email = "admin@rzp.one" }]
@@ -72,6 +72,7 @@ scipy-stubs = "^1.16"
 types-assertpy = "^1.1.0.20250502"
 types-waitress = "^3.0.1.20250801"
 types-requests = "^2.32.4.20250913"
+pre-commit = "^4.3.0"
 
 [tool.ruff]
 exclude = [
