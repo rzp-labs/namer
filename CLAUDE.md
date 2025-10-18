@@ -1924,6 +1924,99 @@ _Reference: Session 2025-10-14 for complete implementation details, command audi
 
 ---
 
+### 25. Test-Driven Bug Fixes and Quality Standards
+
+- **Context:** Session on 2025-10-17 during `feature/maintain-original-filename` branch creation
+- **Key Learnings:**
+
+#### A. Never Skip Repository Standards for "Small" Changes
+- **Anti-Pattern:** "It's only 6 lines of code, so we can skip installing pre-commit hooks"
+- **Correct Approach:** Repository standards are **required** regardless of change size
+- **Reasoning:**
+  - Standards exist to catch issues before they reach production
+  - Skipping standards creates technical debt
+  - "Small" changes can have large impacts
+  - Consistency matters more than convenience
+
+#### B. Missing Dependencies Must Be Fixed, Not Worked Around
+- **Problem:** `pre-commit` was missing from `pyproject.toml` dev dependencies
+- **Anti-Pattern:** Manually running individual tools instead of fixing the root cause
+- **Correct Solution:**
+  ```bash
+  poetry add --group dev pre-commit
+  make setup-dev  # Completes hook installation
+  ```
+- **Impact:** Future developers won't hit the same issue
+
+#### C. Write Tests BEFORE Claiming a Fix Works
+- **Pattern:**
+  1. **Understand the bug** - What behavior is wrong?
+  2. **Write a failing test** - Proves the bug exists
+  3. **Apply the fix** - Changes code to fix the bug
+  4. **Verify test passes** - Proves the fix works
+  5. **Add edge case tests** - Covers partial matches, full matches, no matches
+- **Why:** Tests provide proof the fix actually works and prevent regression
+
+#### D. Don't Lower Quality Bar to Make Tests Pass
+- **Anti-Pattern:** Test failed with "random-unparseable-filename-12345.mp4", so changed to "completely_unparseable_12345.mp4" without investigating WHY
+- **What Happened:**
+  - Assumed first filename was "unparseable"
+  - Regex actually partially matched it (site: "random", name: "unparseable-filename-12345")
+  - Changed input instead of understanding the regex behavior
+- **Correct Approach:**
+  - Investigate WHY the test failed
+  - Understand what the regex actually matches
+  - Test ALL scenarios: full match, partial match, no match
+  - Don't assume - validate with actual behavior
+
+#### E. Comprehensive Test Coverage for All Scenarios
+- **Bug Fix:** `source_file_name` should be preserved for all files, not just regex matches
+- **Test Coverage Required:**
+  1. **Full match** - Regex extracts site, date, name → source_file_name still set ✅
+  2. **Partial match** - Regex extracts site, name but no date → source_file_name still set ✅
+  3. **No match** - Regex fails completely → source_file_name STILL set ✅ (the actual bug fix)
+- **Result:** 3 tests covering all code paths, not just the happy path
+
+#### F. Validate Assumptions with Actual Code Execution
+- **Pattern:**
+  ```bash
+  # Don't assume - test it
+  poetry run python -c "
+  from test.utils import sample_config
+  from namer.fileinfo import parse_file_name
+  result = parse_file_name('test-filename.mp4', sample_config())
+  print(f'site: {result.site}, name: {result.name}')
+  "
+  ```
+- **Why:** Assumptions about regex behavior, code paths, or edge cases are often wrong
+
+#### G. Retroactive Testing is Still Valuable
+- **Scenario:** Fix was already committed (8e59ef8), then tests were added
+- **Learning:** Better late than never - tests added retroactively still:
+  - Prove the fix works
+  - Prevent future regressions
+  - Document expected behavior
+  - Build confidence in the change
+- **Ideal:** Tests first, then fix
+- **Acceptable:** Fix first, tests immediately after
+- **Unacceptable:** Fix without tests
+
+**Commit Pattern (This Session):**
+1. `8e59ef8` - fix: preserve source_file_name for all files (code change)
+2. `1bd51b0` - chore: add pre-commit to dev dependencies (infrastructure fix)
+3. `[next]` - test: add comprehensive tests for source_file_name preservation
+
+**Files Modified:**
+- `namer/fileinfo.py` - Bug fix (6 lines moved outside conditional)
+- `pyproject.toml` + `poetry.lock` - Added pre-commit dependency
+- `test/namer_file_parser_test.py` - Added 3 comprehensive test cases
+
+**Key Principle:** Quality standards exist for a reason. Following them rigorously, even for small changes, prevents accumulation of technical debt and catches issues early.
+
+_Reference: Session 2025-10-17 for complete context on test-driven development, quality standards enforcement, and proper investigation of test failures_
+
+---
+
 ## Release Workflow Best Practices
 
 ### Version Bump Decision Making
