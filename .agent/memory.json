@@ -1,8 +1,8 @@
 {
   "metadata": {
     "version": "1.0.0",
-    "last_updated": "2025-10-17T12:00:00Z",
-    "total_sessions": 22,
+    "last_updated": "2025-10-18T09:30:00Z",
+    "total_sessions": 23,
     "description": "Historical learning data from development sessions. This structured archive preserves rich context and debugging journeys while keeping CLAUDE.md focused on actionable patterns."
   },
   "sessions": [
@@ -939,6 +939,109 @@
           "files_changed": 12,
           "review_comments": 8,
           "time_to_merge": "~90 minutes"
+        }
+      }
+    },
+    {
+      "id": "lesson-028",
+      "date": "2025-10-18",
+      "title": "CHANGELOG Reference Links & Release PR Organization",
+      "category": "release-workflow",
+      "tags": [
+        "changelog",
+        "keep-a-changelog",
+        "automation",
+        "pr-organization",
+        "back-merge"
+      ],
+      "problem": "Two issues discovered during v1.23.7 release: (1) CHANGELOG entries added without reference links at bottom of file, breaking Keep a Changelog format. (2) Created separate PR #163 for CHANGELOG fixes instead of adding to back-merge PR #162, hiding changes from reviewers and fragmenting release history.",
+      "solution": "Immediate fix: Added missing reference links manually for v1.23.7 and v1.23.6. Automation: Updated `/finish` command to auto-add CHANGELOG reference links during back-merge PR creation. PR organization fix: Closed PR #163, cherry-picked commits to back-merge PR #162, deleted unnecessary branch.",
+      "pattern": "CHANGELOG automation pattern: (1) During back-merge PR creation in `/finish`, (2) Determine previous version with `git describe --tags --abbrev=0 v${VERSION}^`, (3) Insert reference link in reverse chronological order using sed, (4) Commit change to back-merge branch before creating PR. PR organization pattern: Release-related fixes belong in back-merge PR, not separate PRs. Back-merge PR should contain: version bump from main + any documentation fixes + CHANGELOG improvements.",
+      "impact": {
+        "roi": "Automation prevents forgetting reference links in future releases. Clear PR organization improves code review quality and release transparency. Cherry-pick workflow demonstrated for moving commits between PRs.",
+        "performance": "Manual fix: 5 minutes to add links. Automation setup: 20 minutes to update command. Future releases: Automatic (0 minutes). PR reorganization: 10 minutes to fix (close, cherry-pick, push, delete).",
+        "quality": "Keep a Changelog format compliance: Reference links enable one-click access to GitHub compare view. Clear format example in CLAUDE.md lesson 28. PR organization prevents hiding changes from reviewers. Complete release history visible in back-merge PR."
+      },
+      "critical_insights": [
+        "Don't create separate PRs for release-related fixes - add to back-merge PR instead",
+        "Back-merge PR is the right place for version sync + documentation improvements",
+        "Reviewers need to see complete picture: version bump + fixes + improvements",
+        "CHANGELOG reference links are easily forgotten without automation",
+        "Keep a Changelog format requires links at bottom: `[version]: https://github.com/owner/repo/compare/vPREV...vCURRENT`",
+        "Automation in back-merge creation ensures links never forgotten",
+        "User feedback critical: 'Why did you open a 2nd PR?' caught organization mistake",
+        "Cherry-pick workflow: close wrong PR → cherry-pick to correct branch → push → delete",
+        "`/finish` command works on Git Flow branches, but understood user intent from develop"
+      ],
+      "related_files": [
+        "CHANGELOG.md",
+        "CLAUDE.md",
+        ".claude/commands/finish.md"
+      ],
+      "related_prs": [
+        "#161",
+        "#162",
+        "#163"
+      ],
+      "code_examples": [
+        {
+          "language": "bash",
+          "label": "CHANGELOG reference link automation",
+          "code": "# In /finish command during back-merge PR creation\n\n# Determine previous version\nPREV_VERSION=$(git describe --tags --abbrev=0 v${VERSION}^ 2>/dev/null | sed 's/^v//')\n\n# Insert reference link in reverse chronological order\nLAST_REF_LINE=$(grep -n '^\\[[0-9]' CHANGELOG.md | head -1 | cut -d: -f1)\nsed -i.bak \"${LAST_REF_LINE}i\\\n[${VERSION}]: https://github.com/nehpz/namer/compare/v${PREV_VERSION}...v${VERSION}\n\" CHANGELOG.md\nrm -f CHANGELOG.md.bak\n\n# Commit to back-merge branch\ngit add CHANGELOG.md\ngit commit -m \"docs: add CHANGELOG reference link for v${VERSION}\""
+        },
+        {
+          "language": "bash",
+          "label": "Cherry-pick commits to correct PR",
+          "code": "# Close wrong PR\ngh pr close 163 --comment \"Moving to back-merge PR #162\"\n\n# Switch to correct branch\ngit checkout backmerge/v1.23.7\n\n# Cherry-pick commits from wrong branch\ngit cherry-pick <commit1> <commit2>\n\n# Push to correct PR\ngit push\n\n# Delete wrong branch\ngit checkout develop\ngit branch -D fix/changelog-reference-links\ngit push origin --delete fix/changelog-reference-links"
+        },
+        {
+          "language": "markdown",
+          "label": "Keep a Changelog reference link format",
+          "code": "## [1.23.7] - 2025-10-18\n### Added\n- Feature description\n\n## [1.23.6] - 2025-10-17\n### Changed\n- Change description\n\n<!-- Reference links at bottom -->\n[1.23.7]: https://github.com/nehpz/namer/compare/v1.23.6...v1.23.7\n[1.23.6]: https://github.com/nehpz/namer/compare/v1.23.3...v1.23.6"
+        }
+      ],
+      "lessons_learned": [
+        "Release-related fixes belong in back-merge PR, not separate PRs",
+        "Back-merge PR shows complete release picture to reviewers",
+        "CHANGELOG reference links required by Keep a Changelog format",
+        "Automation prevents repetitive quality issues (forget twice → automate)",
+        "User feedback catches organization mistakes early",
+        "Cherry-pick workflow useful for moving commits between branches",
+        "Context-aware command interpretation needed (/finish from develop understood intent)",
+        "Documentation improvements belong with version bump in back-merge",
+        ".claude/commands/ directory is gitignored (user-specific config)",
+        "Document automation in CLAUDE.md for team awareness"
+      ],
+      "workflow_summary": {
+        "duration": "~30 minutes",
+        "activities": [
+          "Identified missing CHANGELOG reference links",
+          "Added links manually for v1.23.7 and v1.23.6",
+          "Created PR #163 (wrong approach)",
+          "User feedback: Don't fragment release history",
+          "Closed PR #163 with explanation",
+          "Cherry-picked commits to back-merge PR #162",
+          "Deleted unnecessary branch",
+          "Updated /finish command automation (local)",
+          "Documented lesson 28 in CLAUDE.md",
+          "Merged back-merge PR #162 to develop"
+        ],
+        "mistakes_made": [
+          "Created separate PR #163 instead of adding to PR #162",
+          "Fragmented release history across multiple PRs",
+          "Initially didn't realize reviewers couldn't see CHANGELOG updates"
+        ],
+        "corrections_applied": [
+          "Closed PR #163 immediately after user feedback",
+          "Cherry-picked commits to correct PR #162",
+          "Cleaned up all branches (local and remote)",
+          "Merged complete back-merge PR with all changes visible"
+        ],
+        "automation_added": {
+          "location": ".claude/commands/finish.md",
+          "timing": "During back-merge PR creation",
+          "benefit": "Never forget CHANGELOG reference links again",
+          "pattern": "Quoted heredoc + sed replacement for shell script compatibility"
         }
       }
     }
