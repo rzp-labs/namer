@@ -119,14 +119,20 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
 
     def test_parse_file_name_site_abbreviations(self):
         """
-        Test parsing a name with a TS tag after the date, uncommon, but not unheard of.
+        Test parsing a name with site abbreviations.
+        Verifies that site is expanded for parsing BUT source_file_name preserves original input.
         """
-        name = parse_file_name('bex - 2021-12-07 - Dr. Polla & The Chronic Discharge Conundrum.mp4', sample_config())
+        filename = 'bex - 2021-12-07 - Dr. Polla & The Chronic Discharge Conundrum.mp4'
+        name = parse_file_name(filename, sample_config())
+        # Site should be expanded for parsing
         self.assertEqual(name.site, 'BrazzersExxtra')
         self.assertEqual(name.date, '2021-12-07')
         self.assertEqual(name.name, 'Dr Polla & The Chronic Discharge Conundrum')
         self.assertEqual(name.trans, False)
         self.assertEqual(name.extension, 'mp4')
+        # BUT source_file_name should preserve the ORIGINAL input (before abbreviation expansion)
+        self.assertEqual(name.source_file_name, filename)  # 'bex' not 'BrazzersExxtra'
+        self.assertEqual(name.source_file_stem, 'bex - 2021-12-07 - Dr. Polla & The Chronic Discharge Conundrum')
 
     def test_source_file_name_preserved_on_full_match(self):
         """
