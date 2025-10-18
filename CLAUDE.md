@@ -2195,3 +2195,76 @@ gh pr create --base develop --head backmerge/v1.23.6 \
 **Pattern**: Large PRs acceptable for release branches (consolidating develop work), but feature PRs should remain small.
 
 _Reference: `.agent/memory.json` lesson-027 for complete v1.23.6 release cycle details_
+
+---
+
+### 28. CHANGELOG Reference Link Automation
+
+- **Context:** Session on 2025-10-18 during v1.23.7 release completion
+- **Key Learnings:**
+
+#### A. Keep a Changelog Format Requirements
+- **Problem:** CHANGELOG entries added without reference links
+- **Impact:** Readers cannot easily view release diffs on GitHub
+- **Keep a Changelog Requirement:**
+  ```markdown
+  ## [1.23.7] - 2025-10-18
+  ### Added
+  - Feature description
+
+  [1.23.7]: https://github.com/owner/repo/compare/v1.23.6...v1.23.7
+  ```
+- **Why Important:** Reference links enable one-click access to GitHub compare view
+
+#### B. Automated Reference Link Generation
+- **Solution:** Updated `/finish` command to auto-add reference links
+- **Implementation:**
+  ```bash
+  # Determine previous version
+  PREV_VERSION=$(git describe --tags --abbrev=0 v${VERSION}^ 2>/dev/null | sed 's/^v//')
+
+  # Insert in reverse chronological order (newest first)
+  LAST_REF_LINE=$(grep -n '^\[[0-9]' CHANGELOG.md | head -1 | cut -d: -f1)
+  sed -i.bak "${LAST_REF_LINE}i\\
+  [${VERSION}]: https://github.com/nehpz/namer/compare/v${PREV_VERSION}...v${VERSION}
+  " CHANGELOG.md
+  ```
+- **When:** During back-merge PR creation (both release and hotfix workflows)
+- **Benefit:** Never forget reference links again
+
+#### C. Manual Fix Pattern
+- **When automation is unavailable:** Add links manually after release
+- **Pattern:**
+  ```bash
+  # 1. Determine previous version
+  git describe --tags --abbrev=0 v1.23.7^ # → v1.23.6
+
+  # 2. Add reference link at end of CHANGELOG.md
+  [1.23.7]: https://github.com/owner/repo/compare/v1.23.6...v1.23.7
+
+  # 3. Maintain reverse chronological order (newest first)
+  ```
+
+#### D. Slash Command Configuration
+- **Limitation:** `.claude/commands/` directory is gitignored (user-specific config)
+- **Workaround:** Document improvement in CLAUDE.md for team awareness
+- **Alternative:** Could create a `scripts/add-changelog-ref.sh` script in repo
+- **Decision:** Keep in slash command for now (faster, part of release workflow)
+
+#### E. Quality Gate Checklist
+- **Before completing release:**
+  - ✅ CHANGELOG entry exists with proper heading
+  - ✅ Changes categorized (Added, Fixed, Changed, etc.)
+  - ✅ Reference link added at bottom
+  - ✅ Previous version link still works
+  - ✅ Links follow Keep a Changelog format
+
+**Files Modified:**
+- `CHANGELOG.md` - Added missing reference links for v1.23.7 and v1.23.6
+- `.claude/commands/finish.md` - Added automated reference link generation (local config)
+
+**PR Created:** #163 - docs: add missing CHANGELOG reference links
+
+**Key Principle:** Automation prevents repetitive quality issues. When you forget something twice, automate it.
+
+_Reference: Session 2025-10-18, PR #163 for CHANGELOG reference link fix and automation_

@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.7] - 2025-10-18
+
+### Added
+- Maintain original filename in file metadata (#160)
+  - Preserves `source_file_name` for all files regardless of parsing success
+  - Ensures original filename is available for reference and debugging
+  - Comprehensive test coverage for full match, partial match, and no match scenarios
+
+### Fixed
+- Resolve subshell file I/O breaking deduplication in quick-check.sh
+  - Fixed file descriptor handling in process substitution
+  - Improved reliability of duplicate detection script
+  - Better error handling for edge cases
+
+### Changed
+- Resolve merge conflict in quick-check.sh following backmerge/v1.23.6
+
+### Documentation
+- Fix git log flag typo in zsh compatibility example
+  - Corrected command syntax for cross-shell compatibility
+
 ## [1.23.6] - 2025-10-17
 
 ### Changed
@@ -77,6 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Previous version baseline
 
+[1.23.7]: https://github.com/nehpz/namer/compare/v1.23.6...v1.23.7
+[1.23.6]: https://github.com/nehpz/namer/compare/v1.23.3...v1.23.6
 [1.23.3]: https://github.com/nehpz/namer/compare/v1.22.0...v1.23.3
 [1.23.0]: https://github.com/nehpz/namer/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/nehpz/namer/releases/tag/v1.22.0
