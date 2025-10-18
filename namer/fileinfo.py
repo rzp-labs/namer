@@ -138,6 +138,9 @@ def parse_file_name(filename: str, namer_config: NamerConfig) -> FileInfo:
     path = PurePath(filename)
     file_name_parts = FileInfo()
     file_name_parts.extension = path.suffix[1:]
+    # Always record original source filename/stem for downstream heuristics
+    file_name_parts.source_file_name = filename
+    file_name_parts.source_file_stem = path.stem
     match = regex.search(filename)
     if match:
         if match.groupdict().get('year'):
@@ -156,9 +159,6 @@ def parse_file_name(filename: str, namer_config: NamerConfig) -> FileInfo:
 
         if match.group('ext'):
             file_name_parts.extension = match.group('ext')
-
-        file_name_parts.source_file_name = filename
-        file_name_parts.source_file_stem = path.stem
     else:
         logger.debug('Could not parse target name which may be a file (or directory) name depending on settings and input: {}', filename)
 
