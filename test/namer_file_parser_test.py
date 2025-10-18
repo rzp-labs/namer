@@ -119,13 +119,65 @@ class UnitTestAsTheDefaultExecution(unittest.TestCase):
 
     def test_parse_file_name_site_abbreviations(self):
         """
-        Test parsing a name with a TS tag after the date, uncommon, but not unheard of.
+        Test parsing a name with site abbreviations.
+        Verifies that site is expanded for parsing BUT source_file_name preserves original input.
         """
-        name = parse_file_name('bex - 2021-12-07 - Dr. Polla & The Chronic Discharge Conundrum.mp4', sample_config())
+        filename = 'bex - 2021-12-07 - Dr. Polla & The Chronic Discharge Conundrum.mp4'
+        name = parse_file_name(filename, sample_config())
+        # Site should be expanded for parsing
         self.assertEqual(name.site, 'BrazzersExxtra')
         self.assertEqual(name.date, '2021-12-07')
         self.assertEqual(name.name, 'Dr Polla & The Chronic Discharge Conundrum')
         self.assertEqual(name.trans, False)
+        self.assertEqual(name.extension, 'mp4')
+        # BUT source_file_name should preserve the ORIGINAL input (before abbreviation expansion)
+        self.assertEqual(name.source_file_name, filename)  # 'bex' not 'BrazzersExxtra'
+        self.assertEqual(name.source_file_stem, 'bex - 2021-12-07 - Dr. Polla & The Chronic Discharge Conundrum')
+
+    def test_source_file_name_preserved_on_full_match(self):
+        """
+        Test that source_file_name and source_file_stem are preserved when regex fully matches.
+        """
+        filename = 'EvilAngel.22.01.03.Carmela.Clutch.XXX.mp4'
+        name = parse_file_name(filename, sample_config())
+        # Verify it actually matched
+        self.assertEqual(name.site, 'EvilAngel')
+        self.assertEqual(name.date, '2022-01-03')
+        self.assertEqual(name.name, 'Carmela Clutch')
+        # Source fields should be preserved
+        self.assertEqual(name.source_file_name, filename)
+        self.assertEqual(name.source_file_stem, 'EvilAngel.22.01.03.Carmela.Clutch.XXX')
+
+    def test_source_file_name_preserved_on_partial_match(self):
+        """
+        Test that source_file_name and source_file_stem are preserved when regex partially matches.
+        Some filenames may match the site/name pattern but not have a date.
+        """
+        filename = 'random-unparseable-filename-12345.mp4'
+        name = parse_file_name(filename, sample_config())
+        # Verify partial match occurred
+        self.assertEqual(name.site, 'random')
+        self.assertEqual(name.name, 'unparseable-filename-12345')
+        self.assertIsNone(name.date)
+        # Source fields should still be preserved
+        self.assertEqual(name.source_file_name, filename)
+        self.assertEqual(name.source_file_stem, 'random-unparseable-filename-12345')
+
+    def test_source_file_name_preserved_on_no_match(self):
+        """
+        Test that source_file_name and source_file_stem are preserved even when regex doesn't match at all.
+        This is the critical bug fix - previously these fields would be None for unparseable files.
+        """
+        filename = 'completely_unparseable_12345.mp4'
+        name = parse_file_name(filename, sample_config())
+        # Verify no match occurred
+        self.assertIsNone(name.site)
+        self.assertIsNone(name.date)
+        self.assertIsNone(name.name)
+        # But source fields should STILL be set (this is the bug fix)
+        self.assertEqual(name.source_file_name, filename)
+        self.assertEqual(name.source_file_stem, 'completely_unparseable_12345')
+        # Extension should still be extracted
         self.assertEqual(name.extension, 'mp4')
 
     @patch('sys.stdout', new_callable=io.StringIO)
