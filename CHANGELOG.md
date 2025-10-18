@@ -98,6 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Previous version baseline
 
+[1.23.7]: https://github.com/nehpz/namer/compare/v1.23.6...v1.23.7
+[1.23.6]: https://github.com/nehpz/namer/compare/v1.23.3...v1.23.6
 [1.23.3]: https://github.com/nehpz/namer/compare/v1.22.0...v1.23.3
 [1.23.0]: https://github.com/nehpz/namer/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/nehpz/namer/releases/tag/v1.22.0
