@@ -309,7 +309,9 @@ class StashDBProvider(BaseMetadataProvider):
                             performer {
                                 name
                                 aliases
-                                images
+                                images {
+                                    url
+                                }
                                 gender
                             }
                         }
@@ -374,7 +376,9 @@ class StashDBProvider(BaseMetadataProvider):
                             performer {
                                 name
                                 aliases
-                                images
+                                images {
+                                    url
+                                }
                                 gender
                             }
                         }
@@ -670,7 +674,9 @@ class StashDBProvider(BaseMetadataProvider):
                             performer {
                                 name
                                 aliases
-                                images
+                                images {
+                                    url
+                                }
                                 gender
                             }
                         }
