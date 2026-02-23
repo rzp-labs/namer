@@ -486,7 +486,7 @@ description = "Cross-platform colored terminal text."
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 groups = ["main", "dev"]
-markers = "sys_platform == \"win32\" or platform_system == \"Windows\""
+markers = "platform_system == \"Windows\" or sys_platform == \"win32\""
 files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
@@ -2255,14 +2255,14 @@ wsproto = ">=0.14"
 
 [[package]]
 name = "types-assertpy"
-version = "1.1.0.20250502"
+version = "1.1.0.20260221"
 description = "Typing stubs for assertpy"
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "types_assertpy-1.1.0.20250502-py3-none-any.whl", hash = "sha256:dc025f53b74b7bd75ecb830755af10261908c57fb20df38fd42caaca427c5aac"},
-    {file = "types_assertpy-1.1.0.20250502.tar.gz", hash = "sha256:7735027f3e63f91a1f3a24819024991358f083a40aceb5dd117e5691e9d4a0de"},
+    {file = "types_assertpy-1.1.0.20260221-py3-none-any.whl", hash = "sha256:962066e44985d87d855cd69dec214504b44957d8d1a50f9f9e5a507daf879d36"},
+    {file = "types_assertpy-1.1.0.20260221.tar.gz", hash = "sha256:9245b78463fc7216c2fe9e5dc4e1b544440680af92485c21c6e80d6518f174a0"},
 ]
 
 [[package]]
@@ -2523,4 +2523,4 @@ email = ["email-validator"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.15"
-content-hash = "b3dbad01597c497a8864a3864a1a12e7afd4dfb5dd9592dfc43bad555d9e5ecb"
+content-hash = "afb858754e4e2955285cbd79206e6970ef8334ea638f0e5a2cdd0b1e4e20a318"
