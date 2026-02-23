@@ -97,7 +97,7 @@ jobs:
 
       - name: Upload drift report
         if: steps.drift_check.outputs.drift_detected == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: schema-drift-report
           path: |

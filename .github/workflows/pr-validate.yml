@@ -82,7 +82,7 @@ jobs:
       - name: Upload coverage.xml
         if: always()
         # actions/upload-artifact@v4 pinned to commit SHA
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: coverage-xml
           path: coverage.xml
@@ -92,7 +92,7 @@ jobs:
       - name: Upload junit report
         if: always()
         # actions/upload-artifact@v4 pinned to commit SHA
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: pytest-junit
           path: pytest-junit.xml
@@ -101,7 +101,7 @@ jobs:
 
       - name: Upload lint and test logs
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: pr-validate-logs
           path: |
@@ -195,7 +195,7 @@ jobs:
 
       - name: Upload static analysis results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: static-analysis-logs
           path: |
