@@ -41,7 +41,7 @@ jobs:
 
       - name: Cache Poetry
         # actions/cache@v4 pinned to commit SHA
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
         with:
           path: |
             ~/.cache/pypoetry
@@ -52,7 +52,7 @@ jobs:
 
       - name: Cache pnpm store
         # actions/cache@v4 pinned to commit SHA
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
         with:
           path: |
             ~/.local/share/pnpm/store
@@ -128,7 +128,7 @@ jobs:
         run: pipx install poetry
 
       - name: Cache Poetry
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306
         with:
           path: |
             ~/.cache/pypoetry
